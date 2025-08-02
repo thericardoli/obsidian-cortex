@@ -1,34 +1,146 @@
 /**
- * Session 管理模块的类型定义
- *
- * 用于管理对话历史和上下文窗口。
+ * Session 管理模块的类型定义（对齐 OpenAI Agents SDK 输入/输出项）
  */
 
 /**
- * 对话项目接口 - 表示对话中的一条记录
+ * 多模态内容片段类型（与 Agents SDK 对齐的精简版）
  */
-export interface ConversationItem {
-	id: string;
-	/** 角色：user、assistant、system、tool */
-	role: "user" | "assistant" | "system" | "tool";
-	/** 消息内容 */
+export type InputTextPart = {
+	type: "input_text";
+	text: string;
+	providerData?: Record<string, unknown>;
+};
+export type OutputTextPart = {
+	type: "output_text";
+	text: string;
+	providerData?: Record<string, unknown>;
+};
+export type RefusalPart = {
+	type: "refusal";
+	refusal: string;
+	providerData?: Record<string, unknown>;
+};
+export type ImageInputPart = {
+	type: "input_image";
+	image: string | { id: string };
+	providerData?: Record<string, unknown>;
+};
+export type ImageOutputPart = {
+	type: "image";
+	image: string;
+	providerData?: Record<string, unknown>;
+};
+export type FileInputPart = {
+	type: "input_file";
+	file: string | { id: string };
+	providerData?: Record<string, unknown>;
+};
+export type AudioPart = {
+	type: "audio";
+	audio: string | { id: string };
+	format?: string | null;
+	transcript?: string | null;
+	providerData?: Record<string, unknown>;
+};
+
+export type UserContentPart =
+	| InputTextPart
+	| ImageInputPart
+	| FileInputPart
+	| AudioPart;
+export type AssistantContentPart =
+	| RefusalPart
+	| OutputTextPart
+	| AudioPart
+	| ImageOutputPart;
+
+export type UserMessageItem = {
+	type?: "message";
+	id?: string;
+	providerData?: Record<string, unknown>;
+	role: "user";
+	content: string | UserContentPart[];
+};
+
+export type AssistantMessageItem = {
+	type?: "message";
+	id?: string;
+	providerData?: Record<string, unknown>;
+	role: "assistant";
+	status: "in_progress" | "completed" | "incomplete";
+	content: AssistantContentPart[];
+};
+
+export type SystemMessageItem = {
+	type?: "message";
+	id?: string;
+	providerData?: Record<string, unknown>;
+	role: "system";
 	content: string;
-	/** 时间戳 */
-	timestamp: number;
-	/** 工具调用信息（如果是工具相关） */
-	toolCall?: {
-		id: string;
-		name: string;
-		arguments: Record<string, unknown>;
-	};
-	/** 工具结果（如果是工具响应） */
-	toolResult?: {
-		toolCallId: string;
-		result: unknown;
-	};
-	/** 附加元数据 */
-	metadata?: Record<string, unknown>;
-}
+};
+
+export type HostedToolCallItem = {
+	type: "hosted_tool_call";
+	id?: string;
+	name: string;
+	arguments?: string;
+	output?: string;
+	providerData?: Record<string, unknown>;
+	status?: string;
+};
+
+export type FunctionCallItem = {
+	type: "function_call";
+	id?: string;
+	callId: string;
+	name: string;
+	arguments: string;
+	providerData?: Record<string, unknown>;
+	status?: "in_progress" | "completed" | "incomplete";
+};
+
+export type FunctionCallResultItem = {
+	type: "function_call_result";
+	id?: string;
+	callId: string;
+	name: string;
+	output:
+		| { type: "text"; text: string; providerData?: Record<string, unknown> }
+		| {
+				type: "image";
+				data: string;
+				mediaType: string;
+				providerData?: Record<string, unknown>;
+		};
+	providerData?: Record<string, unknown>;
+	status?: "in_progress" | "completed" | "incomplete";
+};
+
+export type ReasoningItem = {
+	type: "reasoning";
+	id?: string;
+	content: object[];
+	providerData?: Record<string, unknown>;
+};
+
+export type UnknownItem = {
+	type: "unknown";
+	id?: string;
+	providerData?: Record<string, unknown>;
+};
+
+/**
+ * Agent 输入/输出联合类型（用于会话存储）
+ */
+export type AgentItem =
+	| UserMessageItem
+	| AssistantMessageItem
+	| SystemMessageItem
+	| HostedToolCallItem
+	| FunctionCallItem
+	| FunctionCallResultItem
+	| ReasoningItem
+	| UnknownItem;
 
 /**
  * Session 配置选项
@@ -46,7 +158,7 @@ export interface SessionOptions {
 }
 
 /**
- * Session 接口 
+ * Session 接口
  *
  */
 export interface ISession {
@@ -54,23 +166,19 @@ export interface ISession {
 	readonly sessionId: string;
 
 	/**
-	 * 获取对话历史项目
-	 * @param limit 可选的限制数量，用于控制上下文窗口大小
-	 * @returns 对话项目列表，按时间顺序排序
+	 * 获取对话历史项目（按时间顺序）。
+	 * 对齐 SDK：推荐以 AgentItem 作为主要存储类型。
 	 */
-	getItems(limit?: number): Promise<ConversationItem[]>;
+	getItems(limit?: number): Promise<AgentItem[]>;
 
-	/**
-	 * 添加新的对话项目
-	 * @param items 要添加的项目列表
-	 */
-	addItems(items: ConversationItem[]): Promise<void>;
+	/** 添加新项目（支持 AgentItem 或旧 ConversationItem 的自动适配） */
+	addItems(items: AgentItem[]): Promise<void>;
 
 	/**
 	 * 移除并返回最近的一个项目（用于撤销操作）
 	 * @returns 被移除的项目，如果没有项目则返回 null
 	 */
-	popItem(): Promise<ConversationItem | null>;
+	popItem(): Promise<AgentItem | null>;
 
 	/**
 	 * 清空当前 session 的所有项目
@@ -78,19 +186,14 @@ export interface ISession {
 	clearSession(): Promise<void>;
 
 	/**
-	 * 获取 session 的统计信息
-	 */
-	getStats(): Promise<{
-		itemCount: number;
-		totalTokens?: number;
-		firstItemTimestamp?: number;
-		lastItemTimestamp?: number;
-	}>;
-
-	/**
 	 * 释放资源（关闭数据库连接等）
 	 */
 	dispose(): Promise<void>;
+
+	/**
+	 * 将当前会话历史转换为可直接用于 run 的 AgentInputItem[]
+	 */
+	toAgentInputHistory(options?: ToAgentInputHistoryOptions): Promise<AgentInputItem[]>; // 运行时来自 OpenAI Agent SDK 的 AgentInputItem 类型
 }
 
 /**
@@ -98,9 +201,9 @@ export interface ISession {
  */
 export interface SessionEvents {
 	/** 当添加新项目时触发 */
-	itemAdded: (items: ConversationItem[]) => void;
+	itemAdded: (items: AgentItem[]) => void;
 	/** 当项目被移除时触发 */
-	itemRemoved: (item: ConversationItem) => void;
+	itemRemoved: (item: AgentItem) => void;
 	/** 当 session 被清空时触发 */
 	sessionCleared: () => void;
 	/** 当发生错误时触发 */
@@ -135,3 +238,18 @@ export interface SessionContext {
 		truncationStrategy?: "oldest" | "newest" | "intelligent";
 	};
 }
+
+/**
+ * 将当前会话历史转换为可直接用于 run 的 AgentInputItem[] 的选项
+ */
+export interface ToAgentInputHistoryOptions {
+	/** 是否包含 HostedToolCalls */
+	includeHostedToolCalls?: boolean; // 默认包含
+	/** 是否包含 Reasoning 项 */
+	includeReasoning?: boolean; // 默认不包含
+	/** 是否包含 Unknown 项 */
+	includeUnknown?: boolean; // 默认不包含
+}
+
+// 为了在不强耦合实现的前提下提供强类型，这里仅做类型导入
+export type AgentInputItem = import('@openai/agents').AgentInputItem;

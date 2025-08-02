@@ -112,23 +112,6 @@ export class SessionManager extends EventEmitter {
     }
 
     /**
-     * 获取所有 Sessions 的统计信息
-     */
-    public async getAllStats(): Promise<Record<string, { itemCount: number; totalTokens?: number; firstItemTimestamp?: number; lastItemTimestamp?: number; error?: string }>> {
-        const stats: Record<string, { itemCount: number; totalTokens?: number; firstItemTimestamp?: number; lastItemTimestamp?: number; error?: string }> = {};
-        
-        for (const [sessionId, session] of this.sessions) {
-            try {
-                stats[sessionId] = await session.getStats();
-            } catch (error) {
-                stats[sessionId] = { itemCount: 0, error: error instanceof Error ? error.message : 'Unknown error' };
-            }
-        }
-        
-        return stats;
-    }
-
-    /**
      * 生成唯一的 Session ID
      */
     private generateSessionId(): string {
