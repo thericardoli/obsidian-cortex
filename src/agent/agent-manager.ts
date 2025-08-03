@@ -124,7 +124,7 @@ export class AgentManager {
                 ...agentConfig.modelConfig.settings,
                 // 透传工具相关设置
                 toolChoice: agentConfig.modelConfig.settings?.toolChoice ?? 'auto',
-                parallelToolUse: agentConfig.modelConfig.settings?.parallelToolUse ?? false,
+                parallelToolUse: agentConfig.modelConfig.settings?.parallelToolCalls ?? false,
             },
             tools: tools as never[], // 类型断言以避免编译错误
         };
@@ -193,7 +193,7 @@ export class AgentManager {
                     
                     const agentAsTool = targetAgent.asTool({
                         toolName: agentToolConfig.name,
-                        toolDescription: agentToolConfig.description || `Call agent ${agentToolConfig.targetAgentId}`,
+                        toolDescription: agentToolConfig.description,
                         customOutputExtractor: agentToolConfig.customOutputExtractor || ((output) => {
                             // 默认的输出提取器：提取最终输出文本
                             return typeof output === 'string' ? output : 

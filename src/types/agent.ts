@@ -18,7 +18,7 @@ export const ModelSettingsSchema = z
 
 		// Tool
 		toolChoice: ToolChoiceSchema.default("auto"),
-		parallelToolUse: z.boolean().default(false),
+		parallelToolCalls: z.boolean().default(false),
 	})
 	.strict();
 
