@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ToolConfigSchema } from "../types/tool";
 
 // Tool choice types
 export const ToolChoiceSchema = z.union([
@@ -17,7 +18,7 @@ export const ModelSettingsSchema = z
 
 		// Tool
 		toolChoice: ToolChoiceSchema.default("auto"),
-		paralleTlToolUse: z.boolean().default(false),
+		parallelToolUse: z.boolean().default(false),
 	})
 	.strict();
 
@@ -33,23 +34,6 @@ export const ModelConfigSchema = z
 	.strict();
 
 export type ModelConfig = z.infer<typeof ModelConfigSchema>;
-
-// Tool configuration schema
-export const ToolConfigSchema = z
-	.object({
-		type: z.enum(["builtin", "custom", "mcp", "agent"]),
-		name: z.string().min(1),
-		enabled: z.boolean().default(true),
-		// 对于function tools的详细配置
-		description: z.string().optional(),
-		parameters: z.record(z.any()).optional(), // JSON schema for parameters
-		strict: z.boolean().optional(),
-		needsApproval: z.boolean().default(false), // 是否需要人工批准
-		config: z.record(z.any()).optional(),
-	})
-	.strict();
-
-export type ToolConfig = z.infer<typeof ToolConfigSchema>;
 
 // Output type configuration
 export const OutputTypeSchema = z.union([

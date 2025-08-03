@@ -1,7 +1,11 @@
 import { AgentManager } from './agent/agent-manager';
 import { ProviderManager } from './providers/provider-manager';
 import type { ProviderConfig, AgentConfigInput, AgentConfig } from './types';
+import type { ToolConfig } from './types/tool';
 import type { Agent } from "@openai/agents";
+
+// 工具执行器函数类型
+type ToolExecutor = (args: unknown, context?: unknown) => Promise<unknown> | unknown;
 
 export class CortexManager {
     private agentManager: AgentManager;
@@ -56,5 +60,35 @@ export class CortexManager {
             config: agentConfig,
             instance: agentInstance
         };
+    }
+
+    // Tool management - 公开工具管理接口
+    registerFunctionToolExecutor(name: string, executor: ToolExecutor): void {
+        this.agentManager.registerFunctionToolExecutor(name, executor);
+    }
+
+    unregisterFunctionToolExecutor(name: string): void {
+        this.agentManager.unregisterFunctionToolExecutor(name);
+    }
+
+    async addTool(agentId: string, toolConfig: ToolConfig): Promise<void> {
+        return this.agentManager.addTool(agentId, toolConfig);
+    }
+
+    async removeTool(agentId: string, toolName: string): Promise<void> {
+        return this.agentManager.removeTool(agentId, toolName);
+    }
+
+    listTools(agentId: string): ToolConfig[] {
+        return this.agentManager.listTools(agentId);
+    }
+
+    // Agent retrieval
+    getAgent(id: string): AgentConfig | undefined {
+        return this.agentManager.getAgent(id);
+    }
+
+    listAgents(): AgentConfig[] {
+        return this.agentManager.listAgents();
     }
 }
