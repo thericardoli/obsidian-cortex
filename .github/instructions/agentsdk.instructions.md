@@ -1,5 +1,5 @@
 ---
-applyTo: '*.ts'
+applyTo: '**'
 ---
 
 由于该项目使用了OpenAI Agent SDK，该SDK并没有包括在你的预训练数据集中，因此在撰写和OpenAI Agent SDK有关的代码或解决和其有关的问题时，你都需要首先使用Context7查阅文档以及使用DeepWiki来获取相关问题的解答
