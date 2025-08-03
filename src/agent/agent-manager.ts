@@ -1,9 +1,12 @@
 import { Agent } from "@openai/agents";
-import type { AgentConfig, AgentConfigInput } from '../types/agent';
+import { webSearchTool, fileSearchTool, codeInterpreterTool, imageGenerationTool } from '@openai/agents-openai';
+import type { Tool } from "@openai/agents";
+
+import type { AgentConfig, AgentConfigInput, UpdateAgentConfigInput } from '../types/agent';
+import { AgentConfigInputSchema, UpdateAgentConfigInputSchema } from '../types/agent';
 import type { ToolConfig, AgentAsToolConfig } from '../types/tool';
 import { ProviderManager } from '../providers';
 
-// 工具执行器函数类型
 type ToolExecutor = (args: unknown, context?: unknown) => Promise<unknown> | unknown;
 
 export class AgentManager {
@@ -17,9 +20,11 @@ export class AgentManager {
     }
 
     async createAgent(config: AgentConfigInput): Promise<AgentConfig> {
+        const validatedConfig = AgentConfigInputSchema.parse(config);
+        
         const agent: AgentConfig = {
             id: crypto.randomUUID(),
-            ...config,
+            ...validatedConfig,
             createdAt: Date.now(),
             updatedAt: Date.now(),
         };
@@ -85,13 +90,15 @@ export class AgentManager {
         return Array.from(this.agents.values());
     }
 
-    updateAgent(id: string, updates: Partial<AgentConfigInput>): void {
+    updateAgent(id: string, updates: UpdateAgentConfigInput): void {
+        const validatedUpdates = UpdateAgentConfigInputSchema.parse(updates);
+        
         const agentConfig = this.agents.get(id);
         if (!agentConfig) {
             throw new Error(`Agent with id ${id} not found`);
         }
 
-        Object.assign(agentConfig, updates, { updatedAt: Date.now() });
+        Object.assign(agentConfig, validatedUpdates, { updatedAt: Date.now() });
     }
 
     deleteAgent(id: string): void {
@@ -126,7 +133,7 @@ export class AgentManager {
                 toolChoice: agentConfig.modelConfig.settings?.toolChoice ?? 'auto',
                 parallelToolUse: agentConfig.modelConfig.settings?.parallelToolCalls ?? false,
             },
-            tools: tools as never[], // 类型断言以避免编译错误
+            tools: tools, // 移除 as never[] 类型断言
         };
 
         const agent = new Agent(agentConfiguration);
@@ -136,9 +143,9 @@ export class AgentManager {
     /**
      * 将 ToolConfig[] 转换为 SDK 可用的 Tool[]
      */
-    private async convertToolsToSDKTools(agentConfig: AgentConfig): Promise<unknown[]> {
+    private async convertToolsToSDKTools(agentConfig: AgentConfig): Promise<Tool[]> {
         const { tool } = await import("@openai/agents");
-        const tools: unknown[] = [];
+        const tools: Tool[] = [];
 
         // 处理配置的工具
         for (const toolConfig of agentConfig.tools) {
@@ -163,21 +170,35 @@ export class AgentManager {
                         description: toolConfig.description || '',
                         parameters: toolConfig.parameters || {},
                         strict: toolConfig.strict ?? true,
-                        execute: async (args: unknown, context?: unknown) => {
-                            return await executor(args, context);
-                        }
+                        needsApproval: toolConfig.needsApproval ?? false,
+                        execute: async (args: unknown, runContext?: unknown) => executor(args, runContext),
                     });
                     tools.push(functionTool);
                     break;
                 }
                 case 'hosted': {
-                    // 构建 HostedTool
-                    const hostedTool = {
-                        type: 'hosted_tool' as const,
-                        name: toolConfig.name,
-                        providerData: toolConfig.providerData || {}
-                    };
-                    tools.push(hostedTool);
+                    const hosted = (() => {
+                        switch (toolConfig.name) {
+                            case 'web_search': 
+                                return webSearchTool(toolConfig.providerData || {});
+                            case 'file_search': {
+                                const vectorStoreIds = toolConfig.providerData?.vectorStoreIds;
+                                if (!vectorStoreIds) {
+                                    console.warn(`file_search tool requires vectorStoreIds in providerData`);
+                                    return null;
+                                }
+                                return fileSearchTool(vectorStoreIds, toolConfig.providerData || {});
+                            }
+                            case 'code_interpreter': 
+                                return codeInterpreterTool(toolConfig.providerData || {});
+                            case 'image_generation': 
+                                return imageGenerationTool(toolConfig.providerData || {});
+                            default:
+                                console.warn(`Unknown hosted tool: ${toolConfig.name}`); 
+                                return null;
+                        }
+                    })();
+                    if (hosted) tools.push(hosted);
                     break;
                 }
                 case 'agent': {
