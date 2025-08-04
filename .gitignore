@@ -23,3 +23,6 @@ data.json
 
 .spec
 example/
+
+.github/instructions/
+.github/prompts/
