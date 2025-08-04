@@ -1,4 +1,4 @@
-import { ISession, SessionOptions } from '../types/session';
+import type { ISession, SessionOptions } from '../types/session';
 import { MemorySession } from './memory-session';
 import { EventEmitter } from 'events';
 
