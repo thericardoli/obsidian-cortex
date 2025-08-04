@@ -1,1 +1,0 @@
-Generate a commit message for the current staged changes, strictly following the AngularJS Git Commit Message Conventions, and write it in English.
