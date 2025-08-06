@@ -1,5 +1,6 @@
 import type { DatabaseManager } from "../database-manager";
 import type { AgentConfig } from "../../types/agent";
+import { rowToAgentConfig } from "../mappers/agent-mapper";
 
 export class AgentRepository {
 	constructor(private dbm: DatabaseManager) {}
@@ -39,21 +40,28 @@ export class AgentRepository {
 		`;
 	}
 
-	async get(id: string): Promise<Record<string, unknown> | null> {
+	async get(id: string): Promise<AgentConfig | null> {
 		const db = this.dbm.getDatabase();
 		const { rows } = await db.sql`SELECT * FROM agents WHERE id=${id}`;
-		return (rows[0] as Record<string, unknown>) ?? null;
+		const row = rows[0] as Record<string, unknown>;
+		return row ? rowToAgentConfig(row) : null;
 	}
 
-	async list(): Promise<Record<string, unknown>[]> {
+	async list(): Promise<AgentConfig[]> {
 		const db = this.dbm.getDatabase();
 		const { rows } =
 			await db.sql`SELECT * FROM agents ORDER BY updated_at DESC`;
-		return rows as Record<string, unknown>[];
+		return (rows as Record<string, unknown>[]).map(rowToAgentConfig);
 	}
 
 	async remove(id: string): Promise<void> {
 		const db = this.dbm.getDatabase();
 		await db.sql`DELETE FROM agents WHERE id=${id}`;
+	}
+
+	async exists(id: string): Promise<boolean> {
+		const db = this.dbm.getDatabase();
+		const { rows } = await db.sql`SELECT 1 FROM agents WHERE id=${id} LIMIT 1`;
+		return rows.length > 0;
 	}
 }

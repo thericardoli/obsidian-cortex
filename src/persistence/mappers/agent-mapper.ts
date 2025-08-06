@@ -8,22 +8,13 @@ export function rowToAgentConfig(row: Record<string, unknown>): AgentConfig {
 		createdAt: new Date(row.created_at as string).getTime(),
 		updatedAt: new Date(row.updated_at as string).getTime(),
 		modelConfig: {
-			provider: row.provider as string,
+			provider: row.model_provider as string,
 			model: row.model as string,
-			settings: (row.settings as Record<string, unknown>) ?? {}
+			settings: (row.model_settings as Record<string, unknown>) ?? {}
 		},
 		tools: (row.tools as unknown[]) ?? [],
 		inputGuardrails: (row.input_guardrails as unknown[]) ?? [],
 		outputGuardrails: (row.output_guardrails as unknown[]) ?? [],
 		mcpServers: (row.mcp_servers as unknown[]) ?? [],
-		// outputType 可选：根据 row.output_type_kind / output_type_schema 还原
-		...(row.output_type_kind
-			? {
-					outputType:
-						row.output_type_kind === 'text'
-							? 'text'
-							: (row.output_type_schema ?? undefined),
-				}
-			: {}),
 	} as AgentConfig;
 }

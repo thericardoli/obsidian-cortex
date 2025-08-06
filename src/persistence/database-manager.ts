@@ -1,16 +1,15 @@
 import { PGlite } from "@electric-sql/pglite";
 import type { Plugin } from "obsidian";
-import { FileSystemAdapter } from "obsidian";
-
-export type PGliteBackend = "idb" | "file";
 
 export interface DatabaseOptions {
-	/** 'idb'（默认，推荐先用）或 'file'（桌面端 NodeFS） */
-	backend?: PGliteBackend;
-	/** backend='file'时的数据目录（可选，不填则使用默认路径） */
-	fileDir?: string;
-	/** backend='idb'时的库名（可选） */
-	idbName?: string;
+	/**
+	 * 预加载的 WebAssembly 模块
+	 */
+	wasmModule?: WebAssembly.Module;
+	/**
+	 * 预加载的文件系统包
+	 */
+	fsBundle?: Blob | File;
 }
 
 const CURRENT_SCHEMA_VERSION = 1;
@@ -24,31 +23,33 @@ export class DatabaseManager {
 	async initialize(): Promise<void> {
 		if (this.initialized) return;
 
-		const backend = this.opts.backend ?? "idb";
-		let connStr: string;
+		try {
+			// 使用 IndexedDB 存储
+			const dataDir = 'idb://cortex-db';
+			console.log('Using IndexedDB storage for PGlite:', dataDir);
 
-		if (backend === "file") {
-			const adapter = this.plugin.app.vault.adapter;
-			if (adapter instanceof FileSystemAdapter) {
-				const basePath = (adapter as FileSystemAdapter).getBasePath();
-				// 默认数据目录：<vault>/.obsidian/plugins/<plugin-id>/pglite
-				const defaultDir = `${basePath}/${this.plugin.app.vault.configDir}/plugins/${this.plugin.manifest.id}/pglite`;
-				connStr = this.opts.fileDir ?? defaultDir;
+			// 优先使用预加载的 WASM 模块和文件系统包
+			if (this.opts.wasmModule && this.opts.fsBundle) {
+				console.log('Initializing PGlite with preloaded WASM module and fsBundle');
+				this.db = await PGlite.create({
+					wasmModule: this.opts.wasmModule,
+					fsBundle: this.opts.fsBundle,
+					dataDir: dataDir
+				});
 			} else {
-				// 非 NodeFS 环境下自动回退到 idb
-				connStr = `idb://${
-					this.opts.idbName ?? `${this.plugin.manifest.id}-pglite`
-				}`;
+				// 使用 IndexedDB 存储，避免文件系统路径问题
+				console.log('Initializing PGlite with IndexedDB storage:', dataDir);
+				this.db = await PGlite.create(dataDir);
 			}
-		} else {
-			connStr = `idb://${
-				this.opts.idbName ?? `${this.plugin.manifest.id}-pglite`
-			}`;
-		}
 
-		this.db = await PGlite.create(connStr); // 推荐使用 create() 等待 ready
-		await this.runMigrations();
-		this.initialized = true;
+			await this.runMigrations();
+			this.initialized = true;
+		} catch (error) {
+			console.error('Failed to initialize PGlite database:', error);
+			console.error('This is likely due to import.meta.url issues in Electron environment.');
+			console.error('Please provide preloaded wasmModule and fsBundle in DatabaseOptions.');
+			throw new Error('Failed to initialize PGlite database. Use preloaded resources to avoid import.meta.url issues.');
+		}
 	}
 
 	private async runMigrations(): Promise<void> {
