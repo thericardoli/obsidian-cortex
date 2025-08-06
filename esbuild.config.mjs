@@ -41,7 +41,12 @@ const context = await esbuild.context({
 	treeShaking: true,
 	outfile: "main.js",
 	minify: prod,
+	loader: {
+		'.wasm': 'binary',
+		'.data': 'binary',
+	},
 	plugins: [
+		// importMetaUrlPlugin, // 暂时禁用，通过 PGliteResourceLoader 解决
 		esbuildSvelte({
 		compilerOptions: { css: 'injected' },
 		preprocess: sveltePreprocess(),
