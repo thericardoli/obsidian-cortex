@@ -4,9 +4,9 @@ import { OpenAIProvider } from "@openai/agents-openai";
 
 import type { ProviderConfig, IProvider } from "../types";
 
-export class OpenAICompatibleProvider implements IProvider {
+export class OpenAIProvider_Custom implements IProvider {
 	private _config: ProviderConfig;
-	private _openaiCompatibleProvider: OpenAIProvider | null = null;
+	private _openaiProvider: OpenAIProvider | null = null;
 	private _initialized = false;
 
 	constructor(config: ProviderConfig) {
@@ -15,21 +15,17 @@ export class OpenAICompatibleProvider implements IProvider {
 
 	async initialize(): Promise<void> {
 		if (!this._config.apiKey) {
-			throw new Error("API key is required for OpenAICompatibleProvider");
+			throw new Error("API key is required for OpenAI Provider");
 		}
-        if (!this._config.baseUrl) {
-            throw new Error("Base URL is required for OpenAICompatibleProvider");
-        }
 
-		const customOpenAIClient = new OpenAI({
+		const openAIClient = new OpenAI({
 			apiKey: this._config.apiKey,
-			baseURL: this._config.baseUrl,
 			dangerouslyAllowBrowser: true,
 		});
 
 		// Initialize the OpenAI provider with the provided configuration
-		this._openaiCompatibleProvider = new OpenAIProvider({
-			openAIClient: customOpenAIClient,
+		this._openaiProvider = new OpenAIProvider({
+			openAIClient,
 			useResponses: false, // Disable response api
 		});
 
@@ -37,11 +33,11 @@ export class OpenAICompatibleProvider implements IProvider {
 	}
 
 	async getModel(modelName: string): Promise<Model> {
-		if (!this._openaiCompatibleProvider) {
+		if (!this._openaiProvider) {
 			throw new Error("Provider not initialized");
 		}
-		// Fetch the model from the OpenAI Compatible provider
-		return this._openaiCompatibleProvider.getModel(modelName);
+		// Fetch the model from the OpenAI provider
+		return this._openaiProvider.getModel(modelName);
 	}
 
 	getId(): string {

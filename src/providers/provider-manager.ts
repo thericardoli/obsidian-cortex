@@ -1,6 +1,7 @@
 import type { Model } from "@openai/agents-core";
 import type { ProviderConfig, IProvider } from "../types";
 import { OpenAICompatibleProvider } from "./openai-compatible";
+import { OpenAIProvider_Custom } from "./openai";
 
 export class ProviderManager {
     private providers: Map<string, IProvider> = new Map();
@@ -12,6 +13,8 @@ export class ProviderManager {
 
         switch (config.providerType) {
             case "OpenAI":
+                provider = new OpenAIProvider_Custom(config);
+                break;
             case "OpenAICompatible":
                 provider = new OpenAICompatibleProvider(config);
                 break;
