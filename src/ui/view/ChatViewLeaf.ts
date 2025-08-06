@@ -50,7 +50,6 @@ export class ChatViewLeaf extends ItemView {
             props: {
                 agentManager: this.agentManager,
                 providerManager: this.providerManager,
-                workspaceLeaf: this.leaf,
                 app: this.app
             }
         });

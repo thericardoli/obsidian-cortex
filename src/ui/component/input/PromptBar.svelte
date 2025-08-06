@@ -1,31 +1,12 @@
 <script lang="ts">
-	import type { AgentConfig } from '../../../types';
-	
-	type Provider = {
-		id: string;
-		name: string;
-	};
-
 	let {
-		availableAgents = [],
-		availableProviders = [],
-		selectedAgent = null,
-		selectedProvider = '',
 		canSend = false,
 		isLoading = false,
-		onSendMessage,
-		onAgentChange,
-		onProviderChange
+		onSendMessage
 	}: {
-		availableAgents: AgentConfig[];
-		availableProviders: Provider[];
-		selectedAgent: AgentConfig | null;
-		selectedProvider: string;
 		canSend: boolean;
 		isLoading: boolean;
 		onSendMessage: (text: string) => void;
-		onAgentChange: (agent: AgentConfig) => void;
-		onProviderChange: (providerId: string) => void;
 	} = $props();
 
 	// State
@@ -44,7 +25,7 @@
 			
 			// Calculate new height based on content
 			const scrollHeight = textareaElement.scrollHeight;
-			const minHeight = 100; // Minimum height in pixels
+			const minHeight = 40; // Minimum height in pixels
 			const maxHeight = 160; // Maximum height in pixels (about 6-7 lines)
 			
 			// Set height within bounds
@@ -54,7 +35,6 @@
 	});
 
 	function handleSend() {
-		console.log('handleSend called:', { canSendMessage, inputText, canSend, isInputEmpty, isLoading });
 		if (!canSendMessage) return;
 		
 		const text = inputText.trim();
@@ -70,55 +50,9 @@
 			handleSend();
 		}
 	}
-
-	function handleAgentSelect(event: Event) {
-		const target = event.target as HTMLSelectElement;
-		const agentId = target.value;
-		const agent = availableAgents.find(a => a.id === agentId);
-		if (agent) {
-			onAgentChange(agent);
-		}
-	}
-
-	function handleProviderSelect(event: Event) {
-		const target = event.target as HTMLSelectElement;
-		onProviderChange(target.value);
-	}
 </script>
 
 <div class="prompt-bar">
-	<div class="controls-row">
-		<div class="selector-group">
-			<label for="agent-select">Agent:</label>
-			<select 
-				id="agent-select"
-				value={selectedAgent?.id || ''}
-				onchange={handleAgentSelect}
-				disabled={isLoading}
-			>
-				<option value="" disabled>Select an agent</option>
-				{#each availableAgents as agent (agent.id)}
-					<option value={agent.id}>{agent.name}</option>
-				{/each}
-			</select>
-		</div>
-
-		<div class="selector-group">
-			<label for="provider-select">Provider:</label>
-			<select 
-				id="provider-select"
-				value={selectedProvider}
-				onchange={handleProviderSelect}
-				disabled={isLoading}
-			>
-				<option value="" disabled>Select a provider</option>
-				{#each availableProviders as provider (provider.id)}
-					<option value={provider.id}>{provider.name}</option>
-				{/each}
-			</select>
-		</div>
-	</div>
-
 	<div class="input-row">
 		<div class="input-container">
 			<textarea
@@ -162,50 +96,6 @@
 		padding: 1rem;
 		background: var(--background-primary);
 		border-top: 1px solid var(--background-modifier-border);
-	}
-
-	.controls-row {
-		display: flex;
-		gap: 1rem;
-		align-items: center;
-		flex-wrap: wrap;
-	}
-
-	.selector-group {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		flex: 1;
-		min-width: 200px;
-	}
-
-	.selector-group label {
-		font-size: 0.875rem;
-		font-weight: 500;
-		color: var(--text-normal);
-		white-space: nowrap;
-	}
-
-	.selector-group select {
-		flex: 1;
-		padding: 0.375rem 0.75rem;
-		border: 1px solid var(--background-modifier-border);
-		border-radius: 0.375rem;
-		background: var(--background-primary);
-		color: var(--text-normal);
-		font-size: 0.875rem;
-		cursor: pointer;
-	}
-
-	.selector-group select:disabled {
-		opacity: 0.6;
-		cursor: not-allowed;
-	}
-
-	.selector-group select:focus {
-		outline: none;
-		border-color: var(--interactive-accent);
-		box-shadow: 0 0 0 2px var(--interactive-accent-rgb), 0.2;
 	}
 
 	.input-row {
@@ -290,16 +180,4 @@
 		color: currentColor;
 	}
 
-	/* Responsive adjustments */
-	@media (max-width: 600px) {
-		.controls-row {
-			flex-direction: column;
-			gap: 0.5rem;
-		}
-
-		.selector-group {
-			width: 100%;
-			min-width: unset;
-		}
-	}
 </style>

@@ -14,12 +14,10 @@
 	let { 
 		agentManager,
 		providerManager,
-		workspaceLeaf,
 		app
 	}: {
 		agentManager: AgentManager;
 		providerManager: ProviderManager;
-		workspaceLeaf: WorkspaceLeaf;
 		app: App;
 	} = $props();
 
@@ -52,16 +50,12 @@
 		const agents = availableAgents;
 		const providers = availableProviders;
 		
-		console.log('Initializing component:', { agents, providers });
-		
 		if (agents.length > 0 && !selectedAgent) {
 			selectedAgent = agents[0];
-			console.log('Selected default agent:', selectedAgent);
 		}
 		
 		if (providers.length > 0 && !selectedProvider) {
 			selectedProvider = providers[0].id;
-			console.log('Selected default provider:', selectedProvider);
 		}
 
 		initialized = true;
@@ -224,6 +218,20 @@
 			onAgentSelect={handleAgentChange}
 			onCreateAgent={handleOpenAgentView}
 		/>
+		<div class="selector-group">
+			<label for="provider-select">Provider:</label>
+			<select
+				id="provider-select"
+				value={selectedProvider}
+				onchange={(e) => handleProviderChange(e.currentTarget.value)}
+				disabled={isLoading}
+			>
+				<option value="" disabled>Select a provider</option>
+				{#each availableProviders as provider (provider.id)}
+					<option value={provider.id}>{provider.name}</option>
+				{/each}
+			</select>
+		</div>
 	</div>
 	
 	<ChatPanel 
@@ -233,15 +241,9 @@
 	/>
 	
 	<PromptBar
-		availableAgents={availableAgents}
-		availableProviders={availableProviders}
-		{selectedAgent}
-		{selectedProvider}
 		{canSend}
 		{isLoading}
 		onSendMessage={handleSendMessage}
-		onAgentChange={handleAgentChange}
-		onProviderChange={handleProviderChange}
 	/>
 </div>
 
@@ -257,5 +259,14 @@
 		flex-shrink: 0;
 		padding: 8px 16px;
 		border-bottom: 1px solid var(--background-modifier-border);
+		display: flex;
+		gap: 16px;
+		align-items: center;
+	}
+
+	.selector-group {
+		display: flex;
+		align-items: center;
+		gap: 8px;
 	}
 </style>
