@@ -1,23 +1,26 @@
 <script lang="ts">
-	import { tick, onMount } from 'svelte';
+	import { onMount } from 'svelte';
 	import { run } from '@openai/agents';
 	import type { AgentManager } from '../../agent/agent-manager';
 	import type { ProviderManager } from '../../providers/provider-manager';
-	import type { WorkspaceLeaf } from 'obsidian';
+	import type { WorkspaceLeaf, App } from 'obsidian';
 	import type { Agent } from '@openai/agents';
 	import type { AgentConfig } from '../../types';
 	import ChatPanel from '../component/layout/ChatPanel.svelte';
 	import PromptBar from '../component/input/PromptBar.svelte';
+	import AgentSelector from '../component/agent/AgentSelector.svelte';
 
 	// Props
 	let { 
 		agentManager,
 		providerManager,
-		workspaceLeaf
+		workspaceLeaf,
+		app
 	}: {
 		agentManager: AgentManager;
 		providerManager: ProviderManager;
 		workspaceLeaf: WorkspaceLeaf;
+		app: App;
 	} = $props();
 
 	// State
@@ -202,9 +205,27 @@
 			createAgentInstance();
 		}
 	}
+
+	function handleOpenAgentView() {
+		// Get the workspace and open agent view
+		const workspace = app.workspace;
+		workspace.getLeaf(true).setViewState({
+			type: 'cortex-agent-view',
+			active: true
+		});
+	}
 </script>
 
 <div class="chat-view">
+	<div class="chat-header">
+		<AgentSelector
+			agents={availableAgents}
+			{selectedAgent}
+			onAgentSelect={handleAgentChange}
+			onCreateAgent={handleOpenAgentView}
+		/>
+	</div>
+	
 	<ChatPanel 
 		{messages} 
 		{isLoading}
@@ -230,5 +251,11 @@
 		flex-direction: column;
 		height: 100%;
 		background: var(--background-primary);
+	}
+
+	.chat-header {
+		flex-shrink: 0;
+		padding: 8px 16px;
+		border-bottom: 1px solid var(--background-modifier-border);
 	}
 </style>
