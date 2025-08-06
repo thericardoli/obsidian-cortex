@@ -1,6 +1,6 @@
 import type { ISession, SessionOptions } from '../types/session';
-import { MemorySession } from './memory-session';
 import { EventEmitter } from 'events';
+import type { PersistenceManager } from '../persistence/persistence-manager';
 
 /**
  * Session 管理器
@@ -10,56 +10,179 @@ import { EventEmitter } from 'events';
 export class SessionManager extends EventEmitter {
     private sessions: Map<string, ISession> = new Map();
     private defaultOptions: Partial<SessionOptions> = {};
+    private persistenceManager?: PersistenceManager;
 
-    constructor(defaultOptions?: Partial<SessionOptions>) {
+    constructor(defaultOptions?: Partial<SessionOptions>, persistenceManager?: PersistenceManager) {
         super();
         if (defaultOptions) {
             this.defaultOptions = { ...this.defaultOptions, ...defaultOptions };
         }
+        this.persistenceManager = persistenceManager;
     }
 
     /**
-     * 创建新的 Session
+     * 设置 PersistenceManager（用于后续设置）
      */
-    public createSession(sessionId?: string, options?: Partial<SessionOptions>): ISession {
-        const id = sessionId || this.generateSessionId();
-        
-        if (this.sessions.has(id)) {
-            throw new Error(`Session with id ${id} already exists`);
+    public setPersistenceManager(persistenceManager: PersistenceManager): void {
+        this.persistenceManager = persistenceManager;
+    }
+
+    /**
+     * 创建 Session
+     */
+    public async createChatSession(sessionId: string): Promise<ISession> {
+        if (this.sessions.has(sessionId)) {
+            throw new Error(`Session with id ${sessionId} already exists`);
         }
 
-        const sessionOptions: SessionOptions = {
-            sessionId: id,
-            ...this.defaultOptions,
-            ...options
-        };
-
-        const session = new MemorySession(sessionOptions);
+        const { chatSession } = await import('./chat-session');
         
-        // 监听 session 事件
-        session.on('error', (error) => {
-            this.emit('sessionError', { sessionId: id, error });
-        });
+        let sessionRepo = undefined;
+        if (this.persistenceManager) {
+            sessionRepo = this.persistenceManager.getSessionRepository();
+        }
 
-        session.on('itemAdded', (items) => {
-            this.emit('sessionItemAdded', { sessionId: id, items });
+        const session = new chatSession({
+            sessionId,
+            repo: sessionRepo
         });
+        
+        // 监听 session 事件（如果支持）
+        if ('on' in session && typeof session.on === 'function') {
+            session.on('error', (error: Error) => {
+                this.emit('sessionError', { sessionId, error });
+            });
+        }
 
-        session.on('sessionCleared', () => {
-            this.emit('sessionCleared', { sessionId: id });
-        });
-
-        this.sessions.set(id, session);
-        this.emit('sessionCreated', { sessionId: id });
+        this.sessions.set(sessionId, session);
+        this.emit('sessionCreated', { sessionId });
 
         return session;
     }
 
     /**
-     * 获取现有的 Session
+     * 创建 Session
      */
-    public getSession(sessionId: string): ISession | null {
+    public async createSession(sessionId: string): Promise<ISession> {
+        return this.createChatSession(sessionId);
+    }
+
+    /**
+     * 获取现有的 Session（优先从内存，如果不存在则尝试从数据库加载）
+     */
+    public async getSession(sessionId: string): Promise<ISession | null> {
+        // 首先检查内存缓存
+        const cachedSession = this.sessions.get(sessionId);
+        if (cachedSession) {
+            return cachedSession;
+        }
+
+        // 如果内存中没有，尝试从数据库加载
+        if (this.persistenceManager) {
+            const sessionRepo = this.persistenceManager.getSessionRepository();
+            try {
+                const exists = await sessionRepo.exists(sessionId);
+                if (exists) {
+                    // 从数据库加载session
+                    const sessionInfo = await sessionRepo.getSessionInfo(sessionId);
+                    if (sessionInfo) {
+                        return await this.loadExistingSession(sessionId);
+                    }
+                }
+            } catch (error) {
+                this.emit('sessionError', { sessionId, error });
+                console.error(`Failed to load session ${sessionId} from database:`, error);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * 同步获取内存中的 Session
+     */
+    public getSessionFromMemory(sessionId: string): ISession | null {
         return this.sessions.get(sessionId) || null;
+    }
+
+    /**
+     * 从数据库加载已存在的 Session
+     */
+    private async loadExistingSession(sessionId: string): Promise<ISession> {
+        const { chatSession } = await import('./chat-session');
+        
+        let sessionRepo = undefined;
+        if (this.persistenceManager) {
+            sessionRepo = this.persistenceManager.getSessionRepository();
+        }
+
+        const session = new chatSession({
+            sessionId,
+            repo: sessionRepo
+        });
+        
+        // 监听 session 事件（如果支持）
+        if ('on' in session && typeof session.on === 'function') {
+            session.on('error', (error: Error) => {
+                this.emit('sessionError', { sessionId, error });
+            });
+        }
+
+        // 将session添加到内存缓存
+        this.sessions.set(sessionId, session);
+        this.emit('sessionLoaded', { sessionId });
+
+        return session;
+    }
+
+    /**
+     * 获取所有Session列表（包括数据库中的）
+     */
+    public async getAllSessions(limit = 20): Promise<Array<{ id: string; name?: string; createdAt?: string; updatedAt?: string }>> {
+        if (!this.persistenceManager) {
+            // 如果没有持久化管理器，只返回内存中的sessions
+            const memorySessions = Array.from(this.sessions.entries())
+                .map(([id, _]) => ({ id }));
+            return memorySessions.slice(0, limit);
+        }
+
+        const sessionRepo = this.persistenceManager.getSessionRepository();
+        try {
+            const sessions = await sessionRepo.list(limit);
+            return sessions.map((row: Record<string, unknown>) => ({
+                id: row.id as string,
+                name: row.name as string | undefined,
+                createdAt: row.created_at as string | undefined,
+                updatedAt: row.updated_at as string | undefined
+            }));
+        } catch (error) {
+            this.emit('sessionError', { error });
+            console.error(`Failed to list sessions:`, error);
+            return [];
+        }
+    }
+
+    /**
+     * 创建一个新的Session（确保不与现有session冲突）
+     */
+    public async createNewSession(sessionId?: string): Promise<ISession> {
+        const newSessionId = sessionId || this.generateSessionId();
+        
+        // 检查内存中是否已存在
+        if (this.sessions.has(newSessionId)) {
+            throw new Error(`Session with id ${newSessionId} already exists in memory`);
+        }
+
+        // 检查数据库中是否已存在
+        if (this.persistenceManager) {
+            const sessionRepo = this.persistenceManager.getSessionRepository();
+            const exists = await sessionRepo.exists(newSessionId);
+            if (exists) {
+                throw new Error(`Session with id ${newSessionId} already exists in database`);
+            }
+        }
+
+        return this.createChatSession(newSessionId);
     }
 
     /**
@@ -114,7 +237,7 @@ export class SessionManager extends EventEmitter {
     /**
      * 生成唯一的 Session ID
      */
-    private generateSessionId(): string {
+    public generateSessionId(): string {
         const timestamp = Date.now();
         const random = Math.random().toString(36).substring(2, 15);
         return `session_${timestamp}_${random}`;

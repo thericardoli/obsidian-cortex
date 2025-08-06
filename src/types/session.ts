@@ -210,34 +210,7 @@ export interface SessionEvents {
 	error: (error: Error) => void;
 }
 
-/**
- * Session 工厂函数的选项
- */
-export interface CreateSessionOptions extends SessionOptions {
-	/** Session 类型 */
-	type: "memory" | "pglite" | "custom";
-	/** 自定义 session 类（当 type 为 'custom' 时使用） */
-	customSessionClass?: new (options: SessionOptions) => ISession;
-}
 
-/**
- * 用于 Agent 运行的 Session 上下文
- */
-export interface SessionContext {
-	/** 当前使用的 session */
-	session: ISession;
-	/** 是否自动保存对话历史 */
-	autoSave: boolean;
-	/** 上下文窗口配置 */
-	contextWindow: {
-		/** 最大令牌数 */
-		maxTokens?: number;
-		/** 最大项目数 */
-		maxItems?: number;
-		/** 截断策略：'oldest' | 'newest' | 'intelligent' */
-		truncationStrategy?: "oldest" | "newest" | "intelligent";
-	};
-}
 
 /**
  * 将当前会话历史转换为可直接用于 run 的 AgentInputItem[] 的选项

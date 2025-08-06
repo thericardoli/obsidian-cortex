@@ -4,25 +4,33 @@
  */
 
 import { globalSessionManager } from './session-manager';
-import { MemorySession } from './memory-session';
-import type { ISession, SessionOptions } from '../types/session';
+import type { ISession } from '../types/session';
 
 /**
- * 创建新的 Session
- * @param sessionId 可选的 Session ID，如果不提供则自动生成
+ * 创建新的 Session（使用智能缓存）
+ * @param sessionId Session ID
  * @returns 新创建的 Session 实例
  */
-export async function createSession(sessionId?: string): Promise<ISession> {
+export async function createSession(sessionId: string): Promise<ISession> {
     return await globalSessionManager.createSession(sessionId);
 }
 
 /**
- * 获取指定 ID 的 Session
+ * 获取指定 ID 的 Session（异步版本，支持从数据库加载）
  * @param sessionId Session ID
- * @returns Session 实例，如果不存在则返回 undefined
+ * @returns Session 实例，如果不存在则返回 null
  */
-export function getSession(sessionId: string): ISession | undefined {
-    return globalSessionManager.getSession(sessionId) || undefined;
+export async function getSession(sessionId: string): Promise<ISession | null> {
+    return await globalSessionManager.getSession(sessionId);
+}
+
+/**
+ * 获取指定 ID 的 Session（同步版本，仅从内存获取）
+ * @param sessionId Session ID
+ * @returns Session 实例，如果不存在则返回 null
+ */
+export function getSessionFromMemory(sessionId: string): ISession | null {
+    return globalSessionManager.getSessionFromMemory(sessionId);
 }
 
 /**
@@ -58,15 +66,29 @@ export async function clearAllSessions(): Promise<void> {
 }
 
 /**
- * 创建内存 Session 的便捷函数
- * @param sessionId Session ID
- * @param options Session 配置选项（可选）
- * @returns MemorySession 实例
+ * 创建新的 Session（确保不冲突）
+ * @param sessionId 可选的 Session ID，如果不提供则自动生成
+ * @returns 新创建的 Session 实例
  */
-export function createMemorySession(sessionId: string, options?: Partial<SessionOptions>): MemorySession {
-    const sessionOptions: SessionOptions = {
-        sessionId,
-        ...options
-    };
-    return new MemorySession(sessionOptions);
+export async function createNewSession(sessionId?: string): Promise<ISession> {
+    return await globalSessionManager.createNewSession(sessionId);
+}
+
+/**
+ * 获取所有Session列表
+ * @param limit 限制返回数量，默认20
+ * @returns Session列表
+ */
+export async function getAllSessions(
+    limit = 20
+): Promise<Array<{ id: string; name?: string; createdAt?: string; updatedAt?: string }>> {
+    return await globalSessionManager.getAllSessions(limit);
+}
+
+/**
+ * 生成唯一的Session ID
+ * @returns 新的Session ID
+ */
+export function generateSessionId(): string {
+    return globalSessionManager.generateSessionId();
 }

@@ -6,8 +6,8 @@
 // 类型定义
 export * from '../types/session';
 
-// Session 实现
-export { MemorySession } from './memory-session';
+// Session 实现 - 统一使用智能缓存 Session
+export { chatSession as CachedSession } from './chat-session';
 
 // Session 管理器  
 export { SessionManager, globalSessionManager } from './session-manager';
@@ -16,9 +16,12 @@ export { SessionManager, globalSessionManager } from './session-manager';
 export { 
     createSession, 
     getSession, 
+    getSessionFromMemory,
     deleteSession, 
     getAllSessionIds, 
     getSessionCount, 
-    clearAllSessions, 
-    createMemorySession 
+    clearAllSessions,
+    createNewSession,
+    getAllSessions,
+    generateSessionId
 } from './session-utils';
