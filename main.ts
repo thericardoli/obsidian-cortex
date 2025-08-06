@@ -1,20 +1,23 @@
 import { Plugin, WorkspaceLeaf } from 'obsidian';
-import { CortexManager } from './src/cortex-manager';
+import { AgentManager } from './src/agent/agent-manager';
+import { ProviderManager } from './src/providers/provider-manager';
 import { ChatViewLeaf, VIEW_TYPE_CHAT } from './src/ui/view/ChatViewLeaf';
 
 export default class CortexPlugin extends Plugin {
-    private cortexManager: CortexManager;
+    private agentManager: AgentManager;
+    private providerManager: ProviderManager;
 
     async onload() {
         console.log('Loading Cortex Plugin');
 
-        // Initialize the Cortex Manager
-        this.cortexManager = new CortexManager();
+        // Initialize the managers
+        this.providerManager = new ProviderManager();
+        this.agentManager = new AgentManager(this.providerManager);
 
         // Register the chat view
         this.registerView(
             VIEW_TYPE_CHAT,
-            (leaf) => new ChatViewLeaf(leaf, this.cortexManager)
+            (leaf) => new ChatViewLeaf(leaf, this.agentManager, this.providerManager)
         );
 
         // Add command to open chat view

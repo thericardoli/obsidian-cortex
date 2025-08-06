@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { tick, onMount } from 'svelte';
 	import { run } from '@openai/agents';
-	import type { CortexManager } from '../../cortex-manager';
+	import type { AgentManager } from '../../agent/agent-manager';
+	import type { ProviderManager } from '../../providers/provider-manager';
 	import type { WorkspaceLeaf } from 'obsidian';
 	import type { Agent } from '@openai/agents';
 	import type { AgentConfig } from '../../types';
@@ -10,10 +11,12 @@
 
 	// Props
 	let { 
-		cortexManager,
+		agentManager,
+		providerManager,
 		workspaceLeaf
 	}: {
-		cortexManager: CortexManager;
+		agentManager: AgentManager;
+		providerManager: ProviderManager;
 		workspaceLeaf: WorkspaceLeaf;
 	} = $props();
 
@@ -27,8 +30,11 @@
 	let initialized = $state(false);
 
 	// Derived state
-	const availableAgents = $derived(cortexManager.listAgents());
-	const availableProviders = $derived(cortexManager.getAvailableProviders());
+	const availableAgents = $derived(agentManager.listAgents());
+	const availableProviders = $derived(providerManager.getEnabledProviders().map(p => ({
+		id: p.getId(),
+		name: p.getName()
+	})));
 	const canSend = $derived(selectedAgent !== null && selectedProvider !== '' && !isLoading);
 
 	// Initialize component
@@ -85,7 +91,7 @@
 		
 		try {
 			isLoading = true;
-			currentAgentInstance = await cortexManager.createAgentInstance(selectedAgent.id);
+			currentAgentInstance = await agentManager.createAgentInstance(selectedAgent.id);
 		} catch (error) {
 			console.error('Failed to create agent instance:', error);
 			// Could emit error event or show notification here

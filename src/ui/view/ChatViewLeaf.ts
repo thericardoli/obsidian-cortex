@@ -5,17 +5,20 @@
 
 import { ItemView, WorkspaceLeaf } from 'obsidian';
 import ChatView from './ChatView.svelte';
-import type { CortexManager } from '../../cortex-manager';
+import type { AgentManager } from '../../agent/agent-manager';
+import type { ProviderManager } from '../../providers/provider-manager';
 
 export const VIEW_TYPE_CHAT = 'cortex-side-chat-view';
 
 export class ChatViewLeaf extends ItemView {
     private chatViewComponent: ReturnType<typeof import('svelte').mount> | null = null;
-    private cortexManager: CortexManager;
+    private agentManager: AgentManager;
+    private providerManager: ProviderManager;
 
-    constructor(leaf: WorkspaceLeaf, cortexManager: CortexManager) {
+    constructor(leaf: WorkspaceLeaf, agentManager: AgentManager, providerManager: ProviderManager) {
         super(leaf);
-        this.cortexManager = cortexManager;
+        this.agentManager = agentManager;
+        this.providerManager = providerManager;
     }
 
     getViewType(): string {
@@ -45,7 +48,8 @@ export class ChatViewLeaf extends ItemView {
         this.chatViewComponent = mount(ChatView, {
             target: this.contentEl,
             props: {
-                cortexManager: this.cortexManager,
+                agentManager: this.agentManager,
+                providerManager: this.providerManager,
                 workspaceLeaf: this.leaf
             }
         });
@@ -64,11 +68,11 @@ export class ChatViewLeaf extends ItemView {
     // Optional: Method to refresh the view when agents/providers change
     public refreshAgents(): void {
         // Since we're using reactive Svelte components, 
-        // the view should automatically update when the cortexManager state changes
+        // the view should automatically update when the manager state changes
         // This method could be used to force a refresh if needed
         if (this.chatViewComponent) {
-            // The component will automatically react to changes in cortexManager
-            console.log('Chat view will automatically refresh based on cortex manager changes');
+            // The component will automatically react to changes in managers
+            console.log('Chat view will automatically refresh based on manager changes');
         }
     }
 }
