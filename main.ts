@@ -3,7 +3,6 @@ import { AgentManager } from './src/agent/agent-manager';
 import { ProviderManager } from './src/providers/provider-manager';
 import { PersistenceManager, PGliteResourceLoader } from './src/persistence';
 import { ChatViewLeaf, VIEW_TYPE_CHAT } from './src/ui/view/ChatViewLeaf';
-import { AgentViewLeaf, VIEW_TYPE_AGENT } from './src/ui/view/AgentViewLeaf';
 import { CortexSettingTab } from './src/ui/settings/CortexSettingTab';
 import type { PluginSettings, CreateProviderInput } from './src/types';
 import { DEFAULT_SETTINGS, PluginSettingsSchema } from './src/types';
@@ -71,12 +70,6 @@ export default class CortexPlugin extends Plugin {
                 (leaf) => new ChatViewLeaf(leaf, this.agentManager, this.providerManager)
             );
 
-            // Register the agent view
-            this.registerView(
-                VIEW_TYPE_AGENT,
-                (leaf) => new AgentViewLeaf(leaf, this.agentManager, this.providerManager)
-            );
-
             // Register settings tab
             this.addSettingTab(new CortexSettingTab(this.app, this));
 
@@ -89,15 +82,6 @@ export default class CortexPlugin extends Plugin {
                 name: 'Open Cortex Chat',
                 callback: () => {
                     this.activateChatView();
-                }
-            });
-
-            // Add command to open agent view
-            this.addCommand({
-                id: 'open-cortex-agents',
-                name: 'Open Cortex Agents',
-                callback: () => {
-                    this.activateAgentView();
                 }
             });
 
@@ -140,29 +124,6 @@ export default class CortexPlugin extends Plugin {
             leaf = workspace.getRightLeaf(false);
             if (leaf) {
                 await leaf.setViewState({ type: VIEW_TYPE_CHAT, active: true });
-            }
-        }
-
-        // Reveal the leaf
-        if (leaf) {
-            workspace.revealLeaf(leaf);
-        }
-    }
-
-    async activateAgentView() {
-        const { workspace } = this.app;
-
-        let leaf: WorkspaceLeaf | null = null;
-        const leaves = workspace.getLeavesOfType(VIEW_TYPE_AGENT);
-
-        if (leaves.length > 0) {
-            // An agent view already exists, focus it
-            leaf = leaves[0];
-        } else {
-            // No agent view exists, create one
-            leaf = workspace.getRightLeaf(false);
-            if (leaf) {
-                await leaf.setViewState({ type: VIEW_TYPE_AGENT, active: true });
             }
         }
 
