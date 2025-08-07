@@ -44,6 +44,26 @@ export class OpenAICompatibleProvider implements IProvider {
 		return this._openaiCompatibleProvider.getModel(modelName);
 	}
 
+	async getAvailableModels(): Promise<string[]> {
+		if (!this._config.apiKey || !this._config.baseUrl) {
+			throw new Error("Provider not initialized - API key and base URL are required");
+		}
+
+		try {
+			const customOpenAIClient = new OpenAI({
+				apiKey: this._config.apiKey,
+				baseURL: this._config.baseUrl,
+				dangerouslyAllowBrowser: true,
+			});
+
+			const modelsPage = await customOpenAIClient.models.list();
+			return modelsPage.data.map(model => model.id);
+		} catch (error) {
+			console.error("Failed to fetch available models:", error);
+			throw new Error("Failed to fetch available models from OpenAI Compatible provider");
+		}
+	}
+
 	getId(): string {
 		return this._config.id;
 	}

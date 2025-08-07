@@ -42,6 +42,19 @@ export class ProviderManager {
         return provider.getModel(modelName);
     }
 
+    async getAvailableModels(providerId: string): Promise<string[]> {
+        const provider = this.providers.get(providerId);
+        if (!provider) {
+            throw new Error(`Provider with id '${providerId}' not found`);
+        }
+
+        if (!provider.isInitialized()) {
+            await provider.initialize();
+        }
+
+        return provider.getAvailableModels();
+    }
+
     getProvider(providerId: string): IProvider | undefined {
         return this.providers.get(providerId);
     }

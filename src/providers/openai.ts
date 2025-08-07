@@ -40,6 +40,25 @@ export class OpenAIProvider_Custom implements IProvider {
 		return this._openaiProvider.getModel(modelName);
 	}
 
+	async getAvailableModels(): Promise<string[]> {
+		if (!this._config.apiKey) {
+			throw new Error("Provider not initialized - API key is required");
+		}
+
+		try {
+			const openAIClient = new OpenAI({
+				apiKey: this._config.apiKey,
+				dangerouslyAllowBrowser: true,
+			});
+
+			const modelsPage = await openAIClient.models.list();
+			return modelsPage.data.map(model => model.id);
+		} catch (error) {
+			console.error("Failed to fetch available models:", error);
+			throw new Error("Failed to fetch available models from OpenAI");
+		}
+	}
+
 	getId(): string {
 		return this._config.id;
 	}

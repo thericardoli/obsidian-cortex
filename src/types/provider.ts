@@ -21,6 +21,7 @@ export type ProviderConfig = z.infer<typeof ProviderConfigSchema>;
 export interface IProvider {
     initialize(): Promise<void>;
     getModel(modelName: string): Promise<Model>;
+	getAvailableModels(): Promise<string[]>;
     getId(): string;
     getName(): string;
     isInitialized(): boolean;
