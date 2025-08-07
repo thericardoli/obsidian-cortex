@@ -1,32 +1,29 @@
 <script lang="ts">
 	import type { AgentConfig } from '../../../types';
 	
-	type Provider = {
-		id: string;
-		name: string;
-	};
+    type ModelGroup = { providerId: string; providerName: string; items: { key: string; label: string; modelId: string }[] };
 
 	let {
-		availableAgents = [],
-		availableProviders = [],
-		selectedAgent = null,
-		selectedProvider = '',
-		canSend = false,
-		isLoading = false,
-		onSendMessage,
-		onAgentChange,
-		onProviderChange
-	}: {
-		availableAgents: AgentConfig[];
-		availableProviders: Provider[];
-		selectedAgent: AgentConfig | null;
-		selectedProvider: string;
-		canSend: boolean;
-		isLoading: boolean;
-		onSendMessage: (text: string) => void;
-		onAgentChange: (agent: AgentConfig) => void;
-		onProviderChange: (providerId: string) => void;
-	} = $props();
+        availableAgents = [],
+        modelGroups = [],
+        selectedAgent = null,
+        selectedModelKey = '',
+        canSend = false,
+        isLoading = false,
+        onSendMessage,
+        onAgentChange,
+        onModelChange
+    }: {
+        availableAgents: AgentConfig[];
+        modelGroups: ModelGroup[];
+        selectedAgent: AgentConfig | null;
+        selectedModelKey: string;
+        canSend: boolean;
+        isLoading: boolean;
+        onSendMessage: (text: string) => void;
+        onAgentChange: (agent: AgentConfig) => void;
+        onModelChange: (key: string) => void;
+    } = $props();
 
 	// State
 	let inputText = $state('');
@@ -80,10 +77,10 @@
 		}
 	}
 
-	function handleProviderSelect(event: Event) {
-		const target = event.target as HTMLSelectElement;
-		onProviderChange(target.value);
-	}
+    function handleModelSelect(event: Event) {
+        const target = event.target as HTMLSelectElement;
+        onModelChange(target.value);
+    }
 </script>
 
 <div class="prompt-bar">
@@ -103,20 +100,24 @@
 			</select>
 		</div>
 
-		<div class="selector-group">
-			<label for="provider-select">Provider:</label>
-			<select 
-				id="provider-select"
-				value={selectedProvider}
-				onchange={handleProviderSelect}
-				disabled={isLoading}
-			>
-				<option value="" disabled>Select a provider</option>
-				{#each availableProviders as provider (provider.id)}
-					<option value={provider.id}>{provider.name}</option>
-				{/each}
-			</select>
-		</div>
+        <div class="selector-group">
+            <label for="model-select">Model:</label>
+            <select 
+                id="model-select"
+                value={selectedModelKey}
+                onchange={handleModelSelect}
+                disabled={isLoading}
+            >
+                <option value="" disabled>Select a model</option>
+                {#each modelGroups as group (group.providerId)}
+                    <optgroup label={group.providerName}>
+                        {#each group.items as item (item.key)}
+                            <option value={item.key}>{item.label}</option>
+                        {/each}
+                    </optgroup>
+                {/each}
+            </select>
+        </div>
 	</div>
 
 	<div class="input-row">
@@ -186,16 +187,18 @@
 		white-space: nowrap;
 	}
 
-	.selector-group select {
-		flex: 1;
-		padding: 0.375rem 0.75rem;
-		border: 1px solid var(--background-modifier-border);
-		border-radius: 0.375rem;
-		background: var(--background-primary);
-		color: var(--text-normal);
-		font-size: 0.875rem;
-		cursor: pointer;
-	}
+    .selector-group select {
+        flex: 1;
+        padding: 0.375rem 0.75rem;
+        border: 1px solid var(--background-modifier-border);
+        border-radius: 0.375rem;
+        background: var(--background-primary);
+        color: var(--text-normal);
+        font-size: 0.875rem;
+        cursor: pointer;
+    }
+
+    /* removed search input */
 
 	.selector-group select:disabled {
 		opacity: 0.6;

@@ -2,30 +2,32 @@
 	import { onMount } from 'svelte';
 	import { run } from '@openai/agents';
 	import type { AgentManager } from '../../agent/agent-manager';
-	import type { ProviderManager } from '../../providers/provider-manager';
-	import type { WorkspaceLeaf, App } from 'obsidian';
-	import type { Agent } from '@openai/agents';
-	import type { AgentConfig } from '../../types';
-	import ChatPanel from '../component/layout/ChatPanel.svelte';
-	import PromptBar from '../component/input/PromptBar.svelte';
+    import type { ProviderManager } from '../../providers/provider-manager';
+    import type { WorkspaceLeaf, App } from 'obsidian';
+    import type { Agent } from '@openai/agents';
+    import type { AgentConfig } from '../../types';
+    import ChatPanel from '../component/layout/ChatPanel.svelte';
+    import PromptBar from '../component/input/PromptBar.svelte';
 
 	// Props
-	let { 
-		agentManager,
-		providerManager,
-		workspaceLeaf,
-		app
-	}: {
-		agentManager: AgentManager;
-		providerManager: ProviderManager;
-		workspaceLeaf: WorkspaceLeaf;
-		app: App;
-	} = $props();
+    let { 
+        agentManager,
+        providerManager,
+        getSettings,
+        workspaceLeaf,
+        app
+    }: {
+        agentManager: AgentManager;
+        providerManager: ProviderManager;
+        getSettings: () => import('../../types').PluginSettings;
+        workspaceLeaf: WorkspaceLeaf;
+        app: App;
+    } = $props();
 
 	// State
 	let messages = $state<Array<{ id: string; role: 'user' | 'assistant'; content: string; timestamp: number }>>([]);
 	let selectedAgent = $state<AgentConfig | null>(null);
-	let selectedProvider = $state<string>('');
+    let selectedModelKey = $state<string>(''); // format: `${providerId}::${modelId}`
 	let isLoading = $state(false);
 	let currentAgentInstance = $state<Agent | null>(null);
 	let chatContainer = $state<HTMLElement>();
@@ -33,11 +35,21 @@
 
 	// Derived state
 	const availableAgents = $derived(agentManager.listAgents());
-	const availableProviders = $derived(providerManager.getEnabledProviders().map(p => ({
-		id: p.getId(),
-		name: p.getName()
-	})));
-	const canSend = $derived(selectedAgent !== null && selectedProvider !== '' && !isLoading);
+    type GroupedModel = { providerId: string; providerName: string; items: { key: string; label: string; modelId: string }[] };
+    const availableModelGroups = $derived((() => {
+        const settings = getSettings();
+        const groups: GroupedModel[] = [];
+        for (const p of settings.providers) {
+            const items = (p.models || []).map(m => ({
+                key: `${p.id}::${m.modelId}`,
+                label: m.displayName,
+                modelId: m.modelId,
+            }));
+            groups.push({ providerId: p.id, providerName: p.name, items });
+        }
+        return groups;
+    })());
+    const canSend = $derived(selectedAgent !== null && selectedModelKey !== '' && !isLoading);
 
 	// Initialize component
 	onMount(() => {
@@ -49,19 +61,22 @@
 
 	function initializeComponent() {
 		const agents = availableAgents;
-		const providers = availableProviders;
+        const groups = availableModelGroups;
 		
-		console.log('Initializing component:', { agents, providers });
+        console.log('Initializing component:', { agents, groups });
 		
 		if (agents.length > 0 && !selectedAgent) {
 			selectedAgent = agents[0];
 			console.log('Selected default agent:', selectedAgent);
 		}
 		
-		if (providers.length > 0 && !selectedProvider) {
-			selectedProvider = providers[0].id;
-			console.log('Selected default provider:', selectedProvider);
-		}
+        if (!selectedModelKey) {
+            const first = groups.find(g => g.items.length > 0)?.items[0];
+            if (first) {
+                selectedModelKey = first.key;
+                console.log('Selected default model:', selectedModelKey);
+            }
+        }
 
 		initialized = true;
 	}
@@ -102,8 +117,8 @@
 		}
 	}
 
-	async function handleSendMessage(text: string) {
-		if (!canSend || !currentAgentInstance || !selectedAgent) return;
+    async function handleSendMessage(text: string) {
+        if (!canSend || !currentAgentInstance || !selectedAgent) return;
 
 		const userMessage = {
 			id: crypto.randomUUID(),
@@ -128,13 +143,13 @@
 			// Run agent using the global run function
 			const result = await run(currentAgentInstance, text);
 
-			// Update assistant message with result
-			const lastMessage = messages[messages.length - 1];
-			if (lastMessage && lastMessage.role === 'assistant') {
-				// Extract text content from result
-				const textContent = extractTextFromResult(result);
-				lastMessage.content = textContent;
-			}
+            // Update assistant message with result
+            const lastMessage = messages[messages.length - 1];
+            if (lastMessage && lastMessage.role === 'assistant') {
+                // Extract text content from result
+                const textContent = extractTextFromResult(result);
+                lastMessage.content = textContent;
+            }
 
 		} catch (error) {
 			console.error('Agent run failed:', error);
@@ -155,7 +170,11 @@
 		}
 	}
 
-	function extractTextFromResult(result: any): string {
+    function handleModelChange(key: string) {
+        selectedModelKey = key;
+    }
+
+    function extractTextFromResult(result: any): string {
 		// Handle different result formats from OpenAI Agents SDK
 		if (typeof result === 'string') {
 			return result;
@@ -197,13 +216,7 @@
 		// messages = [];
 	}
 
-	function handleProviderChange(providerId: string) {
-		selectedProvider = providerId;
-		// Recreate agent instance with new provider if needed
-		if (selectedAgent) {
-			createAgentInstance();
-		}
-	}
+    // Removed provider change handler; provider is implied by selected model
 
 	function handleOpenAgentView() {
 		// Get the workspace and open agent view
@@ -222,17 +235,17 @@
 		bind:container={chatContainer}
 	/>
 	
-	<PromptBar
-		availableAgents={availableAgents}
-		availableProviders={availableProviders}
-		{selectedAgent}
-		{selectedProvider}
-		{canSend}
-		{isLoading}
-		onSendMessage={handleSendMessage}
-		onAgentChange={handleAgentChange}
-		onProviderChange={handleProviderChange}
-	/>
+    <PromptBar
+        availableAgents={availableAgents}
+        modelGroups={availableModelGroups}
+        {selectedAgent}
+        selectedModelKey={selectedModelKey}
+        {canSend}
+        {isLoading}
+        onSendMessage={handleSendMessage}
+        onAgentChange={handleAgentChange}
+        onModelChange={handleModelChange}
+    />
 </div>
 
 <style>

@@ -7,6 +7,7 @@ import { ItemView, WorkspaceLeaf } from 'obsidian';
 import ChatView from './ChatView.svelte';
 import type { AgentManager } from '../../agent/agent-manager';
 import type { ProviderManager } from '../../providers/provider-manager';
+import type { PluginSettings } from '../../types';
 
 export const VIEW_TYPE_CHAT = 'cortex-side-chat-view';
 
@@ -14,11 +15,13 @@ export class ChatViewLeaf extends ItemView {
     private chatViewComponent: ReturnType<typeof import('svelte').mount> | null = null;
     private agentManager: AgentManager;
     private providerManager: ProviderManager;
+    private getSettings: () => PluginSettings;
 
-    constructor(leaf: WorkspaceLeaf, agentManager: AgentManager, providerManager: ProviderManager) {
+    constructor(leaf: WorkspaceLeaf, agentManager: AgentManager, providerManager: ProviderManager, getSettings: () => PluginSettings) {
         super(leaf);
         this.agentManager = agentManager;
         this.providerManager = providerManager;
+        this.getSettings = getSettings;
     }
 
     getViewType(): string {
@@ -50,6 +53,7 @@ export class ChatViewLeaf extends ItemView {
             props: {
                 agentManager: this.agentManager,
                 providerManager: this.providerManager,
+                getSettings: this.getSettings,
                 workspaceLeaf: this.leaf,
                 app: this.app
             }

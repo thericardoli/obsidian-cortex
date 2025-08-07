@@ -122,21 +122,16 @@ export class CortexSettingTab extends PluginSettingTab {
 		const provider = this.plugin.settings.providers[index];
 		host.createEl('h3', { text: provider.name });
 
-		new Setting(host)
-			.setName('Provider Name')
-			.setDesc('Displayed in the dock')
-			.addText(t =>
-				t.setValue(provider.name).onChange(async v => {
-					this.plugin.settings.providers[index].name = v;
-					await this.plugin.saveSettings();
-					this.display();
-				})
-			)
-			.addExtraButton(b =>
+		const header = new Setting(host)
+			.setName('Provider')
+			.setDesc(provider.name);
+
+		if (provider.id.startsWith('custom-')) {
+			header.addExtraButton(b =>
 				b.setIcon('trash')
 					.setTooltip('Remove provider')
 					.onClick(async () => {
-					this.plugin.settings.providers.splice(index, 1);
+						this.plugin.settings.providers.splice(index, 1);
 						await this.plugin.saveSettings();
 						await this.plugin.refreshProviders();
 						this.selectedProviderKey = this.plugin.settings.activeProviderId = this.plugin.settings.providers[0]?.id ?? null;
@@ -144,6 +139,7 @@ export class CortexSettingTab extends PluginSettingTab {
 						new Notice('Provider removed successfully!');
 					})
 			);
+		}
 
 		// Base URL for OpenAI-compatible providers only
 		if (provider.providerType === 'OpenAICompatible') {

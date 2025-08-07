@@ -69,7 +69,7 @@ export default class CortexPlugin extends Plugin {
             // Register the chat view
             this.registerView(
                 VIEW_TYPE_CHAT,
-                (leaf) => new ChatViewLeaf(leaf, this.agentManager, this.providerManager)
+                (leaf) => new ChatViewLeaf(leaf, this.agentManager, this.providerManager, () => this.settings)
             );
 
             // Register settings tab
