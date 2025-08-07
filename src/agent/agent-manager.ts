@@ -250,6 +250,31 @@ export class AgentManager {
     }
 
     /**
+     * Create an Agent instance but override the model by providerId + modelId
+     */
+    async createAgentInstanceWithModel(id: string, providerId: string, modelId: string): Promise<Agent | null> {
+        const agentConfig = this._agentCache.get(id);
+        if (!agentConfig) return null;
+
+        const model = await this._providerManager.getModel(providerId, modelId);
+        const tools = await this.convertToolsToSDKTools(agentConfig);
+
+        const agentConfiguration = {
+            name: agentConfig.name,
+            instructions: agentConfig.instructions,
+            model: model,
+            modelSettings: {
+                ...agentConfig.modelConfig.settings,
+                toolChoice: agentConfig.modelConfig.settings?.toolChoice ?? 'auto',
+                parallelToolUse: agentConfig.modelConfig.settings?.parallelToolCalls ?? false,
+            },
+            tools: tools,
+        };
+
+        return new Agent(agentConfiguration);
+    }
+
+    /**
      * 将 ToolConfig[] 转换为 SDK 可用的 Tool[]
      */
     private async convertToolsToSDKTools(agentConfig: AgentConfig): Promise<Tool[]> {

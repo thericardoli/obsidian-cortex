@@ -103,17 +103,23 @@
 		});
 	});
 
-	async function createAgentInstance() {
-		if (!selectedAgent) return;
-		
-		try {
-			isLoading = true;
-			currentAgentInstance = await agentManager.createAgentInstance(selectedAgent.id);
-		} catch (error) {
-			console.error('Failed to create agent instance:', error);
-			// Could emit error event or show notification here
-		} finally {
-			isLoading = false;
+    async function createAgentInstance() {
+        if (!selectedAgent) return;
+        
+        try {
+            isLoading = true;
+            // If a model is chosen in the dropdown, use it to override agent's default
+            if (selectedModelKey && selectedModelKey.includes('::')) {
+                const [providerId, modelId] = selectedModelKey.split('::');
+                currentAgentInstance = await agentManager.createAgentInstanceWithModel(selectedAgent.id, providerId, modelId);
+            } else {
+                currentAgentInstance = await agentManager.createAgentInstance(selectedAgent.id);
+            }
+        } catch (error) {
+            console.error('Failed to create agent instance:', error);
+            // Could emit error event or show notification here
+        } finally {
+            isLoading = false;
 		}
 	}
 
