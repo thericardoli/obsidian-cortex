@@ -46,7 +46,6 @@ const context = await esbuild.context({
 		'.data': 'binary',
 	},
 	plugins: [
-		// importMetaUrlPlugin, // 暂时禁用，通过 PGliteResourceLoader 解决
 		esbuildSvelte({
 		compilerOptions: { css: 'injected' },
 		preprocess: sveltePreprocess(),
