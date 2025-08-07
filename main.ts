@@ -6,6 +6,8 @@ import { ChatViewLeaf, VIEW_TYPE_CHAT } from './src/ui/view/ChatViewLeaf';
 import { CortexSettingTab } from './src/ui/settings/CortexSettingTab';
 import type { PluginSettings, CreateProviderInput } from './src/types';
 import { DEFAULT_SETTINGS, PluginSettingsSchema } from './src/types';
+import type { ProviderSettingsEntry } from './src/types';
+import { cloneDefaultProviders } from './src/config/provider-defaults';
 
 export default class CortexPlugin extends Plugin {
     private agentManager: AgentManager;
@@ -135,15 +137,28 @@ export default class CortexPlugin extends Plugin {
 
     async loadSettings() {
         const data = await this.loadData();
-        this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
-        
+        const merged = Object.assign({}, DEFAULT_SETTINGS, data);
+
+        const migrated = this.migrateSettings(merged as any);
+
         // Validate settings with Zod
         try {
-            this.settings = PluginSettingsSchema.parse(this.settings);
+            this.settings = PluginSettingsSchema.parse(migrated);
         } catch (error) {
-            console.warn('Invalid plugin settings, using defaults:', error);
+            console.warn('Invalid plugin settings after migration, using defaults:', error);
             this.settings = DEFAULT_SETTINGS;
         }
+
+        // Seed defaults if empty (from central defaults file)
+        if (!this.settings.providers || this.settings.providers.length === 0) {
+            this.settings.providers = cloneDefaultProviders();
+        }
+
+        if (!this.settings.activeProviderId && this.settings.providers.length > 0) {
+            this.settings.activeProviderId = this.settings.providers[0].id;
+        }
+
+        await this.saveSettings();
     }
 
     async saveSettings() {
@@ -151,37 +166,21 @@ export default class CortexPlugin extends Plugin {
     }
 
     async initializeProvidersFromSettings() {
-        // Initialize OpenAI provider if configured
-        if (this.settings.openai.enabled && this.settings.openai.apiKey) {
+        // Initialize providers from unified list
+        for (const p of this.settings.providers) {
+            if (!p.enabled) continue;
+
             try {
                 await this.providerManager.addProvider({
-                    id: 'openai-default',
-                    name: 'OpenAI',
-                    providerType: 'OpenAI',
-                    apiKey: this.settings.openai.apiKey,
-                    baseUrl: 'https://api.openai.com/v1',
-                    enabled: true,
+                    id: p.id,
+                    name: p.name,
+                    providerType: p.providerType,
+                    apiKey: p.apiKey,
+                    baseUrl: p.baseUrl,
+                    enabled: p.enabled,
                 });
             } catch (error) {
-                console.error('Failed to initialize OpenAI provider:', error);
-            }
-        }
-
-        // Initialize custom providers
-        for (const providerConfig of this.settings.providers) {
-            if (providerConfig.enabled) {
-                try {
-                    await this.providerManager.addProvider({
-                        id: providerConfig.id,
-                        name: providerConfig.name,
-                        providerType: 'OpenAICompatible',
-                        apiKey: providerConfig.apiKey,
-                        baseUrl: providerConfig.baseUrl,
-                        enabled: true,
-                    });
-                } catch (error) {
-                    console.error(`Failed to initialize provider ${providerConfig.name}:`, error);
-                }
+                console.error(`Failed to initialize provider ${p.name}:`, error);
             }
         }
     }
@@ -198,6 +197,7 @@ export default class CortexPlugin extends Plugin {
             apiKey: input.apiKey,
             baseUrl: input.baseUrl,
             enabled: true,
+            models: [],
         });
 
         // Save settings
@@ -212,6 +212,10 @@ export default class CortexPlugin extends Plugin {
             baseUrl: input.baseUrl,
             enabled: true,
         });
+
+        // Make it the active provider
+        this.settings.activeProviderId = id;
+        await this.saveSettings();
     }
 
     async refreshProviders() {
@@ -226,5 +230,66 @@ export default class CortexPlugin extends Plugin {
         // This method will be called to load settings-specific CSS
         // For now, we'll use the existing styles.css
         // In a real implementation, you might want to load additional CSS files
+    }
+
+    private migrateSettings(raw: any): any {
+        // If already in new shape, normalize models for each provider
+        if (Array.isArray(raw.providers)) {
+            const providers: ProviderSettingsEntry[] = raw.providers.map((p: any) => ({
+                id: String(p.id),
+                name: String(p.name ?? 'Provider'),
+                providerType: p.providerType === 'OpenAI' ? 'OpenAI' : 'OpenAICompatible',
+                apiKey: p.apiKey,
+                baseUrl: p.baseUrl,
+                enabled: Boolean(p.enabled),
+                models: Array.isArray(p.models) ? p.models : [],
+            }));
+
+            return { providers, activeProviderId: raw.activeProviderId };
+        }
+
+        // Old shape migration
+        const providers: ProviderSettingsEntry[] = [];
+
+        if (raw.openai) {
+            providers.push({
+                id: 'openai-default',
+                name: 'OpenAI',
+                providerType: 'OpenAI',
+                apiKey: raw.openai.apiKey,
+                baseUrl: 'https://api.openai.com/v1',
+                enabled: Boolean(raw.openai.enabled || raw.openai.apiKey),
+                models: Array.isArray(raw.openai.models) ? raw.openai.models : [],
+            });
+        }
+
+        if (raw.ollama) {
+            providers.push({
+                id: 'ollama-default',
+                name: 'Ollama',
+                providerType: 'OpenAICompatible',
+                apiKey: raw.ollama.apiKey,
+                baseUrl: raw.ollama.baseUrl || 'http://localhost:11434/v1',
+                enabled: Boolean(raw.ollama.enabled || raw.ollama.baseUrl),
+                models: Array.isArray(raw.ollama.models) ? raw.ollama.models : [],
+            });
+        }
+
+        // Old custom providers (without models)
+        if (Array.isArray(raw.providers)) {
+            for (const p of raw.providers) {
+                providers.push({
+                    id: String(p.id),
+                    name: String(p.name ?? 'Provider'),
+                    providerType: p.providerType === 'OpenAI' ? 'OpenAI' : 'OpenAICompatible',
+                    apiKey: p.apiKey,
+                    baseUrl: p.baseUrl,
+                    enabled: Boolean(p.enabled),
+                    models: Array.isArray(p.models) ? p.models : [],
+                });
+            }
+        }
+
+        return { providers, activeProviderId: raw.activeProviderId };
     }
 }

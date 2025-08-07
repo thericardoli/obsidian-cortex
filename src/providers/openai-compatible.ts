@@ -13,16 +13,13 @@ export class OpenAICompatibleProvider implements IProvider {
 		this._config = config;
 	}
 
-	async initialize(): Promise<void> {
-		if (!this._config.apiKey) {
-			throw new Error("API key is required for OpenAICompatibleProvider");
-		}
+    async initialize(): Promise<void> {
         if (!this._config.baseUrl) {
             throw new Error("Base URL is required for OpenAICompatibleProvider");
         }
 
 		const customOpenAIClient = new OpenAI({
-			apiKey: this._config.apiKey,
+			apiKey: this._config.apiKey ?? 'none',
 			baseURL: this._config.baseUrl,
 			dangerouslyAllowBrowser: true,
 		});
@@ -45,13 +42,13 @@ export class OpenAICompatibleProvider implements IProvider {
 	}
 
 	async getAvailableModels(): Promise<string[]> {
-		if (!this._config.apiKey || !this._config.baseUrl) {
-			throw new Error("Provider not initialized - API key and base URL are required");
+		if (!this._config.baseUrl) {
+			throw new Error("Provider not initialized - base URL is required");
 		}
 
 		try {
 			const customOpenAIClient = new OpenAI({
-				apiKey: this._config.apiKey,
+				apiKey: this._config.apiKey ?? 'none',
 				baseURL: this._config.baseUrl,
 				dangerouslyAllowBrowser: true,
 			});
