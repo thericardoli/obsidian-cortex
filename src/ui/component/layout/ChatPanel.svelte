@@ -13,11 +13,15 @@
 	let {
 		messages = [],
 		isLoading = false,
-		container = $bindable()
+		container = $bindable(),
+		renderMarkdown,
+		setIcon
 	}: {
 		messages: Message[];
 		isLoading: boolean;
 		container?: HTMLElement;
+		renderMarkdown: (el: HTMLElement, md: string) => void;
+		setIcon?: (el: HTMLElement, name: string) => void;
 	} = $props();
 </script>
 
@@ -25,9 +29,9 @@
 	<div class="messages-container">
 		{#each messages as message (message.id)}
 			{#if message.role === 'user'}
-				<UserMessage content={message.content} timestamp={message.timestamp} />
+				<UserMessage content={message.content} timestamp={message.timestamp} {renderMarkdown} />
 			{:else}
-				<AssistantMessage content={message.content} timestamp={message.timestamp} />
+				<AssistantMessage content={message.content} timestamp={message.timestamp} {renderMarkdown} {setIcon} />
 			{/if}
 		{/each}
 		

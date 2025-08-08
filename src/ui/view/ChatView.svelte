@@ -3,6 +3,7 @@
 	import { run } from "@openai/agents";
 	import type { AgentManager } from "../../agent/agent-manager";
 	import type { ProviderManager } from "../../providers/provider-manager";
+	import { MarkdownRenderer, Component, setIcon as setObsidianIcon } from "obsidian";
 	import type { WorkspaceLeaf, App } from "obsidian";
 	import type { Agent } from "@openai/agents";
 	import type { AgentConfig } from "../../types";
@@ -44,6 +45,9 @@
 	let chatContainer = $state<HTMLElement>();
 	let initialized = $state(false);
 	let session: ISession | null = null; // 当前聊天 Session（内存优先，结束时统一落库）
+	// Obsidian Markdown render component lifetime
+	let mdComponent: Component | null = null;
+
 	// bump this to force recomputation of derived agents list
 	let agentsVersion = $state(0);
 	// bump this to force recomputation of model groups from settings/provider changes
@@ -90,6 +94,12 @@
 	// Initialize component
 	onMount(() => {
 		initializeComponent();
+		// Prepare a Component for MarkdownRenderer
+		try {
+			mdComponent = new Component();
+		} catch (e) {
+			console.warn("Failed to init markdown component:", e);
+		}
 		// subscribe to agent changes for immediate sync
 		const unsubscribe = agentManager.subscribeAgentsChange(() => {
 			// Trigger reactive updates by touching derived values
@@ -142,12 +152,28 @@
 			if (session) {
 				void session.dispose();
 			}
+			// cleanup markdown component
+			try { mdComponent?.unload?.(); } catch {}
 			// unsubscribe listener
 			unsubscribe?.();
 			(app.workspace as any).off("cortex:providers-updated", onProvidersUpdated);
 			(app.workspace as any).off("cortex:models-updated", onModelsUpdated);
 		};
 	});
+	// Provide Obsidian-style Markdown render for children
+	function renderObsidianMarkdown(el: HTMLElement, md: string) {
+		if (!el) return;
+		el.replaceChildren();
+		const sourcePath = (app.workspace.getActiveFile()?.path) ?? "";
+		// Ensure we always pass a Component instance to MarkdownRenderer
+		if (!mdComponent) {
+			mdComponent = new Component();
+		}
+		// Prefer the non-deprecated API
+		void MarkdownRenderer.render(app, md ?? "", el, sourcePath, mdComponent).catch((e) => {
+			console.warn("MarkdownRenderer failed:", e);
+		});
+	}
 
 	// Ensure selectedModelKey stays valid when provider/model groups change
 	$effect(() => {
@@ -405,7 +431,13 @@
 
 <div class="chat-view">
 	<ChatHeader {isLoading} onOpenAgentManager={handleOpenAgentView} />
-	<ChatPanel {messages} {isLoading} bind:container={chatContainer} />
+	<ChatPanel
+		{messages}
+		{isLoading}
+		bind:container={chatContainer}
+		renderMarkdown={renderObsidianMarkdown}
+		setIcon={(el: HTMLElement, name: string) => setObsidianIcon(el, name)}
+	/>
 
 	<PromptBar
 		{availableAgents}
