@@ -1,36 +1,109 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	let {
 		isLoading = false,
 		onOpenAgentManager,
-	}: { isLoading: boolean; onOpenAgentManager: () => void } = $props();
+		onCreateSession,
+		sessions = [] as Array<{ id: string; name?: string }>,
+		currentSessionId = '',
+		onSelectSession,
+		setIcon,
+	}: {
+		isLoading: boolean;
+		onOpenAgentManager: () => void;
+		onCreateSession: () => void;
+		sessions?: Array<{ id: string; name?: string }>;
+		currentSessionId?: string;
+		onSelectSession: (id: string) => void;
+		setIcon: (el: HTMLElement, name: string) => void;
+	} = $props();
+
+	// 本地 UI 状态：是否展示会话历史下拉
+	let showHistory = $state(false);
+
+	function toggleHistory() {
+		showHistory = !showHistory;
+	}
+
+	function handleSelectSession(id: string) {
+		showHistory = false;
+		onSelectSession?.(id);
+	}
+	let titleIconEl: HTMLElement;
+	let createIconEl: HTMLElement;
+	let historyIconEl: HTMLElement;
+	let agentsIconEl: HTMLElement;
+
+	$effect(() => {
+		// 使用传入的 setIcon 渲染 lucide 图标
+		try {
+			if (titleIconEl) setIcon?.(titleIconEl, 'message-square');
+			if (createIconEl) setIcon?.(createIconEl, 'plus');
+			if (historyIconEl) setIcon?.(historyIconEl, 'history');
+			if (agentsIconEl) setIcon?.(agentsIconEl, 'user');
+		} catch (e) {
+			// 忽略渲染图标失败
+		}
+	});
 </script>
 
 <div class="chat-header">
 	<div class="title">
-		<svg
-			viewBox="0 0 24 24"
-			width="16"
-			height="16"
-			fill="currentColor"
-			class="title-icon"
-		>
-			<path d="M21 6h-2v9H7l-4 4V6c0-1.1.9-2 2-2h16c1.1 0 2 .9 2 2z" />
-		</svg>
+		<span class="icon title-icon" bind:this={titleIconEl} aria-hidden="true"></span>
 		Cortex Chat
 	</div>
 	<div class="spacer"></div>
+
+	<!-- 新建会话按钮 -->
+	<button
+		class="secondary header-icon-button"
+		title="新建会话"
+		aria-label="新建会话"
+		onclick={onCreateSession}
+		disabled={isLoading}
+	>
+		<span class="icon" bind:this={createIconEl} aria-hidden="true"></span>
+	</button>
+
+	<!-- 历史会话按钮及下拉 -->
+	<div class="history-wrapper">
+		<button
+			class="secondary header-icon-button"
+			title="历史会话"
+			aria-label="历史会话"
+			onclick={toggleHistory}
+			disabled={isLoading}
+		>
+			<span class="icon" bind:this={historyIconEl} aria-hidden="true"></span>
+		</button>
+		{#if showHistory}
+			<div class="history-dropdown" role="listbox">
+				{#if sessions.length === 0}
+					<div class="history-empty">暂无会话</div>
+				{:else}
+					{#each sessions as s}
+						<button
+							class="history-item {currentSessionId === s.id ? 'active' : ''}"
+							title={s.id}
+							onclick={() => handleSelectSession(s.id)}
+						>
+							<span class="dot {currentSessionId === s.id ? 'dot-active' : ''}"></span>
+							{(s.name && s.name.trim()) ? s.name : s.id}
+						</button>
+					{/each}
+				{/if}
+			</div>
+		{/if}
+	</div>
 	<button
 		class="secondary agents-button"
 		onclick={onOpenAgentManager}
 		title="Manage Agents"
+		aria-label="Manage Agents"
 		disabled={isLoading}
 	>
-		<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-			<path
-				d="M12 12c2.761 0 5-2.239 5-5s-2.239-5-5-5-5 2.239-5 5 2.239 5 5 5zm0 2c-3.866 0-7 2.239-7 5v1h14v-1c0-2.761-3.134-5-7-5z"
-			/>
-		</svg>
-		Agents
+		<span class="icon" bind:this={agentsIconEl} aria-hidden="true"></span>
+		<span>Agents</span>
 	</button>
 </div>
 
@@ -51,10 +124,60 @@
 	}
 	.title-icon {
 		opacity: 0.8;
+		width: 16px;
+		height: 16px;
 	}
 	.spacer {
 		flex: 1;
 	}
+	.icon { width: 16px; height: 16px; display: inline-block; }
+	.header-icon-button {
+		padding: 0.35rem;
+		border: 1px solid var(--background-modifier-border);
+		border-radius: 0.5rem;
+		background: var(--background-secondary);
+		color: var(--text-normal);
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+	}
+	.header-icon-button:hover { background: var(--background-modifier-hover); }
+	.header-icon-button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+	.history-wrapper { position: relative; }
+	.history-dropdown {
+		position: absolute;
+		right: 0;
+		top: calc(100% + 6px);
+		min-width: 220px;
+		max-height: 280px;
+		overflow: auto;
+		padding: 0.375rem;
+		border: 1px solid var(--background-modifier-border);
+		border-radius: 0.5rem;
+		background: var(--background-primary);
+		box-shadow: 0 6px 18px rgba(0,0,0,0.2);
+		z-index: 10;
+	}
+	.history-empty { padding: 0.5rem; opacity: 0.7; }
+	.history-item {
+		width: 100%;
+		text-align: left;
+		padding: 0.4rem 0.5rem;
+		border-radius: 0.375rem;
+		border: none;
+		background: transparent;
+		color: var(--text-normal);
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		cursor: pointer;
+	}
+	.history-item:hover { background: var(--background-modifier-hover); }
+	.history-item.active { background: var(--background-modifier-hover); font-weight: 600; }
+	.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--background-modifier-border); }
+	.dot-active { background: var(--interactive-accent); }
 	.agents-button {
 		padding: 0.4rem 0.75rem;
 		border: 1px solid var(--background-modifier-border);

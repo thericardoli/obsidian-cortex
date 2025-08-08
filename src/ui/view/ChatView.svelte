@@ -12,7 +12,7 @@
 	import PromptBar from "../component/input/PromptBar.svelte";
 	// Session: 用于将历史作为 Agents SDK 的输入
 	import type { ISession } from "../../session";
-	import { createNewSession } from "../../session";
+	import { createNewSession, getAllSessions } from "../../session";
 
 	// Props
 	let {
@@ -45,6 +45,8 @@
 	let chatContainer = $state<HTMLElement>();
 	let initialized = $state(false);
 	let session: ISession | null = null; // 当前聊天 Session（内存优先，结束时统一落库）
+	let currentSessionId = $state<string>("");
+	let sessionList = $state<Array<{ id: string; name?: string }>>([]);
 	// Obsidian Markdown render component lifetime
 	let mdComponent: Component | null = null;
 
@@ -145,8 +147,9 @@
 		};
 		(app.workspace as any).on("cortex:providers-updated", onProvidersUpdated);
 		(app.workspace as any).on("cortex:models-updated", onModelsUpdated);
-		// 异步创建会话（确保每次对话都能携带完整历史进入上下文）
+		// 异步创建会话并拉取历史列表
 		void setupSession();
+		void refreshSessionList();
 		return () => {
 			// Cleanup: 释放会话资源（会触发一次落库保存）
 			if (session) {
@@ -191,6 +194,7 @@
 	async function setupSession() {
 		try {
 			session = await createNewSession();
+			currentSessionId = session.sessionId;
 			console.log("Chat session created:", session.sessionId);
 		} catch (err) {
 			console.warn(
@@ -199,6 +203,59 @@
 			);
 			session = null;
 		}
+	}
+
+	async function refreshSessionList() {
+		try {
+			const rows = await getAllSessions(50);
+			sessionList = rows.map((r) => ({ id: r.id, name: r.name }));
+		} catch (e) {
+			console.warn("Failed to load sessions:", e);
+			sessionList = [];
+		}
+	}
+
+	async function handleCreateSession() {
+		// 结束当前会话以触发保存
+		try { await session?.dispose(); } catch {}
+		session = await createNewSession();
+		currentSessionId = session.sessionId;
+		messages = [];
+		await refreshSessionList();
+	}
+
+	async function handleSelectSession(id: string) {
+		if (!id || id === currentSessionId) return;
+		// 保存当前会话
+		try { await session?.dispose(); } catch {}
+		// 加载目标会话（session-manager 会从DB加载到内存）
+		try {
+			const { getSession } = await import("../../session");
+			const target = await getSession(id);
+			if (target) {
+				session = target;
+				currentSessionId = id;
+				// 映射历史到UI消息
+				const items = await session.getItems();
+				messages = items
+					.filter((it: any) => it && it.role && (it.role === 'user' || it.role === 'assistant'))
+					.map((it: any) => ({
+						id: crypto.randomUUID(),
+						role: it.role,
+						content: typeof it.content === 'string' ? it.content : Array.isArray(it.content) ?
+							it.content.map((p: any) => p.text ?? '').join('') : '',
+						timestamp: Date.now(),
+					})) as any;
+			} else {
+				console.warn("Target session not found, creating a new one.");
+				session = await createNewSession();
+				currentSessionId = session.sessionId;
+				messages = [];
+			}
+		} catch (e) {
+			console.warn("Failed to switch session:", e);
+		}
+		await refreshSessionList();
 	}
 
 	function initializeComponent() {
@@ -430,7 +487,15 @@
 </script>
 
 <div class="chat-view">
-	<ChatHeader {isLoading} onOpenAgentManager={handleOpenAgentView} />
+	<ChatHeader
+		{isLoading}
+		onOpenAgentManager={handleOpenAgentView}
+		onCreateSession={handleCreateSession}
+		sessions={sessionList}
+		currentSessionId={currentSessionId}
+		onSelectSession={handleSelectSession}
+		setIcon={(el: HTMLElement, name: string) => setObsidianIcon(el, name)}
+	/>
 	<ChatPanel
 		{messages}
 		{isLoading}
