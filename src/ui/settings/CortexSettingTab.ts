@@ -89,7 +89,13 @@ export class CortexSettingTab extends PluginSettingTab {
 		new Setting(formContainer)
 			.setName('API Key')
 			.setDesc('API key for this provider')
-			.addText(t => t.setPlaceholder('your-api-key').onChange(v => (apiKeyValue = v)));
+			.addText(t => {
+				// Mask API key input
+				t.inputEl.type = 'password';
+				// Prevent autocomplete where possible
+				t.inputEl.autocomplete = 'new-password';
+				t.setPlaceholder('your-api-key').onChange(v => (apiKeyValue = v));
+			});
 
 		new Setting(formContainer).addButton(b =>
 			b.setButtonText('Add').setCta().onClick(async () => {
@@ -160,14 +166,18 @@ export class CortexSettingTab extends PluginSettingTab {
 		new Setting(host)
 			.setName('API Key')
 			.setDesc('API key for this provider')
-			.addText(t =>
+			.addText(t => {
+				// Mask API key input
+				t.inputEl.type = 'password';
+				// Prevent autocomplete where possible
+				t.inputEl.autocomplete = 'new-password';
 				t.setValue(provider.apiKey || '')
 					.onChange(async v => {
 						this.plugin.settings.providers[index].apiKey = v;
 						await this.plugin.saveSettings();
 						await this.plugin.refreshProviders();
-					})
-			);
+					});
+			});
 
 		this.renderModelsEditor(host, provider.id);
 	}
