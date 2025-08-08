@@ -22,7 +22,7 @@ data.json
 .DS_Store
 
 .spec
-example/
+examples/
 
 .github/instructions/
 .github/prompts/

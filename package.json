@@ -29,6 +29,7 @@
 	"dependencies": {
 		"@electric-sql/pglite": "^0.3.7",
 		"@openai/agents": "^0.0.14",
+		"dompurify": "^3.2.6",
 		"zod": "<=3.25.67"
 	}
 }
