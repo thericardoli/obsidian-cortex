@@ -173,9 +173,16 @@ export class CortexSettingTab extends PluginSettingTab {
 				t.inputEl.autocomplete = 'new-password';
 				t.setValue(provider.apiKey || '')
 					.onChange(async v => {
+						// Save API key
 						this.plugin.settings.providers[index].apiKey = v;
+						// For OpenAI provider, auto-enable when API key is present; disable when cleared
+						if (this.plugin.settings.providers[index].providerType === 'OpenAI') {
+							this.plugin.settings.providers[index].enabled = !!v;
+						}
 						await this.plugin.saveSettings();
 						await this.plugin.refreshProviders();
+						// Notify views that providers changed
+						this.plugin.app.workspace.trigger('cortex:providers-updated');
 					});
 			});
 
@@ -194,6 +201,8 @@ export class CortexSettingTab extends PluginSettingTab {
 			const idx = this.plugin.settings.providers.findIndex(p => p.id === providerKey);
 			if (idx >= 0) this.plugin.settings.providers[idx].models = models;
 			await this.plugin.saveSettings();
+			// Broadcast models updated so views can refresh their dropdowns immediately
+			this.plugin.app.workspace.trigger('cortex:models-updated', providerKey);
 		};
 
 		// Add form
@@ -213,6 +222,8 @@ export class CortexSettingTab extends PluginSettingTab {
 				const next = [...list, { displayName, modelId }];
 				await setModels(next);
 				new Notice('Model added');
+				// Also notify provider updates for safety (in case first model appears)
+				this.plugin.app.workspace.trigger('cortex:providers-updated');
 				this.display();
 			})
 		);
@@ -228,6 +239,8 @@ export class CortexSettingTab extends PluginSettingTab {
 						const list = getModels();
 						list.splice(idx, 1);
 						await setModels([...list]);
+						// Notify views so dropdown updates if selected key disappears
+						this.plugin.app.workspace.trigger('cortex:providers-updated');
 						this.display();
 						new Notice('Model removed');
 					})

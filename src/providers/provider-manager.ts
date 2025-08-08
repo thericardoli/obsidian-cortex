@@ -70,4 +70,20 @@ export class ProviderManager {
     async removeProvider(providerId: string): Promise<void> {
         this.providers.delete(providerId);
     }
+
+    /**
+     * Reset internal providers map and (re)register from provided configs.
+     * Keeps ProviderManager instance stable for existing references.
+     */
+    async resetProviders(configs: ProviderConfig[]): Promise<void> {
+        this.providers.clear();
+        for (const cfg of configs) {
+            try {
+                // Add the provider; initialize only when enabled flag is true
+                await this.addProvider(cfg);
+            } catch (err) {
+                console.error(`Failed to add provider '${cfg.name}'`, err);
+            }
+        }
+    }
 }

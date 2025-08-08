@@ -46,6 +46,8 @@
 	let session: ISession | null = null; // 当前聊天 Session（内存优先，结束时统一落库）
 	// bump this to force recomputation of derived agents list
 	let agentsVersion = $state(0);
+	// bump this to force recomputation of model groups from settings/provider changes
+	let modelsVersion = $state(0);
 
 	// Derived state
 	const availableAgents = $derived(
@@ -61,6 +63,8 @@
 	};
 	const availableModelGroups = $derived(
 		(() => {
+			// tie to version to ensure recompute when settings/providers change
+			modelsVersion;
 			const settings = getSettings();
 			// Only include providers that are currently registered in ProviderManager
 			const presentProviderIds = new Set(
@@ -115,6 +119,22 @@
 				}
 			}
 		});
+
+		// Listen to provider/model updates from settings and force-sync dropdowns immediately
+		const onProvidersUpdated = () => {
+			// Touch derived deps to recompute groups
+			agentsVersion += 1;
+			modelsVersion += 1;
+			// Re-run initialization for defaults if needed
+			initializeComponent();
+		};
+		// models-updated may include providerKey; just bump models version
+		const onModelsUpdated = (_provId?: string) => {
+			modelsVersion += 1;
+			initializeComponent();
+		};
+		(app.workspace as any).on("cortex:providers-updated", onProvidersUpdated);
+		(app.workspace as any).on("cortex:models-updated", onModelsUpdated);
 		// 异步创建会话（确保每次对话都能携带完整历史进入上下文）
 		void setupSession();
 		return () => {
@@ -124,6 +144,8 @@
 			}
 			// unsubscribe listener
 			unsubscribe?.();
+			(app.workspace as any).off("cortex:providers-updated", onProvidersUpdated);
+			(app.workspace as any).off("cortex:models-updated", onModelsUpdated);
 		};
 	});
 

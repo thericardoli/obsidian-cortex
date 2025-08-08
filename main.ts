@@ -209,7 +209,13 @@ export default class CortexPlugin extends Plugin {
     async initializeProvidersFromSettings() {
         // Initialize providers from unified list
         for (const p of this.settings.providers) {
-            if (!p.enabled) continue;
+            // Treat as enabled at runtime if credentials are present even when the persisted flag is false
+            const runtimeEnabled =
+                p.enabled ||
+                (p.providerType === 'OpenAI' && !!p.apiKey) ||
+                (p.providerType === 'OpenAICompatible' && !!p.baseUrl);
+
+            if (!runtimeEnabled) continue;
 
             try {
                 await this.providerManager.addProvider({
@@ -218,7 +224,7 @@ export default class CortexPlugin extends Plugin {
                     providerType: p.providerType,
                     apiKey: p.apiKey,
                     baseUrl: p.baseUrl,
-                    enabled: p.enabled,
+                    enabled: runtimeEnabled,
                 });
             } catch (error) {
                 console.error(`Failed to initialize provider ${p.name}:`, error);
@@ -260,11 +266,25 @@ export default class CortexPlugin extends Plugin {
     }
 
     async refreshProviders() {
-        // Clear existing providers
-        this.providerManager = new ProviderManager();
-        
-        // Re-initialize from settings
-        await this.initializeProvidersFromSettings();
+        // Reinitialize providers on the existing manager instance
+        await this.providerManager.resetProviders(
+            (this.settings.providers || []).map(p => {
+                const runtimeEnabled =
+                    p.enabled ||
+                    (p.providerType === 'OpenAI' && !!p.apiKey) ||
+                    (p.providerType === 'OpenAICompatible' && !!p.baseUrl);
+                return {
+                    id: p.id,
+                    name: p.name,
+                    providerType: p.providerType,
+                    apiKey: p.apiKey,
+                    baseUrl: p.baseUrl,
+                    enabled: runtimeEnabled,
+                };
+            })
+        );
+        // Notify views to refresh dropdowns
+        this.app.workspace.trigger('cortex:providers-updated');
     }
 
     private loadSettingsCSS() {
