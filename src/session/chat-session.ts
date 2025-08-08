@@ -8,8 +8,6 @@ import type {
 	FunctionCallItem,
 	FunctionCallResultItem,
 	SystemMessageItem,
-	UserContentPart,
-	AssistantContentPart,
 } from "../types/session";
 import { EventEmitter } from "events";
 import type { SessionRepository } from "../persistence/repositories/session-repository";
@@ -167,36 +165,16 @@ export class chatSession extends EventEmitter implements ISession {
 			.map((item) => {
 				if (isMessageItem(item)) {
 					if (isUserMessage(item)) {
-						// Normalize content to handle multi-turn conversations with some providers
-						let content: string | UserContentPart[] = item.content;
-						if (
-							Array.isArray(content) &&
-							content.length === 1 &&
-							content[0].type === "input_text"
-						) {
-							content = content[0].text;
-						}
-
 						return {
 							role: "user" as const,
-							content: content,
+							content: item.content,
 							type: "message" as const,
 						};
 					}
 					if (isAssistantMessage(item)) {
-						// Normalize content to handle multi-turn conversations with some providers
-						let content: string | AssistantContentPart[] =
-							item.content;
-						if (
-							content.length === 1 &&
-							content[0].type === "output_text"
-						) {
-							content = content[0].text;
-						}
-
 						return {
 							role: "assistant" as const,
-							content: content,
+							content: item.content,
 							status: item.status,
 							type: "message" as const,
 						};

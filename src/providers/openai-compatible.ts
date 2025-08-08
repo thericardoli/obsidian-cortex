@@ -1,5 +1,5 @@
 import { OpenAI } from "openai";
-import type { Model } from "@openai/agents-core";
+import type { Model, ModelRequest } from "@openai/agents-core";
 import { OpenAIProvider } from "@openai/agents-openai";
 
 import type { ProviderConfig, IProvider } from "../types";
@@ -38,7 +38,29 @@ export class OpenAICompatibleProvider implements IProvider {
 			throw new Error("Provider not initialized");
 		}
 		// Fetch the model from the OpenAI Compatible provider
-		return this._openaiCompatibleProvider.getModel(modelName);
+		const originalModel = await this._openaiCompatibleProvider.getModel(modelName);
+
+		// Return a wrapped model to normalize message content in getResponse
+		return {
+			...originalModel,
+			getResponse: async (request: ModelRequest & { messages?: any[] }) => {
+				if (request.messages) {
+					const normalizedMessages = request.messages.map(message => {
+						if (Array.isArray(message.content) && message.content.length === 1) {
+							const part = message.content[0];
+							if (part.type === 'text') {
+								return { ...message, content: part.text };
+							}
+						}
+						return message;
+					});
+
+					const normalizedRequest = { ...request, messages: normalizedMessages };
+					return originalModel.getResponse(normalizedRequest);
+				}
+				return originalModel.getResponse(request);
+			},
+		};
 	}
 
 	async getAvailableModels(): Promise<string[]> {
