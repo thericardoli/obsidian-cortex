@@ -248,7 +248,7 @@ export class chatSession extends EventEmitter implements ISession {
 /**
  * Extract text content from assistant message content, which can be a string or array of content parts
  */
-function extractTextFromAssistantContent(content: import("../types/session").AssistantContentPart[]): string {
+function extractTextFromAssistantContent(content: string | import("../types/session").AssistantContentPart[]): string {
 	// If content is already a string, return it directly
 	if (typeof content === 'string') {
 		return content;
@@ -257,12 +257,13 @@ function extractTextFromAssistantContent(content: import("../types/session").Ass
 	// If content is an array of content parts, extract text from relevant parts
 	if (Array.isArray(content)) {
 		return content
+			.filter((part) => part != null) // Filter out null/undefined parts
 			.map((part) => {
 				if (part.type === "output_text") {
-					return part.text;
+					return part.text || "";
 				}
 				if (part.type === "refusal") {
-					return part.refusal;
+					return part.refusal || "";
 				}
 				if (part.type === "audio" && part.transcript) {
 					return part.transcript;
@@ -270,7 +271,7 @@ function extractTextFromAssistantContent(content: import("../types/session").Ass
 				// For other types (image, audio without transcript), return empty string
 				return "";
 			})
-			.filter(text => text.length > 0)
+			.filter(text => typeof text === 'string' && text.length > 0)
 			.join("");
 	}
 	
