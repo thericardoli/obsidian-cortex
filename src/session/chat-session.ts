@@ -174,7 +174,7 @@ export class chatSession extends EventEmitter implements ISession {
 					if (isAssistantMessage(item)) {
 						return {
 							role: "assistant" as const,
-							content: item.content,
+							content: extractTextFromAssistantContent(item.content),
 							status: item.status,
 							type: "message" as const,
 						};
@@ -243,6 +243,39 @@ export class chatSession extends EventEmitter implements ISession {
 			.filter((x): x is Exclude<typeof x, undefined> => x !== undefined);
 		return mapped as unknown as AgentInputItem[];
 	}
+}
+
+/**
+ * Extract text content from assistant message content, which can be a string or array of content parts
+ */
+function extractTextFromAssistantContent(content: import("../types/session").AssistantContentPart[]): string {
+	// If content is already a string, return it directly
+	if (typeof content === 'string') {
+		return content;
+	}
+	
+	// If content is an array of content parts, extract text from relevant parts
+	if (Array.isArray(content)) {
+		return content
+			.map((part) => {
+				if (part.type === "output_text") {
+					return part.text;
+				}
+				if (part.type === "refusal") {
+					return part.refusal;
+				}
+				if (part.type === "audio" && part.transcript) {
+					return part.transcript;
+				}
+				// For other types (image, audio without transcript), return empty string
+				return "";
+			})
+			.filter(text => text.length > 0)
+			.join("");
+	}
+	
+	// Fallback for unexpected content types
+	return "";
 }
 
 /**
