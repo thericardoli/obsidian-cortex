@@ -10,9 +10,9 @@
         selectedModelKey = '',
         canSend = false,
         isLoading = false,
-        onSendMessage,
+	onSendMessage,
         onAgentChange,
-        onModelChange
+	onModelChange
     }: {
         availableAgents: AgentConfig[];
         modelGroups: ModelGroup[];
@@ -22,7 +22,7 @@
         isLoading: boolean;
         onSendMessage: (text: string) => void;
         onAgentChange: (agent: AgentConfig) => void;
-        onModelChange: (key: string) => void;
+	onModelChange: (key: string) => void;
     } = $props();
 
 	// State
@@ -288,6 +288,7 @@
 	.send-button:not(:disabled):active {
 		transform: scale(0.95);
 	}
+
 
 	.loading-icon {
 		color: currentColor;

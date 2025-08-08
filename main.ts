@@ -3,6 +3,7 @@ import { AgentManager } from './src/agent/agent-manager';
 import { ProviderManager } from './src/providers/provider-manager';
 import { PersistenceManager, PGliteResourceLoader } from './src/persistence';
 import { ChatViewLeaf, VIEW_TYPE_CHAT } from './src/ui/view/ChatViewLeaf';
+import { AgentViewLeaf, VIEW_TYPE_AGENT } from './src/ui/view/AgentViewLeaf';
 import { CortexSettingTab } from './src/ui/settings/CortexSettingTab';
 import type { PluginSettings, CreateProviderInput } from './src/types';
 import { DEFAULT_SETTINGS, PluginSettingsSchema } from './src/types';
@@ -72,6 +73,12 @@ export default class CortexPlugin extends Plugin {
                 (leaf) => new ChatViewLeaf(leaf, this.agentManager, this.providerManager, () => this.settings)
             );
 
+            // Register the agent management view
+            this.registerView(
+                VIEW_TYPE_AGENT,
+                (leaf) => new AgentViewLeaf(leaf, this.agentManager, this.providerManager, () => this.settings)
+            );
+
             // Register settings tab
             this.addSettingTab(new CortexSettingTab(this.app, this));
 
@@ -87,9 +94,23 @@ export default class CortexPlugin extends Plugin {
                 }
             });
 
+            // Add command to open agent view
+            this.addCommand({
+                id: 'open-cortex-agents',
+                name: 'Open Cortex Agents',
+                callback: () => {
+                    this.activateAgentView();
+                }
+            });
+
             // Add ribbon icon
             this.addRibbonIcon('message-circle', 'Cortex Chat', () => {
                 this.activateChatView();
+            });
+
+            // Optional: second ribbon icon for agents
+            this.addRibbonIcon('bot', 'Cortex Agents', () => {
+                this.activateAgentView();
             });
 
             console.log('Cortex Plugin loaded successfully');
@@ -135,11 +156,31 @@ export default class CortexPlugin extends Plugin {
         }
     }
 
+    async activateAgentView() {
+        const { workspace } = this.app;
+
+        let leaf: WorkspaceLeaf | null = null;
+        const leaves = workspace.getLeavesOfType(VIEW_TYPE_AGENT);
+
+        if (leaves.length > 0) {
+            leaf = leaves[0];
+        } else {
+            leaf = workspace.getRightLeaf(false);
+            if (leaf) {
+                await leaf.setViewState({ type: VIEW_TYPE_AGENT, active: true });
+            }
+        }
+
+        if (leaf) {
+            workspace.revealLeaf(leaf);
+        }
+    }
+
     async loadSettings() {
         const data = await this.loadData();
         const merged = Object.assign({}, DEFAULT_SETTINGS, data);
 
-        const migrated = this.migrateSettings(merged as any);
+    const migrated = this.migrateSettings(merged as unknown);
 
         // Validate settings with Zod
         try {
@@ -232,64 +273,83 @@ export default class CortexPlugin extends Plugin {
         // In a real implementation, you might want to load additional CSS files
     }
 
-    private migrateSettings(raw: any): any {
-        // If already in new shape, normalize models for each provider
-        if (Array.isArray(raw.providers)) {
-            const providers: ProviderSettingsEntry[] = raw.providers.map((p: any) => ({
-                id: String(p.id),
-                name: String(p.name ?? 'Provider'),
-                providerType: p.providerType === 'OpenAI' ? 'OpenAI' : 'OpenAICompatible',
-                apiKey: p.apiKey,
-                baseUrl: p.baseUrl,
-                enabled: Boolean(p.enabled),
-                models: Array.isArray(p.models) ? p.models : [],
-            }));
+    private migrateSettings(raw: unknown): { providers: ProviderSettingsEntry[]; activeProviderId?: string } {
+        const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
+        const toStringOr = (v: unknown, fallback: string): string => (typeof v === 'string' ? v : fallback);
+        const toBool = (v: unknown): boolean => v === true || v === 'true' || v === 1;
+        const toModels = (v: unknown): { displayName: string; modelId: string }[] =>
+            Array.isArray(v)
+                ? v
+                    .map((m) => (isRecord(m) ? { displayName: toStringOr(m.displayName, ''), modelId: toStringOr(m.modelId, '') } : null))
+                    .filter((m): m is { displayName: string; modelId: string } => !!m && m.displayName !== '' && m.modelId !== '')
+                : [];
 
-            return { providers, activeProviderId: raw.activeProviderId };
+        const r = isRecord(raw) ? raw : {};
+
+        // If already in new shape, normalize models for each provider
+        const rProviders = Array.isArray(r.providers) ? (r.providers as unknown[]) : undefined;
+        if (rProviders) {
+            const providers: ProviderSettingsEntry[] = rProviders
+                .map((p) => (isRecord(p) ? p : null))
+                .filter((p): p is Record<string, unknown> => !!p)
+                .map((p) => ({
+                    id: toStringOr(p.id, ''),
+                    name: toStringOr(p.name, 'Provider'),
+                    providerType: (p.providerType === 'OpenAI' ? 'OpenAI' : 'OpenAICompatible') as 'OpenAI' | 'OpenAICompatible',
+                    apiKey: typeof p.apiKey === 'string' ? p.apiKey : undefined,
+                    baseUrl: typeof p.baseUrl === 'string' ? p.baseUrl : undefined,
+                    enabled: toBool(p.enabled),
+                    models: toModels(p.models),
+                }))
+                .filter((p) => p.id !== '' && p.name !== '');
+
+            return { providers, activeProviderId: typeof r.activeProviderId === 'string' ? r.activeProviderId : undefined };
         }
 
         // Old shape migration
         const providers: ProviderSettingsEntry[] = [];
 
-        if (raw.openai) {
+        if (isRecord(r.openai)) {
+            const openai = r.openai as Record<string, unknown>;
             providers.push({
                 id: 'openai-default',
                 name: 'OpenAI',
                 providerType: 'OpenAI',
-                apiKey: raw.openai.apiKey,
+                apiKey: typeof openai.apiKey === 'string' ? openai.apiKey : undefined,
                 baseUrl: 'https://api.openai.com/v1',
-                enabled: Boolean(raw.openai.enabled || raw.openai.apiKey),
-                models: Array.isArray(raw.openai.models) ? raw.openai.models : [],
+                enabled: toBool(openai.enabled) || typeof openai.apiKey === 'string',
+                models: toModels(openai.models),
             });
         }
 
-        if (raw.ollama) {
+        if (isRecord(r.ollama)) {
+            const ollama = r.ollama as Record<string, unknown>;
             providers.push({
                 id: 'ollama-default',
                 name: 'Ollama',
                 providerType: 'OpenAICompatible',
-                apiKey: raw.ollama.apiKey,
-                baseUrl: raw.ollama.baseUrl || 'http://localhost:11434/v1',
-                enabled: Boolean(raw.ollama.enabled || raw.ollama.baseUrl),
-                models: Array.isArray(raw.ollama.models) ? raw.ollama.models : [],
+                apiKey: typeof ollama.apiKey === 'string' ? ollama.apiKey : undefined,
+                baseUrl: typeof ollama.baseUrl === 'string' ? ollama.baseUrl : 'http://localhost:11434/v1',
+                enabled: toBool(ollama.enabled) || typeof ollama.baseUrl === 'string',
+                models: toModels(ollama.models),
             });
         }
 
         // Old custom providers (without models)
-        if (Array.isArray(raw.providers)) {
-            for (const p of raw.providers) {
-                providers.push({
-                    id: String(p.id),
-                    name: String(p.name ?? 'Provider'),
-                    providerType: p.providerType === 'OpenAI' ? 'OpenAI' : 'OpenAICompatible',
-                    apiKey: p.apiKey,
-                    baseUrl: p.baseUrl,
-                    enabled: Boolean(p.enabled),
-                    models: Array.isArray(p.models) ? p.models : [],
-                });
-            }
+        const legacyProviders = Array.isArray(r.providers) ? (r.providers as unknown[]) : [];
+        for (const p of legacyProviders) {
+            if (!isRecord(p)) continue;
+            providers.push({
+                id: toStringOr(p.id, ''),
+                name: toStringOr(p.name, 'Provider'),
+                providerType: (p.providerType === 'OpenAI' ? 'OpenAI' : 'OpenAICompatible') as 'OpenAI' | 'OpenAICompatible',
+                apiKey: typeof p.apiKey === 'string' ? p.apiKey : undefined,
+                baseUrl: typeof p.baseUrl === 'string' ? p.baseUrl : undefined,
+                enabled: toBool(p.enabled),
+                models: toModels(p.models),
+            });
         }
 
-        return { providers, activeProviderId: raw.activeProviderId };
+        return { providers, activeProviderId: typeof r.activeProviderId === 'string' ? r.activeProviderId : undefined };
     }
 }
