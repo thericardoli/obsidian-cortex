@@ -8,6 +8,8 @@ import ChatView from './ChatView.svelte';
 import type { AgentManager } from '../../agent/agent-manager';
 import type { ProviderManager } from '../../providers/provider-manager';
 import type { PluginSettings } from '../../types';
+import type { SessionService } from '../../services/session-service';
+import type { EventBus } from '../../services/event-bus';
 
 export const VIEW_TYPE_CHAT = 'cortex-side-chat-view';
 
@@ -16,12 +18,16 @@ export class ChatViewLeaf extends ItemView {
     private agentManager: AgentManager;
     private providerManager: ProviderManager;
     private getSettings: () => PluginSettings;
+    private sessionService: SessionService;
+    private eventBus: EventBus;
 
-    constructor(leaf: WorkspaceLeaf, agentManager: AgentManager, providerManager: ProviderManager, getSettings: () => PluginSettings) {
+    constructor(leaf: WorkspaceLeaf, agentManager: AgentManager, providerManager: ProviderManager, getSettings: () => PluginSettings, sessionService: SessionService, eventBus: EventBus) {
         super(leaf);
         this.agentManager = agentManager;
         this.providerManager = providerManager;
         this.getSettings = getSettings;
+        this.sessionService = sessionService;
+        this.eventBus = eventBus;
     }
 
     getViewType(): string {
@@ -54,6 +60,8 @@ export class ChatViewLeaf extends ItemView {
                 agentManager: this.agentManager,
                 providerManager: this.providerManager,
                 getSettings: this.getSettings,
+                sessionService: this.sessionService,
+                eventBus: this.eventBus,
                 workspaceLeaf: this.leaf,
                 app: this.app
             }

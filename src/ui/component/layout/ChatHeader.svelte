@@ -7,14 +7,16 @@
 		sessions = [] as Array<{ id: string; name?: string }>,
 		currentSessionId = '',
 		onSelectSession,
+		onDeleteSession,
 		setIcon,
 	}: {
 		isLoading: boolean;
 		onOpenAgentManager: () => void;
-		onCreateSession: () => void;
+		onCreateSession: () => void | Promise<void>;
 		sessions?: Array<{ id: string; name?: string }>;
 		currentSessionId?: string;
 		onSelectSession: (id: string) => void;
+		onDeleteSession: (id: string) => void | Promise<void>;
 		setIcon: (el: HTMLElement, name: string) => void;
 	} = $props();
 
@@ -57,9 +59,17 @@
 	<!-- 新建会话按钮 -->
 	<button
 		class="secondary header-icon-button"
-		title="新建会话"
+		title={isLoading ? '正在生成中，稍后新建' : '新建会话'}
 		aria-label="新建会话"
-		onclick={onCreateSession}
+		onclick={async () => {
+			if (isLoading) return;
+			showHistory = false;
+			try {
+				await onCreateSession?.();
+			} finally {
+				showHistory = false;
+			}
+		}}
 		disabled={isLoading}
 	>
 		<span class="icon" bind:this={createIconEl} aria-hidden="true"></span>
@@ -82,14 +92,23 @@
 					<div class="history-empty">暂无会话</div>
 				{:else}
 					{#each sessions as s}
-						<button
-							class="history-item {currentSessionId === s.id ? 'active' : ''}"
-							title={s.id}
-							onclick={() => handleSelectSession(s.id)}
-						>
-							<span class="dot {currentSessionId === s.id ? 'dot-active' : ''}"></span>
-							{(s.name && s.name.trim()) ? s.name : s.id}
-						</button>
+						<div class="history-row {currentSessionId === s.id ? 'active' : ''}" title={s.id}>
+							<button
+								class="history-item"
+								onclick={() => handleSelectSession(s.id)}
+							>
+								<span class="dot {currentSessionId === s.id ? 'dot-active' : ''}"></span>
+								{(s.name && s.name.trim()) ? s.name : s.id}
+							</button>
+							<button
+								class="delete-btn"
+								aria-label="删除会话"
+								onclick={async (e) => { e.stopPropagation(); await onDeleteSession?.(s.id); }}
+								disabled={isLoading}
+							>
+								✕
+							</button>
+						</div>
 					{/each}
 				{/if}
 			</div>
@@ -175,7 +194,12 @@
 		cursor: pointer;
 	}
 	.history-item:hover { background: var(--background-modifier-hover); }
-	.history-item.active { background: var(--background-modifier-hover); font-weight: 600; }
+	/* 历史行与激活态 */
+	.history-row { display: flex; align-items: center; gap: 0.25rem; }
+	.history-row.active .history-item { font-weight: 600; background: var(--background-modifier-hover); }
+	.delete-btn { border: none; background: transparent; color: var(--text-faint); cursor: pointer; padding: 0.25rem; border-radius: 0.375rem; font-size: 0.7rem; line-height: 1; }
+	.delete-btn:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+	.delete-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 	.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--background-modifier-border); }
 	.dot-active { background: var(--interactive-accent); }
 	.agents-button {
