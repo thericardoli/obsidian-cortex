@@ -6,13 +6,18 @@ import { ChatViewLeaf, VIEW_TYPE_CHAT } from './src/ui/view/ChatViewLeaf';
 import { AgentViewLeaf, VIEW_TYPE_AGENT } from './src/ui/view/AgentViewLeaf';
 import { CortexSettingTab } from './src/ui/settings/CortexSettingTab';
 import type { PluginSettings, CreateProviderInput } from './src/types';
-import { DEFAULT_SETTINGS, PluginSettingsSchema } from './src/types';
-import type { ProviderSettingsEntry } from './src/types';
-import { cloneDefaultProviders } from './src/config/provider-defaults';
+import { SettingsService } from './src/services/settings-service';
+import { ProviderService } from './src/services/provider-service';
+import { SessionService } from './src/services/session-service';
+import { SimpleEventBus, type EventBus } from './src/services/event-bus';
 
 export default class CortexPlugin extends Plugin {
     private agentManager: AgentManager;
     private providerManager: ProviderManager;
+    private providerService: ProviderService;
+    private sessionService: SessionService;
+    public eventBus: EventBus;
+    private settingsService: SettingsService;
     private persistenceManager: PersistenceManager | null = null;
     public settings: PluginSettings;
 
@@ -20,11 +25,16 @@ export default class CortexPlugin extends Plugin {
         console.log('Loading Cortex Plugin');
 
         try {
-            // Load settings
-            await this.loadSettings();
+            // Create services
+            this.settingsService = new SettingsService(this);
+            this.eventBus = new SimpleEventBus();
+
+            // Load + migrate + seed settings
+            this.settings = await this.settingsService.load();
 
             // Initialize the managers
             this.providerManager = new ProviderManager();
+            this.providerService = new ProviderService(this.providerManager);
             
             // Initialize persistence manager with PGlite resource loading
             try {
@@ -52,8 +62,9 @@ export default class CortexPlugin extends Plugin {
                 this.persistenceManager = null;
             }
             
-            // Initialize agent manager with persistence
+            // Initialize agent + session services with persistence
             this.agentManager = new AgentManager(this.providerManager, this.persistenceManager);
+            this.sessionService = new SessionService(this.persistenceManager);
             
             // Load existing agents from database (only if persistence is available)
             if (this.persistenceManager) {
@@ -64,13 +75,13 @@ export default class CortexPlugin extends Plugin {
                 }
             }
 
-            // Initialize providers from settings
-            await this.initializeProvidersFromSettings();
+            // Initialize providers from settings via service
+            await this.providerService.refreshFromSettings(this.settings);
 
             // Register the chat view
             this.registerView(
                 VIEW_TYPE_CHAT,
-                (leaf) => new ChatViewLeaf(leaf, this.agentManager, this.providerManager, () => this.settings)
+                (leaf) => new ChatViewLeaf(leaf, this.agentManager, this.providerManager, () => this.settings, this.sessionService, this.eventBus)
             );
 
             // Register the agent management view
@@ -176,60 +187,8 @@ export default class CortexPlugin extends Plugin {
         }
     }
 
-    async loadSettings() {
-        const data = await this.loadData();
-        const merged = Object.assign({}, DEFAULT_SETTINGS, data);
-
-    const migrated = this.migrateSettings(merged as unknown);
-
-        // Validate settings with Zod
-        try {
-            this.settings = PluginSettingsSchema.parse(migrated);
-        } catch (error) {
-            console.warn('Invalid plugin settings after migration, using defaults:', error);
-            this.settings = DEFAULT_SETTINGS;
-        }
-
-        // Seed defaults if empty (from central defaults file)
-        if (!this.settings.providers || this.settings.providers.length === 0) {
-            this.settings.providers = cloneDefaultProviders();
-        }
-
-        if (!this.settings.activeProviderId && this.settings.providers.length > 0) {
-            this.settings.activeProviderId = this.settings.providers[0].id;
-        }
-
-        await this.saveSettings();
-    }
-
     async saveSettings() {
-        await this.saveData(this.settings);
-    }
-
-    async initializeProvidersFromSettings() {
-        // Initialize providers from unified list
-        for (const p of this.settings.providers) {
-            // Treat as enabled at runtime if credentials are present even when the persisted flag is false
-            const runtimeEnabled =
-                p.enabled ||
-                (p.providerType === 'OpenAI' && !!p.apiKey) ||
-                (p.providerType === 'OpenAICompatible' && !!p.baseUrl);
-
-            if (!runtimeEnabled) continue;
-
-            try {
-                await this.providerManager.addProvider({
-                    id: p.id,
-                    name: p.name,
-                    providerType: p.providerType,
-                    apiKey: p.apiKey,
-                    baseUrl: p.baseUrl,
-                    enabled: runtimeEnabled,
-                });
-            } catch (error) {
-                console.error(`Failed to initialize provider ${p.name}:`, error);
-            }
-        }
+        await this.settingsService.save(this.settings);
     }
 
     async addCustomProvider(input: CreateProviderInput) {
@@ -266,25 +225,9 @@ export default class CortexPlugin extends Plugin {
     }
 
     async refreshProviders() {
-        // Reinitialize providers on the existing manager instance
-        await this.providerManager.resetProviders(
-            (this.settings.providers || []).map(p => {
-                const runtimeEnabled =
-                    p.enabled ||
-                    (p.providerType === 'OpenAI' && !!p.apiKey) ||
-                    (p.providerType === 'OpenAICompatible' && !!p.baseUrl);
-                return {
-                    id: p.id,
-                    name: p.name,
-                    providerType: p.providerType,
-                    apiKey: p.apiKey,
-                    baseUrl: p.baseUrl,
-                    enabled: runtimeEnabled,
-                };
-            })
-        );
-        // Notify views to refresh dropdowns
-        this.app.workspace.trigger('cortex:providers-updated');
+        await this.providerService.refreshFromSettings(this.settings);
+        // Notify via typed event bus
+        this.eventBus.emit('providersUpdated');
     }
 
     private loadSettingsCSS() {
@@ -293,83 +236,5 @@ export default class CortexPlugin extends Plugin {
         // In a real implementation, you might want to load additional CSS files
     }
 
-    private migrateSettings(raw: unknown): { providers: ProviderSettingsEntry[]; activeProviderId?: string } {
-        const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
-        const toStringOr = (v: unknown, fallback: string): string => (typeof v === 'string' ? v : fallback);
-        const toBool = (v: unknown): boolean => v === true || v === 'true' || v === 1;
-        const toModels = (v: unknown): { displayName: string; modelId: string }[] =>
-            Array.isArray(v)
-                ? v
-                    .map((m) => (isRecord(m) ? { displayName: toStringOr(m.displayName, ''), modelId: toStringOr(m.modelId, '') } : null))
-                    .filter((m): m is { displayName: string; modelId: string } => !!m && m.displayName !== '' && m.modelId !== '')
-                : [];
-
-        const r = isRecord(raw) ? raw : {};
-
-        // If already in new shape, normalize models for each provider
-        const rProviders = Array.isArray(r.providers) ? (r.providers as unknown[]) : undefined;
-        if (rProviders) {
-            const providers: ProviderSettingsEntry[] = rProviders
-                .map((p) => (isRecord(p) ? p : null))
-                .filter((p): p is Record<string, unknown> => !!p)
-                .map((p) => ({
-                    id: toStringOr(p.id, ''),
-                    name: toStringOr(p.name, 'Provider'),
-                    providerType: (p.providerType === 'OpenAI' ? 'OpenAI' : 'OpenAICompatible') as 'OpenAI' | 'OpenAICompatible',
-                    apiKey: typeof p.apiKey === 'string' ? p.apiKey : undefined,
-                    baseUrl: typeof p.baseUrl === 'string' ? p.baseUrl : undefined,
-                    enabled: toBool(p.enabled),
-                    models: toModels(p.models),
-                }))
-                .filter((p) => p.id !== '' && p.name !== '');
-
-            return { providers, activeProviderId: typeof r.activeProviderId === 'string' ? r.activeProviderId : undefined };
-        }
-
-        // Old shape migration
-        const providers: ProviderSettingsEntry[] = [];
-
-        if (isRecord(r.openai)) {
-            const openai = r.openai as Record<string, unknown>;
-            providers.push({
-                id: 'openai-default',
-                name: 'OpenAI',
-                providerType: 'OpenAI',
-                apiKey: typeof openai.apiKey === 'string' ? openai.apiKey : undefined,
-                baseUrl: 'https://api.openai.com/v1',
-                enabled: toBool(openai.enabled) || typeof openai.apiKey === 'string',
-                models: toModels(openai.models),
-            });
-        }
-
-        if (isRecord(r.ollama)) {
-            const ollama = r.ollama as Record<string, unknown>;
-            providers.push({
-                id: 'ollama-default',
-                name: 'Ollama',
-                providerType: 'OpenAICompatible',
-                apiKey: typeof ollama.apiKey === 'string' ? ollama.apiKey : undefined,
-                baseUrl: typeof ollama.baseUrl === 'string' ? ollama.baseUrl : 'http://localhost:11434/v1',
-                enabled: toBool(ollama.enabled) || typeof ollama.baseUrl === 'string',
-                models: toModels(ollama.models),
-            });
-        }
-
-        // Old custom providers (without models)
-        const legacyProviders = Array.isArray(r.providers) ? (r.providers as unknown[]) : [];
-        for (const p of legacyProviders) {
-            if (!isRecord(p)) continue;
-            providers.push({
-                id: toStringOr(p.id, ''),
-                name: toStringOr(p.name, 'Provider'),
-                providerType: (p.providerType === 'OpenAI' ? 'OpenAI' : 'OpenAICompatible') as 'OpenAI' | 'OpenAICompatible',
-                apiKey: typeof p.apiKey === 'string' ? p.apiKey : undefined,
-                baseUrl: typeof p.baseUrl === 'string' ? p.baseUrl : undefined,
-                enabled: toBool(p.enabled),
-                models: toModels(p.models),
-            });
-        }
-
-        return { providers, activeProviderId: typeof r.activeProviderId === 'string' ? r.activeProviderId : undefined };
-    }
+    // Settings migration moved to SettingsService
 }

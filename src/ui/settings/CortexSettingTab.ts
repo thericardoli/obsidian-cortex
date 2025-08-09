@@ -139,7 +139,8 @@ export class CortexSettingTab extends PluginSettingTab {
 					.onClick(async () => {
 						this.plugin.settings.providers.splice(index, 1);
 						await this.plugin.saveSettings();
-						await this.plugin.refreshProviders();
+                    await this.plugin.refreshProviders();
+                    this.plugin.eventBus.emit('providersUpdated');
 						this.selectedProviderKey = this.plugin.settings.activeProviderId = this.plugin.settings.providers[0]?.id ?? null;
 						this.display();
 						new Notice('Provider removed successfully!');
@@ -179,10 +180,9 @@ export class CortexSettingTab extends PluginSettingTab {
 						if (this.plugin.settings.providers[index].providerType === 'OpenAI') {
 							this.plugin.settings.providers[index].enabled = !!v;
 						}
-						await this.plugin.saveSettings();
-						await this.plugin.refreshProviders();
-						// Notify views that providers changed
-						this.plugin.app.workspace.trigger('cortex:providers-updated');
+                    await this.plugin.saveSettings();
+                    await this.plugin.refreshProviders();
+                    this.plugin.eventBus.emit('providersUpdated');
 					});
 			});
 
@@ -197,13 +197,13 @@ export class CortexSettingTab extends PluginSettingTab {
 			const idx = this.plugin.settings.providers.findIndex(p => p.id === providerKey);
 			return idx >= 0 ? this.plugin.settings.providers[idx].models : [];
 		};
-		const setModels = async (models: ProviderModelEntry[]) => {
-			const idx = this.plugin.settings.providers.findIndex(p => p.id === providerKey);
-			if (idx >= 0) this.plugin.settings.providers[idx].models = models;
-			await this.plugin.saveSettings();
-			// Broadcast models updated so views can refresh their dropdowns immediately
-			this.plugin.app.workspace.trigger('cortex:models-updated', providerKey);
-		};
+        const setModels = async (models: ProviderModelEntry[]) => {
+            const idx = this.plugin.settings.providers.findIndex(p => p.id === providerKey);
+            if (idx >= 0) this.plugin.settings.providers[idx].models = models;
+            await this.plugin.saveSettings();
+            // Broadcast models updated via EventBus so views can refresh their dropdowns immediately
+            this.plugin.eventBus.emit('modelsUpdated', { providerId: providerKey });
+        };
 
 		// Add form
 		let displayName = '';
@@ -221,12 +221,12 @@ export class CortexSettingTab extends PluginSettingTab {
 				const list = getModels();
 				const next = [...list, { displayName, modelId }];
 				await setModels(next);
-				new Notice('Model added');
-				// Also notify provider updates for safety (in case first model appears)
-				this.plugin.app.workspace.trigger('cortex:providers-updated');
-				this.display();
-			})
-		);
+                new Notice('Model added');
+                // Also notify provider updates for safety (in case first model appears)
+                this.plugin.eventBus.emit('providersUpdated');
+                this.display();
+            })
+        );
 
 		// Existing models
 		const listWrap = host.createDiv({ cls: 'model-list-wrap' });
@@ -238,13 +238,13 @@ export class CortexSettingTab extends PluginSettingTab {
 					b.setIcon('trash').setTooltip('Remove').onClick(async () => {
 						const list = getModels();
 						list.splice(idx, 1);
-						await setModels([...list]);
-						// Notify views so dropdown updates if selected key disappears
-						this.plugin.app.workspace.trigger('cortex:providers-updated');
-						this.display();
-						new Notice('Model removed');
-					})
-				);
+                    await setModels([...list]);
+                    // Notify views so dropdown updates if selected key disappears
+                    this.plugin.eventBus.emit('providersUpdated');
+                    this.display();
+                    new Notice('Model removed');
+                })
+            );
 		});
 	}
 }

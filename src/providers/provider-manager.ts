@@ -8,6 +8,21 @@ export class ProviderManager {
 
     constructor() {}
 
+    /**
+     * Ensure the target provider exists and is initialized.
+     * Centralizes lazy init to avoid scattered checks.
+     */
+    async ensureInitialized(providerId: string): Promise<IProvider> {
+        const provider = this.providers.get(providerId);
+        if (!provider) {
+            throw new Error(`Provider with id '${providerId}' not found`);
+        }
+        if (!provider.isInitialized()) {
+            await provider.initialize();
+        }
+        return provider;
+    }
+
     async addProvider(config: ProviderConfig): Promise<void> {
         let provider: IProvider;
 
@@ -30,28 +45,12 @@ export class ProviderManager {
     }
 
     async getModel(providerId: string, modelName: string): Promise<Model> {
-        const provider = this.providers.get(providerId);
-        if (!provider) {
-            throw new Error(`Provider with id '${providerId}' not found`);
-        }
-
-        if (!provider.isInitialized()) {
-            await provider.initialize();
-        }
-
+        const provider = await this.ensureInitialized(providerId);
         return provider.getModel(modelName);
     }
 
     async getAvailableModels(providerId: string): Promise<string[]> {
-        const provider = this.providers.get(providerId);
-        if (!provider) {
-            throw new Error(`Provider with id '${providerId}' not found`);
-        }
-
-        if (!provider.isInitialized()) {
-            await provider.initialize();
-        }
-
+        const provider = await this.ensureInitialized(providerId);
         return provider.getAvailableModels();
     }
 
