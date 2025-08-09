@@ -164,27 +164,22 @@ export class chatSession extends EventEmitter implements ISession {
 		const mapped = items
 			.map((item) => {
 				if (isMessageItem(item)) {
+					// 统一包装 content 结构
 					if (isUserMessage(item)) {
-						return {
-							role: "user" as const,
-							content: item.content,
-							type: "message" as const,
-						};
+						const textParts = Array.isArray(item.content)
+							? item.content
+							: [{ type: "input_text", text: String(item.content ?? "") }];
+						return { role: "user" as const, content: textParts, type: "message" as const };
 					}
 					if (isAssistantMessage(item)) {
-						return {
-							role: "assistant" as const,
-							content: item.content,
-							status: item.status,
-							type: "message" as const,
-						};
+						const outParts = Array.isArray(item.content)
+							? item.content
+							: [{ type: "output_text", text: String(item.content ?? "") }];
+						return { role: "assistant" as const, content: outParts, status: item.status, type: "message" as const };
 					}
 					if (isSystemMessage(item)) {
-						return {
-							role: "system" as const,
-							content: item.content,
-							type: "message" as const,
-						};
+						const sysParts = [{ type: "input_text", text: String(item.content ?? "") }];
+						return { role: "system" as const, content: sysParts, type: "message" as const };
 					}
 					return undefined;
 				}

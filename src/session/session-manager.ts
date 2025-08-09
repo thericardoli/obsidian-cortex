@@ -190,13 +190,25 @@ export class SessionManager extends EventEmitter {
      */
     public async deleteSession(sessionId: string): Promise<boolean> {
         const session = this.sessions.get(sessionId);
-        if (!session) {
-            return false;
-        }
+        if (!session && !this.persistenceManager) return false;
 
         try {
-            await session.dispose();
-            this.sessions.delete(sessionId);
+            // Dispose (saves & clears) only if in memory
+            if (session) {
+                await session.dispose();
+                this.sessions.delete(sessionId);
+            }
+            // Remove persistent record
+            if (this.persistenceManager) {
+                try {
+                    const repo = this.persistenceManager.getSessionRepository();
+                    await repo.remove(sessionId);
+                } catch (e) {
+                    // If removal fails, emit error but continue
+                    this.emit('sessionError', { sessionId, error: e });
+                    throw e;
+                }
+            }
             this.emit('sessionDeleted', { sessionId });
             return true;
         } catch (error) {
@@ -238,9 +250,19 @@ export class SessionManager extends EventEmitter {
      * 生成唯一的 Session ID
      */
     public generateSessionId(): string {
-        const timestamp = Date.now();
-        const random = Math.random().toString(36).substring(2, 15);
-        return `session_${timestamp}_${random}`;
+        // Use standard RFC4122 UUID to satisfy database UUID column type
+        try {
+            // Browser / modern Node (incl. Electron) path
+            if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+                return (crypto as unknown as { randomUUID: () => string }).randomUUID();
+            }
+        } catch { /* fall through to manual */ }
+        // Fallback UUID v4 generator
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+            const r = Math.random() * 16 | 0;
+            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
     }
 
     /**
