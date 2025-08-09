@@ -213,8 +213,7 @@
 	function handleProviderChange(id: string) {
 		if (!form) return;
 		form.providerId = id;
-		const firstModel =
-			providers.find((p) => p.id === id)?.models?.[0]?.modelId || "";
+		const firstModel = providers.find((p) => p.id === id)?.models?.[0]?.modelId || "";
 		form.modelId = firstModel;
 	}
 
@@ -222,6 +221,18 @@
 		if (!form) return;
 		form.modelId = id;
 	}
+
+	// 当 provider 或 providers 列变化时，如果当前 modelId 为空或不再存在，则回填第一个模型
+	$effect(() => {
+		const f = form;
+		if (!f) return;
+		const prov = providers.find((p) => p.id === f.providerId);
+		if (!prov) return;
+		const exists = prov.models.some((m) => m.modelId === f.modelId);
+		if (!exists) {
+			f.modelId = prov.models[0]?.modelId || "";
+		}
+	});
 </script>
 
 <div class="agent-view">
@@ -282,7 +293,7 @@
 				<label for="agent-provider">Provider</label>
 				<select
 					id="agent-provider"
-					value={form.providerId}
+					bind:value={form.providerId}
 					onchange={(e) =>
 						handleProviderChange(
 							(e.target as HTMLSelectElement).value,
@@ -297,7 +308,7 @@
 				<label for="agent-model">Model</label>
 				<select
 					id="agent-model"
-					value={form.modelId}
+					bind:value={form.modelId}
 					onchange={(e) =>
 						handleModelChange(
 							(e.target as HTMLSelectElement).value,
