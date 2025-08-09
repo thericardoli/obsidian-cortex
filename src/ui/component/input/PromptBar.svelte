@@ -1,68 +1,101 @@
 <script lang="ts">
-	import type { AgentConfig } from '../../../types';
-	
-    type ModelGroup = { providerId: string; providerName: string; items: { key: string; label: string; modelId: string }[] };
+	import { onMount } from "svelte";
+	import type { AgentConfig } from "../../../types";
+
+	type ModelGroup = {
+		providerId: string;
+		providerName: string;
+		items: { key: string; label: string; modelId: string }[];
+	};
 
 	let {
-        availableAgents = [],
-        modelGroups = [],
-        selectedAgent = null,
-        selectedModelKey = '',
-        canSend = false,
-        isLoading = false,
-	onSendMessage,
-        onAgentChange,
-	onModelChange
-    }: {
-        availableAgents: AgentConfig[];
-        modelGroups: ModelGroup[];
-        selectedAgent: AgentConfig | null;
-        selectedModelKey: string;
-        canSend: boolean;
-        isLoading: boolean;
-        onSendMessage: (text: string) => void;
-        onAgentChange: (agent: AgentConfig) => void;
-	onModelChange: (key: string) => void;
-    } = $props();
+		availableAgents = [],
+		modelGroups = [],
+		selectedAgent = null,
+		selectedModelKey = "",
+		canSend = false,
+		isLoading = false,
+		onSendMessage,
+		onAgentChange,
+		onModelChange,
+		onReady,
+	}: {
+		availableAgents: AgentConfig[];
+		modelGroups: ModelGroup[];
+		selectedAgent: AgentConfig | null;
+		selectedModelKey: string;
+		canSend: boolean;
+		isLoading: boolean;
+		onSendMessage: (text: string) => void;
+		onAgentChange: (agent: AgentConfig) => void;
+		onModelChange: (key: string) => void;
+		onReady?: (api: { focusInput: () => void }) => void;
+	} = $props();
 
 	// State
-	let inputText = $state('');
+	let inputText = $state("");
 	let textareaElement: HTMLTextAreaElement;
 
+	// Expose a tiny API for parent to focus the input
+	function focusInput() {
+		try {
+			textareaElement?.focus();
+		} catch {}
+	}
+	// Notify parent with focus API and focus on first mount
+	onMount(() => {
+		try {
+			onReady?.({ focusInput });
+		} catch {}
+		queueMicrotask(() => focusInput());
+	});
+	let rootEl: HTMLDivElement;
+
 	// Derived state
-	const isInputEmpty = $derived(inputText.trim() === '');
+	const isInputEmpty = $derived(inputText.trim() === "");
 	const canSendMessage = $derived(canSend && !isInputEmpty && !isLoading);
 
 	// Auto-resize textarea based on content
 	$effect(() => {
 		if (textareaElement && inputText !== undefined) {
 			// Reset height to auto to get accurate scrollHeight
-			textareaElement.style.height = 'auto';
-			
+			textareaElement.style.height = "auto";
+
 			// Calculate new height based on content
 			const scrollHeight = textareaElement.scrollHeight;
 			const minHeight = 100; // Minimum height in pixels
 			const maxHeight = 160; // Maximum height in pixels (about 6-7 lines)
-			
+
 			// Set height within bounds
-			const newHeight = Math.max(minHeight, Math.min(scrollHeight, maxHeight));
-			textareaElement.style.height = newHeight + 'px';
+			const newHeight = Math.max(
+				minHeight,
+				Math.min(scrollHeight, maxHeight),
+			);
+			textareaElement.style.height = newHeight + "px";
 		}
 	});
 
 	function handleSend() {
-		console.log('handleSend called:', { canSendMessage, inputText, canSend, isInputEmpty, isLoading });
+		console.log("handleSend called:", {
+			canSendMessage,
+			inputText,
+			canSend,
+			isInputEmpty,
+			isLoading,
+		});
 		if (!canSendMessage) return;
-		
+
 		const text = inputText.trim();
 		if (text) {
 			onSendMessage(text);
-			inputText = '';
+			inputText = "";
+			// Keep focus for quick follow-ups
+			queueMicrotask(() => focusInput());
 		}
 	}
 
 	function handleKeydown(event: KeyboardEvent) {
-		if (event.key === 'Enter' && !event.shiftKey) {
+		if (event.key === "Enter" && !event.shiftKey) {
 			event.preventDefault();
 			handleSend();
 		}
@@ -71,25 +104,25 @@
 	function handleAgentSelect(event: Event) {
 		const target = event.target as HTMLSelectElement;
 		const agentId = target.value;
-		const agent = availableAgents.find(a => a.id === agentId);
+		const agent = availableAgents.find((a) => a.id === agentId);
 		if (agent) {
 			onAgentChange(agent);
 		}
 	}
 
-    function handleModelSelect(event: Event) {
-        const target = event.target as HTMLSelectElement;
-        onModelChange(target.value);
-    }
+	function handleModelSelect(event: Event) {
+		const target = event.target as HTMLSelectElement;
+		onModelChange(target.value);
+	}
 </script>
 
-<div class="prompt-bar">
+<div class="prompt-bar" bind:this={rootEl}>
 	<div class="controls-row">
 		<div class="selector-group">
 			<label for="agent-select">Agent:</label>
-			<select 
+			<select
 				id="agent-select"
-				value={selectedAgent?.id || ''}
+				value={selectedAgent?.id || ""}
 				onchange={handleAgentSelect}
 				disabled={isLoading}
 			>
@@ -100,24 +133,24 @@
 			</select>
 		</div>
 
-        <div class="selector-group">
-            <label for="model-select">Model:</label>
-            <select 
-                id="model-select"
-                value={selectedModelKey}
-                onchange={handleModelSelect}
-                disabled={isLoading}
-            >
-                <option value="" disabled>Select a model</option>
-                {#each modelGroups as group (group.providerId)}
-                    <optgroup label={group.providerName}>
-                        {#each group.items as item (item.key)}
-                            <option value={item.key}>{item.label}</option>
-                        {/each}
-                    </optgroup>
-                {/each}
-            </select>
-        </div>
+		<div class="selector-group">
+			<label for="model-select">Model:</label>
+			<select
+				id="model-select"
+				value={selectedModelKey}
+				onchange={handleModelSelect}
+				disabled={isLoading}
+			>
+				<option value="" disabled>Select a model</option>
+				{#each modelGroups as group (group.providerId)}
+					<optgroup label={group.providerName}>
+						{#each group.items as item (item.key)}
+							<option value={item.key}>{item.label}</option>
+						{/each}
+					</optgroup>
+				{/each}
+			</select>
+		</div>
 	</div>
 
 	<div class="input-row">
@@ -127,11 +160,10 @@
 				bind:value={inputText}
 				onkeydown={handleKeydown}
 				placeholder="Type your message... (Enter to send, Shift+Enter for new line)"
-				disabled={isLoading}
 				class="message-input"
 				rows="1"
 			></textarea>
-			
+
 			<button
 				onclick={handleSend}
 				disabled={!canSendMessage}
@@ -139,15 +171,44 @@
 				title="Send message"
 			>
 				{#if isLoading}
-					<svg class="loading-icon" viewBox="0 0 24 24" width="16" height="16">
-						<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none" opacity="0.3"/>
-						<path d="M12 2 A 10 10 0 0 1 22 12" stroke="currentColor" stroke-width="2" fill="none">
-							<animateTransform attributeName="transform" type="rotate" values="0 12 12;360 12 12" dur="1s" repeatCount="indefinite"/>
+					<svg
+						class="loading-icon"
+						viewBox="0 0 24 24"
+						width="16"
+						height="16"
+					>
+						<circle
+							cx="12"
+							cy="12"
+							r="10"
+							stroke="currentColor"
+							stroke-width="2"
+							fill="none"
+							opacity="0.3"
+						/>
+						<path
+							d="M12 2 A 10 10 0 0 1 22 12"
+							stroke="currentColor"
+							stroke-width="2"
+							fill="none"
+						>
+							<animateTransform
+								attributeName="transform"
+								type="rotate"
+								values="0 12 12;360 12 12"
+								dur="1s"
+								repeatCount="indefinite"
+							/>
 						</path>
 					</svg>
 				{:else}
-					<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-						<path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+					<svg
+						viewBox="0 0 24 24"
+						width="16"
+						height="16"
+						fill="currentColor"
+					>
+						<path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
 					</svg>
 				{/if}
 			</button>
@@ -187,18 +248,18 @@
 		white-space: nowrap;
 	}
 
-    .selector-group select {
-        flex: 1;
-        padding: 0.375rem 0.75rem;
-        border: 1px solid var(--background-modifier-border);
-        border-radius: 0.375rem;
-        background: var(--background-primary);
-        color: var(--text-normal);
-        font-size: 0.875rem;
-        cursor: pointer;
-    }
+	.selector-group select {
+		flex: 1;
+		padding: 0.375rem 0.75rem;
+		border: 1px solid var(--background-modifier-border);
+		border-radius: 0.375rem;
+		background: var(--background-primary);
+		color: var(--text-normal);
+		font-size: 0.875rem;
+		cursor: pointer;
+	}
 
-    /* removed search input */
+	/* removed search input */
 
 	.selector-group select:disabled {
 		opacity: 0.6;
@@ -208,7 +269,9 @@
 	.selector-group select:focus {
 		outline: none;
 		border-color: var(--interactive-accent);
-		box-shadow: 0 0 0 2px var(--interactive-accent-rgb), 0.2;
+		box-shadow:
+			0 0 0 2px var(--interactive-accent-rgb),
+			0.2;
 	}
 
 	.input-row {
@@ -288,7 +351,6 @@
 	.send-button:not(:disabled):active {
 		transform: scale(0.95);
 	}
-
 
 	.loading-icon {
 		color: currentColor;

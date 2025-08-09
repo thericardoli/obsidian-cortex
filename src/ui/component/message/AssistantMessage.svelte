@@ -1,14 +1,17 @@
 <script lang="ts">
 	import { copyToClipboard } from "../../utils/clipboard";
+	import { onDestroy } from "svelte";
 
 	let {
 		content,
 		timestamp,
+		streaming = false,
 		renderMarkdown,
 		setIcon,
 	}: {
 		content: string;
 		timestamp: number;
+		streaming?: boolean;
 		renderMarkdown: (el: HTMLElement, md: string) => void;
 		setIcon?: (el: HTMLElement, name: string) => void;
 	} = $props();
@@ -33,41 +36,69 @@
 		}
 	}
 
-	$effect(() => {
+	// Throttle markdown rendering to avoid heavy reflows on high-frequency streaming updates
+	let renderTimer: number | null = null;
+	let lastRenderedContent = "";
+
+	function scheduleMarkdownRender() {
 		const md = content;
 		const host = markdownHost;
 		if (!host) return;
 		if (!md || md.trim().length === 0) return;
-		renderMarkdown(host, md);
+		// 仅在非流式阶段渲染 Markdown；流式阶段先显示纯文本更顺滑
+		if (streaming) return;
+		if (md === lastRenderedContent) return; // skip identical renders
 
-		// After markdown renders, normalize any code-block copy buttons' icons
-		// to use Obsidian's setIcon for consistent appearance (incl. Lucide).
-		queueMicrotask(() => {
-			if (!host) return;
-			const selector = [
-				".copy-code-button",
-				".codeblock-copy",
-				".code-block-copy",
-				".copy-code",
-			].join(",");
-			const buttons = host.querySelectorAll(selector);
-			buttons.forEach((btn) => {
-				const el = btn as HTMLElement;
-				if (el.dataset.iconInited === "1") return;
-				el.dataset.iconInited = "1";
-				try {
-					// Clear existing children to avoid duplicate icons/text
-					el.replaceChildren();
-					if (setIcon) {
-						setIcon(el, "copy");
+		if (renderTimer !== null) {
+			clearTimeout(renderTimer);
+		}
+		// Small delay batches multiple quick deltas into one render
+		renderTimer = window.setTimeout(() => {
+			renderTimer = null;
+			lastRenderedContent = md;
+			try {
+				renderMarkdown(host, md);
+			} catch (e) {
+				console.warn("MarkdownRenderer failed:", e);
+			}
+			// Normalize code-copy buttons' icons after render
+			queueMicrotask(() => {
+				if (!host) return;
+				const selector = [
+					".copy-code-button",
+					".codeblock-copy",
+					".code-block-copy",
+					".copy-code",
+				].join(",");
+				const buttons = host.querySelectorAll(selector);
+				buttons.forEach((btn) => {
+					const el = btn as HTMLElement;
+					if (el.dataset.iconInited === "1") return;
+					el.dataset.iconInited = "1";
+					try {
+						el.replaceChildren();
+						if (setIcon) setIcon(el, "copy");
+						el.setAttribute("title", "复制代码");
+						el.setAttribute("aria-label", "复制代码");
+					} catch (e) {
+						console.warn("Failed to set icon for code copy button", e);
 					}
-					el.setAttribute("title", "复制代码");
-					el.setAttribute("aria-label", "复制代码");
-				} catch (e) {
-					console.warn("Failed to set icon for code copy button", e);
-				}
+				});
 			});
-		});
+		}, 80);
+	}
+
+	$effect(() => {
+		// content 或 streaming 变化时尝试渲染（流式中会被短路）
+		const _c = content;
+		const _s = streaming;
+		scheduleMarkdownRender();
+	});
+
+	onDestroy(() => {
+		if (renderTimer !== null) {
+			clearTimeout(renderTimer);
+		}
 	});
 
 	// Render icons via Obsidian setIcon for unified style
@@ -88,7 +119,12 @@
 	</div>
 	<div class="message-content">
 		{#if content && content.trim().length > 0}
-			<div class="markdown-body" bind:this={markdownHost}></div>
+			{#if streaming}
+				<!-- 流式阶段：先用轻量纯文本展示，避免频繁 Markdown 重排 -->
+				<div class="streaming-text">{content}</div>
+			{:else}
+				<div class="markdown-body" bind:this={markdownHost}></div>
+			{/if}
 			<button
 				class="copy-icon-btn copy-code-button"
 				title="复制"
@@ -197,6 +233,13 @@
 	/* Markdown base within assistant content */
 	.markdown-body {
 		white-space: normal;
+	}
+
+	/* 轻量纯文本样式（流式阶段） */
+	.streaming-text {
+		white-space: pre-wrap;
+		word-break: break-word;
+		overflow-wrap: anywhere;
 	}
 
 	.markdown-body :global(pre) {

@@ -3,7 +3,11 @@
 	import { run } from "@openai/agents";
 	import type { AgentManager } from "../../agent/agent-manager";
 	import type { ProviderManager } from "../../providers/provider-manager";
-	import { MarkdownRenderer, Component, setIcon as setObsidianIcon } from "obsidian";
+	import {
+		MarkdownRenderer,
+		Component,
+		setIcon as setObsidianIcon,
+	} from "obsidian";
 	import type { WorkspaceLeaf, App } from "obsidian";
 	import type { Agent } from "@openai/agents";
 	import type { AgentConfig } from "../../types";
@@ -36,6 +40,7 @@
 			role: "user" | "assistant";
 			content: string;
 			timestamp: number;
+			isStreaming?: boolean;
 		}>
 	>([]);
 	let selectedAgent = $state<AgentConfig | null>(null);
@@ -47,6 +52,8 @@
 	let session: ISession | null = null; // 当前聊天 Session（内存优先，结束时统一落库）
 	let currentSessionId = $state<string>("");
 	let sessionList = $state<Array<{ id: string; name?: string }>>([]);
+	// 输入框聚焦API（由 PromptBar 暴露）
+	let focusInput: (() => void) | null = null;
 	// Obsidian Markdown render component lifetime
 	let mdComponent: Component | null = null;
 
@@ -145,7 +152,10 @@
 			modelsVersion += 1;
 			initializeComponent();
 		};
-		(app.workspace as any).on("cortex:providers-updated", onProvidersUpdated);
+		(app.workspace as any).on(
+			"cortex:providers-updated",
+			onProvidersUpdated,
+		);
 		(app.workspace as any).on("cortex:models-updated", onModelsUpdated);
 		// 异步创建会话并拉取历史列表
 		void setupSession();
@@ -156,24 +166,38 @@
 				void session.dispose();
 			}
 			// cleanup markdown component
-			try { mdComponent?.unload?.(); } catch {}
+			try {
+				mdComponent?.unload?.();
+			} catch {}
 			// unsubscribe listener
 			unsubscribe?.();
-			(app.workspace as any).off("cortex:providers-updated", onProvidersUpdated);
-			(app.workspace as any).off("cortex:models-updated", onModelsUpdated);
+			(app.workspace as any).off(
+				"cortex:providers-updated",
+				onProvidersUpdated,
+			);
+			(app.workspace as any).off(
+				"cortex:models-updated",
+				onModelsUpdated,
+			);
 		};
 	});
 	// Provide Obsidian-style Markdown render for children
 	function renderObsidianMarkdown(el: HTMLElement, md: string) {
 		if (!el) return;
 		el.replaceChildren();
-		const sourcePath = (app.workspace.getActiveFile()?.path) ?? "";
+		const sourcePath = app.workspace.getActiveFile()?.path ?? "";
 		// Ensure we always pass a Component instance to MarkdownRenderer
 		if (!mdComponent) {
 			mdComponent = new Component();
 		}
 		// Prefer the non-deprecated API
-		void MarkdownRenderer.render(app, md ?? "", el, sourcePath, mdComponent).catch((e) => {
+		void MarkdownRenderer.render(
+			app,
+			md ?? "",
+			el,
+			sourcePath,
+			mdComponent,
+		).catch((e) => {
 			console.warn("MarkdownRenderer failed:", e);
 		});
 	}
@@ -217,7 +241,9 @@
 
 	async function handleCreateSession() {
 		// 结束当前会话以触发保存
-		try { await session?.dispose(); } catch {}
+		try {
+			await session?.dispose();
+		} catch {}
 		session = await createNewSession();
 		currentSessionId = session.sessionId;
 		messages = [];
@@ -227,7 +253,9 @@
 	async function handleSelectSession(id: string) {
 		if (!id || id === currentSessionId) return;
 		// 保存当前会话
-		try { await session?.dispose(); } catch {}
+		try {
+			await session?.dispose();
+		} catch {}
 		// 加载目标会话（session-manager 会从DB加载到内存）
 		try {
 			const { getSession } = await import("../../session");
@@ -238,12 +266,23 @@
 				// 映射历史到UI消息
 				const items = await session.getItems();
 				messages = items
-					.filter((it: any) => it && it.role && (it.role === 'user' || it.role === 'assistant'))
+					.filter(
+						(it: any) =>
+							it &&
+							it.role &&
+							(it.role === "user" || it.role === "assistant"),
+					)
 					.map((it: any) => ({
 						id: crypto.randomUUID(),
 						role: it.role,
-						content: typeof it.content === 'string' ? it.content : Array.isArray(it.content) ?
-							it.content.map((p: any) => p.text ?? '').join('') : '',
+						content:
+							typeof it.content === "string"
+								? it.content
+								: Array.isArray(it.content)
+									? it.content
+											.map((p: any) => p.text ?? "")
+											.join("")
+									: "",
 						timestamp: Date.now(),
 					})) as any;
 			} else {
@@ -365,6 +404,7 @@
 				role: "assistant" as const,
 				content: "",
 				timestamp: Date.now(),
+				isStreaming: true,
 			};
 			messages.push(assistantMessage);
 
@@ -382,25 +422,89 @@
 				}
 			}
 
-			// Run agent with history-aware input
-			const result = await run(currentAgentInstance, inputForRun);
-
-			// Update assistant message with result
+			// 启用真正的事件级流式输出
+			const stream = await run(currentAgentInstance, inputForRun, { stream: true } as any);
 			const lastMessage = messages[messages.length - 1];
+			let accumulated = "";
 			if (lastMessage && lastMessage.role === "assistant") {
-				// Extract text content from result
-				const textContent = extractTextFromResult(result);
-				lastMessage.content = textContent;
+				try {
+					// 优先使用异步可迭代事件（官方推荐）
+					if (typeof (stream as any)[Symbol.asyncIterator] === "function") {
+						for await (const ev of stream as any) {
+							// 适配多种 delta 事件结构
+							// 1) 直接的文本增量：{ type: 'output_text_delta', delta: '...' }
+							if (
+								ev?.type === "raw_model_stream_event" &&
+								ev.data && typeof ev.data === "object"
+							) {
+								const d: any = ev.data;
+								// 1a) 顶层 output_text_delta
+								if (d.type === "output_text_delta" && typeof d.delta === "string") {
+									accumulated += d.delta;
+									lastMessage.content = accumulated;
+									continue;
+								}
+								// 1b) 包装在 model 事件里的 { type:'model', event:{ type:'response.output_text.delta' | 'output_text.delta' | 'output_text_delta', delta:string } }
+								const inner = d.event;
+								const t = inner?.type;
+								if (
+									(inner && typeof inner.delta === "string") &&
+									(
+										t === "response.output_text.delta" ||
+										t === "output_text.delta" ||
+										t === "output_text_delta"
+									)
+								) {
+									accumulated += inner.delta as string;
+									lastMessage.content = accumulated;
+									continue;
+								}
+							}
+						}
+					} else {
+						// 退回到文本流（部分环境/代理不支持事件分发时可能只在完成后吐出）
+						try {
+							const textStream: ReadableStream<string> = (stream as any).toTextStream();
+							const reader = textStream.getReader();
+							for (;;) {
+								const { value, done } = await reader.read();
+								if (done) break;
+								if (typeof value === "string" && value.length > 0) {
+									accumulated += value;
+									lastMessage.content = accumulated;
+								}
+							}
+						} catch {}
+					}
 
-				// 将助手回复写入 Session（若可用）
+					// 保底：若仍无增量，使用最终输出
+					if (!accumulated || accumulated.length === 0) {
+						const fallback = (stream as any)?.finalOutput ?? "";
+						lastMessage.content =
+							typeof fallback === "string"
+								? fallback
+								: extractTextFromResult(stream);
+					}
+					// 标记流式完成
+					(lastMessage as any).isStreaming = false;
+				} catch (e) {
+					console.warn("streaming failed, fallback to final output if available", e);
+					const fallback = (stream as any)?.finalOutput ?? "";
+					lastMessage.content =
+						typeof fallback === "string"
+							? fallback
+							: extractTextFromResult(stream);
+					(lastMessage as any).isStreaming = false;
+				}
+
+				// 将助手最终回复写入 Session（若可用）
 				if (session) {
+					const finalText = lastMessage.content ?? accumulated;
 					await session.addItems([
 						{
 							role: "assistant",
 							status: "completed",
-							content: [
-								{ type: "output_text", text: textContent },
-							],
+							content: [{ type: "output_text", text: finalText }],
 						} as any,
 					]);
 				}
@@ -424,6 +528,10 @@
 			});
 		} finally {
 			isLoading = false;
+			// 结束后将光标放回输入框
+			try {
+				focusInput?.();
+			} catch {}
 		}
 	}
 
@@ -492,7 +600,7 @@
 		onOpenAgentManager={handleOpenAgentView}
 		onCreateSession={handleCreateSession}
 		sessions={sessionList}
-		currentSessionId={currentSessionId}
+		{currentSessionId}
 		onSelectSession={handleSelectSession}
 		setIcon={(el: HTMLElement, name: string) => setObsidianIcon(el, name)}
 	/>
@@ -514,6 +622,9 @@
 		onSendMessage={handleSendMessage}
 		onAgentChange={handleAgentChange}
 		onModelChange={handleModelChange}
+		onReady={(api: { focusInput: () => void }) => {
+			focusInput = api.focusInput;
+		}}
 	/>
 </div>
 
