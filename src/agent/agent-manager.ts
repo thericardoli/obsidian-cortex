@@ -1,5 +1,4 @@
 import { Agent } from "@openai/agents";
-import { webSearchTool, fileSearchTool, codeInterpreterTool, imageGenerationTool } from '@openai/agents-openai';
 import type { Tool } from "@openai/agents";
 
 import type { AgentConfig, AgentConfigInput, UpdateAgentConfigInput } from '../types/agent';
@@ -7,13 +6,13 @@ import { AgentConfigInputSchema, UpdateAgentConfigInputSchema } from '../types/a
 import type { ToolConfig, AgentAsToolConfig } from '../types/tool';
 import { ProviderManager } from '../providers';
 import type { PersistenceManager } from '../persistence/persistence-manager';
-
-type ToolExecutor = (args: unknown, context?: unknown) => Promise<unknown> | unknown;
+import { functionToolRegistry, type ToolExecutor } from "../tool/function-registry";
+import { createHostedTool } from "../tool/hosted-registry";
+import { buildAgentAsTool } from "../tool/agent-as-tool";
 
 export class AgentManager {
     private _providerManager: ProviderManager;
     private _persistenceManager: PersistenceManager | null = null;
-    private _functionToolExecutors: Map<string, ToolExecutor> = new Map();
     private _agentCache: Map<string, AgentConfig> = new Map();
     // Subscribers to agent list/config changes
     private _agentChangeListeners: Set<() => void> = new Set();
@@ -119,6 +118,31 @@ export class AgentManager {
             throw new Error(`Tool with name ${toolConfig.name} already exists in agent ${agentId}`);
         }
 
+        // Validate tool before adding
+        switch (toolConfig.type) {
+            case 'function': {
+                const execName = toolConfig.executor;
+                if (execName && !functionToolRegistry.get(execName)) {
+                    throw new Error(`Function tool executor '${execName}' is not registered`);
+                }
+                break;
+            }
+            case 'hosted': {
+                const hosted = createHostedTool((toolConfig.name as unknown) as import("../tool/hosted-registry").HostedToolName, toolConfig.providerData ?? {});
+                if (!hosted) {
+                    throw new Error(`Invalid hosted tool configuration for '${toolConfig.name}'`);
+                }
+                break;
+            }
+            case 'agent': {
+                const exists = this._agentCache.has(toolConfig.targetAgentId);
+                if (!exists) {
+                    throw new Error(`Target agent '${toolConfig.targetAgentId}' not found for agent-as-tool`);
+                }
+                break;
+            }
+        }
+
         agentConfig.tools.push(toolConfig);
         agentConfig.updatedAt = Date.now();
 
@@ -174,13 +198,13 @@ export class AgentManager {
         return [...agentConfig.tools];
     }
 
-    // Function tool executor registry
+    // Function tool executor registry (delegates to central registry)
     registerFunctionToolExecutor(name: string, executor: ToolExecutor): void {
-        this._functionToolExecutors.set(name, executor);
+        functionToolRegistry.register(name, executor);
     }
 
     unregisterFunctionToolExecutor(name: string): void {
-        this._functionToolExecutors.delete(name);
+        functionToolRegistry.unregister(name);
     }
 
     // Agent retrieval methods
@@ -311,7 +335,6 @@ export class AgentManager {
      * 将 ToolConfig[] 转换为 SDK 可用的 Tool[]
      */
     private async convertToolsToSDKTools(agentConfig: AgentConfig): Promise<Tool[]> {
-        const { tool } = await import("@openai/agents");
         const tools: Tool[] = [];
 
         // 处理配置的工具
@@ -322,74 +345,33 @@ export class AgentManager {
 
             switch (toolConfig.type) {
                 case 'function': {
-                    // 构建 FunctionTool
-                    const executor = toolConfig.executor ? 
-                        this._functionToolExecutors.get(toolConfig.executor) : 
-                        undefined;
-                    
+                    const executorName = toolConfig.executor;
+                    const executor = executorName ? functionToolRegistry.get(executorName) : undefined;
                     if (!executor) {
                         console.warn(`No executor found for function tool: ${toolConfig.name}`);
                         continue;
                     }
-
-                    const functionTool = tool({
-                        name: toolConfig.name,
-                        description: toolConfig.description || '',
-                        parameters: toolConfig.parameters || {},
-                        strict: toolConfig.strict ?? true,
-                        needsApproval: toolConfig.needsApproval ?? false,
-                        execute: async (args: unknown, runContext?: unknown) => executor(args, runContext),
-                    });
-                    tools.push(functionTool);
+                    const { tool } = await import("@openai/agents");
+                    tools.push(
+                        tool({
+                            name: toolConfig.name,
+                            description: toolConfig.description || '',
+                            parameters: toolConfig.parameters || {},
+                            strict: toolConfig.strict ?? true,
+                            needsApproval: toolConfig.needsApproval ?? false,
+                            execute: async (args: unknown, runContext?: unknown) => executor(args, runContext),
+                        })
+                    );
                     break;
                 }
                 case 'hosted': {
-                    const hosted = (() => {
-                        switch (toolConfig.name) {
-                            case 'web_search': 
-                                return webSearchTool(toolConfig.providerData || {});
-                            case 'file_search': {
-                                const vectorStoreIds = toolConfig.providerData?.vectorStoreIds;
-                                if (!vectorStoreIds) {
-                                    console.warn(`file_search tool requires vectorStoreIds in providerData`);
-                                    return null;
-                                }
-                                return fileSearchTool(vectorStoreIds, toolConfig.providerData || {});
-                            }
-                            case 'code_interpreter': 
-                                return codeInterpreterTool(toolConfig.providerData || {});
-                            case 'image_generation': 
-                                return imageGenerationTool(toolConfig.providerData || {});
-                            default:
-                                console.warn(`Unknown hosted tool: ${toolConfig.name}`); 
-                                return null;
-                        }
-                    })();
+                    const hosted = createHostedTool((toolConfig.name as unknown) as import("../tool/hosted-registry").HostedToolName, toolConfig.providerData ?? {});
                     if (hosted) tools.push(hosted);
                     break;
                 }
                 case 'agent': {
-                    // Agent-as-Tool: 使用 asTool() 方法
-                    const targetAgent = await this.createAgentInstance(toolConfig.targetAgentId);
-                    if (!targetAgent) {
-                        console.warn(`Target agent ${toolConfig.targetAgentId} not found`);
-                        continue;
-                    }
-                    
-                    // 类型断言以访问扩展属性
-                    const agentToolConfig = toolConfig as AgentAsToolConfig;
-                    
-                    const agentAsTool = targetAgent.asTool({
-                        toolName: agentToolConfig.name,
-                        toolDescription: agentToolConfig.description,
-                        customOutputExtractor: agentToolConfig.customOutputExtractor || ((output) => {
-                            // 默认的输出提取器：提取最终输出文本
-                            return typeof output === 'string' ? output : 
-                                   (output as { finalOutput?: string })?.finalOutput || 
-                                   'No response from agent';
-                        })
-                    });
-                    tools.push(agentAsTool);
+                    const agentTool = await buildAgentAsTool(this, toolConfig as AgentAsToolConfig);
+                    if (agentTool) tools.push(agentTool);
                     break;
                 }
             }
