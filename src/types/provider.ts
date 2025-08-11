@@ -18,6 +18,29 @@ export const ProviderConfigSchema = z
 
 export type ProviderConfig = z.infer<typeof ProviderConfigSchema>;
 
+// Runtime configuration for ProviderManager (derived from settings)
+export interface ProviderRuntimeConfig {
+	id: string;
+	name: string;
+	providerType: "OpenAI" | "OpenAICompatible";
+	apiKey?: string;
+	baseUrl?: string;
+	enabled: boolean;
+}
+
+// Descriptor for UI components (read-only provider info with models)
+export interface ProviderDescriptor {
+	id: string;
+	name: string;
+	enabled: boolean;
+	models: ModelDescriptor[];
+}
+
+export interface ModelDescriptor {
+	modelId: string;
+	displayName: string;
+}
+
 export interface IProvider {
     initialize(): Promise<void>;
     getModel(modelName: string): Promise<Model>;

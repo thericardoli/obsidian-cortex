@@ -12,6 +12,7 @@ import type { SessionServiceApi } from "../../services/session-service";
 import type { EventBus } from "../../services/event-bus";
 import type { AgentInputItem } from "../../types/session";
 import type { AgentItem, UserMessageItem, AssistantMessageItem } from "../../types/session";
+import { toProviderDescriptor, isRuntimeEnabled } from "../../utils/provider-runtime";
 
 export interface ChatMessage {
     id: string;
@@ -54,8 +55,9 @@ function buildGroupedModels(settings: PluginSettings, providerManager: ProviderM
     const presentProviderIds = new Set(providerManager.getAllProviders().map((p) => p.getId()));
     const groups: ModelGroup[] = [];
     for (const p of settings.providers) {
-        if (!presentProviderIds.has(p.id)) continue;
-        const items: ModelGroupItem[] = (p.models || []).map((m) => ({
+        if (!presentProviderIds.has(p.id) || !isRuntimeEnabled(p)) continue;
+        const descriptor = toProviderDescriptor(p);
+        const items: ModelGroupItem[] = descriptor.models.map((m) => ({
             key: `${p.id}::${m.modelId}`,
             label: m.displayName,
             modelId: m.modelId,

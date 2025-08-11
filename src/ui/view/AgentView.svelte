@@ -8,6 +8,11 @@
 		AgentConfigInput,
 		ModelSettings,
 	} from "../../types";
+	import type {
+		ProviderDescriptor,
+		ModelDescriptor,
+	} from "../../types/provider";
+	import { toProviderDescriptor } from "../../utils/provider-runtime";
 
 	let {
 		agentManager,
@@ -23,12 +28,9 @@
 		app: App;
 	} = $props();
 
-	type ProviderModel = { modelId: string; displayName: string };
-	type ProviderGroup = { id: string; name: string; models: ProviderModel[] };
-
 	// state
 	let isLoading = $state(false);
-	let providers = $state<ProviderGroup[]>([]);
+	let providers = $state<ProviderDescriptor[]>([]);
 	let agents = $state<AgentConfig[]>([]);
 	let selectedAgentId = $state<string | null>(null);
 	let isCreating = $state(false);
@@ -59,10 +61,10 @@
 		);
 	});
 
-	const currentProviderModels: ProviderModel[] = $derived(
+	const currentProviderModels: ModelDescriptor[] = $derived(
 		(() => {
 			const f = form;
-			if (!f) return [] as ProviderModel[];
+			if (!f) return [] as ModelDescriptor[];
 			const p = providers.find((p) => p.id === f.providerId);
 			return p?.models ?? [];
 		})(),
@@ -75,14 +77,7 @@
 
 	function refreshProviders() {
 		const settings = getSettings();
-		providers = (settings.providers || []).map((p) => ({
-			id: p.id,
-			name: p.name,
-			models: (p.models || []).map((m) => ({
-				modelId: m.modelId,
-				displayName: m.displayName,
-			})),
-		}));
+		providers = (settings.providers || []).map(toProviderDescriptor);
 	}
 
 	function refreshAgents() {
@@ -213,7 +208,8 @@
 	function handleProviderChange(id: string) {
 		if (!form) return;
 		form.providerId = id;
-		const firstModel = providers.find((p) => p.id === id)?.models?.[0]?.modelId || "";
+		const firstModel =
+			providers.find((p) => p.id === id)?.models?.[0]?.modelId || "";
 		form.modelId = firstModel;
 	}
 
@@ -316,9 +312,7 @@
 				>
 					<option value="" disabled>Select model</option>
 					{#each currentProviderModels as m (m.modelId)}
-						<option value={(m as ProviderModel).modelId}
-							>{(m as ProviderModel).displayName}</option
-						>
+						<option value={m.modelId}>{m.displayName}</option>
 					{/each}
 				</select>
 
