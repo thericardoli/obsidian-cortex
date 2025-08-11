@@ -1,28 +1,27 @@
 import { Agent } from "@openai/agents";
-import type { Tool } from "@openai/agents";
 
 import type { AgentConfig, AgentConfigInput, UpdateAgentConfigInput } from '../types/agent';
 import { AgentConfigInputSchema, UpdateAgentConfigInputSchema } from '../types/agent';
-import type { ToolConfig, AgentAsToolConfig } from '../types/tool';
+import type { ToolConfig } from '../types/tool';
 import { ProviderManager } from '../providers';
 import type { PersistenceManager } from '../persistence/persistence-manager';
 import { functionToolRegistry, type ToolExecutor } from "../tool/function-registry";
-import { createHostedTool } from "../tool/hosted-registry";
-import { buildAgentAsTool } from "../tool/agent-as-tool";
+import { buildTools } from "../tool/tool-conversion";
 import { createLogger, type Logger } from "../utils/logger";
+import type { EventBus } from '../services/event-bus';
 
 export class AgentManager {
     private _providerManager: ProviderManager;
     private _persistenceManager: PersistenceManager | null = null;
     private _agentCache: Map<string, AgentConfig> = new Map();
-    // Subscribers to agent list/config changes
-    private _agentChangeListeners: Set<() => void> = new Set();
     private logger: Logger;
+    private eventBus?: EventBus;
 
-    constructor(providerManager: ProviderManager, persistenceManager?: PersistenceManager | null) {
+    constructor(providerManager: ProviderManager, persistenceManager?: PersistenceManager | null, eventBus?: EventBus) {
         this._providerManager = providerManager;
         this._persistenceManager = persistenceManager || null;
         this.logger = createLogger('agent');
+        this.eventBus = eventBus;
     }
 
     /**
@@ -32,20 +31,9 @@ export class AgentManager {
         this._persistenceManager = persistenceManager;
     }
 
-    /**
-     * Subscribe to agent list/config changes. Returns an unsubscribe function.
-     */
-    subscribeAgentsChange(listener: () => void): () => void {
-        this._agentChangeListeners.add(listener);
-        return () => {
-            this._agentChangeListeners.delete(listener);
-        };
-    }
-
+    // Emit via EventBus (unified event system)
     private _notifyAgentsChanged(): void {
-        for (const l of this._agentChangeListeners) {
-            try { l(); } catch (e) { console.warn('Agent change listener error:', e); }
-        }
+        this.eventBus?.emit('agentsChanged');
     }
 
     /**
@@ -53,7 +41,7 @@ export class AgentManager {
      */
     async loadAgentsFromDatabase(): Promise<void> {
         if (!this._persistenceManager) {
-            console.warn('PersistenceManager not available, skipping agent loading');
+            this.logger.warn('PersistenceManager not available, skipping agent loading');
             return;
         }
 
@@ -97,7 +85,7 @@ export class AgentManager {
             } catch (error) {
                 // 如果数据库保存失败，从缓存中移除
                 this._agentCache.delete(agent.id);
-                console.error('Failed to save agent to database:', error);
+                this.logger.error('Failed to save agent to database', error);
                 throw error;
             }
         } else {
@@ -131,10 +119,7 @@ export class AgentManager {
                 break;
             }
             case 'hosted': {
-                const hosted = createHostedTool((toolConfig.name as unknown) as import("../tool/hosted-registry").HostedToolName, toolConfig.providerData ?? {});
-                if (!hosted) {
-                    throw new Error(`Invalid hosted tool configuration for '${toolConfig.name}'`);
-                }
+                // 轻量校验：名称与 providerData 允许为空，具体构建阶段在 buildTools 中处理
                 break;
             }
             case 'agent': {
@@ -157,7 +142,7 @@ export class AgentManager {
             } catch (error) {
                 // 如果数据库保存失败，回滚内存中的更改
                 agentConfig.tools.pop();
-                console.error('Failed to save agent to database:', error);
+                this.logger.error('Failed to save agent to database', error);
                 throw error;
             }
         }
@@ -187,7 +172,7 @@ export class AgentManager {
             } catch (error) {
                 // 如果数据库保存失败，回滚内存中的更改
                 agentConfig.tools.splice(toolIndex, 0, removedTool);
-                console.error('Failed to save agent to database:', error);
+                this.logger.error('Failed to save agent to database', error);
                 throw error;
             }
         }
@@ -243,7 +228,7 @@ export class AgentManager {
             } catch (error) {
                 // 如果数据库保存失败，回滚内存中的更改
         this._agentCache.set(id, originalConfig);
-                console.error('Failed to update agent in database:', error);
+                this.logger.error('Failed to update agent in database', error);
                 throw error;
             }
         } else {
@@ -269,7 +254,7 @@ export class AgentManager {
             } catch (error) {
                 // 如果数据库删除失败，恢复内存中的数据
                 this._agentCache.set(id, agentToDelete);
-                console.error('Failed to delete agent from database:', error);
+                this.logger.error('Failed to delete agent from database', error);
                 throw error;
             }
         } else {
@@ -290,7 +275,7 @@ export class AgentManager {
         );
 
         // 将 ToolConfig[] 转换为 SDK Tool[]
-        const tools = await this.convertToolsToSDKTools(agentConfig);
+    const { tools } = await buildTools(agentConfig, { agentManager: this });
 
         const agentConfiguration = {
             name: agentConfig.name,
@@ -317,7 +302,7 @@ export class AgentManager {
         if (!agentConfig) return null;
 
         const model = await this._providerManager.getModel(providerId, modelId);
-        const tools = await this.convertToolsToSDKTools(agentConfig);
+    const { tools } = await buildTools(agentConfig, { agentManager: this });
 
         const agentConfiguration = {
             name: agentConfig.name,
@@ -337,49 +322,5 @@ export class AgentManager {
     /**
      * 将 ToolConfig[] 转换为 SDK 可用的 Tool[]
      */
-    private async convertToolsToSDKTools(agentConfig: AgentConfig): Promise<Tool[]> {
-        const tools: Tool[] = [];
-
-        // 处理配置的工具
-        for (const toolConfig of agentConfig.tools) {
-            if (!toolConfig.enabled) {
-                continue;
-            }
-
-            switch (toolConfig.type) {
-                case 'function': {
-                    const executorName = toolConfig.executor;
-                    const executor = executorName ? functionToolRegistry.get(executorName) : undefined;
-                    if (!executor) {
-                        console.warn(`No executor found for function tool: ${toolConfig.name}`);
-                        continue;
-                    }
-                    const { tool } = await import("@openai/agents");
-                    tools.push(
-                        tool({
-                            name: toolConfig.name,
-                            description: toolConfig.description || '',
-                            parameters: toolConfig.parameters || {},
-                            strict: toolConfig.strict ?? true,
-                            needsApproval: toolConfig.needsApproval ?? false,
-                            execute: async (args: unknown, runContext?: unknown) => executor(args, runContext),
-                        })
-                    );
-                    break;
-                }
-                case 'hosted': {
-                    const hosted = createHostedTool((toolConfig.name as unknown) as import("../tool/hosted-registry").HostedToolName, toolConfig.providerData ?? {});
-                    if (hosted) tools.push(hosted);
-                    break;
-                }
-                case 'agent': {
-                    const agentTool = await buildAgentAsTool(this, toolConfig as AgentAsToolConfig);
-                    if (agentTool) tools.push(agentTool);
-                    break;
-                }
-            }
-        }
-
-        return tools;
-    }
+    // convertToolsToSDKTools 已迁移到 buildTools (tool/tool-conversion.ts)
 }

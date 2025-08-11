@@ -63,7 +63,7 @@ export default class CortexPlugin extends Plugin {
             }
             
             // Initialize agent + session services with persistence
-            this.agentManager = new AgentManager(this.providerManager, this.persistenceManager);
+            this.agentManager = new AgentManager(this.providerManager, this.persistenceManager, this.eventBus);
             this.sessionService = new SessionService(this.persistenceManager);
             
             // Load existing agents from database (only if persistence is available)
