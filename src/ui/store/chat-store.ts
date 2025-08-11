@@ -1,6 +1,5 @@
 import { run } from "@openai/agents";
 import type { Agent } from "@openai/agents";
-import type { RunStreamEvent } from "@openai/agents-core";
 import type { Readable } from "svelte/store";
 import type { App, WorkspaceLeaf } from "obsidian";
 
@@ -11,8 +10,13 @@ import type { AgentConfig } from "../../types/agent";
 import type { SessionServiceApi } from "../../services/session-service";
 import type { EventBus } from "../../services/event-bus";
 import type { AgentInputItem } from "../../types/session";
-import type { AgentItem, UserMessageItem, AssistantMessageItem } from "../../types/session";
-import { toProviderDescriptor, isRuntimeEnabled } from "../../utils/provider-runtime";
+import type { AgentItem, AssistantMessageItem } from "../../types/session";
+import { parseModelKey } from '../../utils/model-key';
+import { composeRunInput, buildAgentInputFromState } from './chat/input-builder';
+import { extractDelta } from './chat/stream-parser';
+import { recomputeDerived } from './chat/state-derivations';
+import { mapSessionItemsToChatMessages } from './chat/session-adapter';
+import { extractTextFromResult } from './chat/result-extractor';
 
 export interface ChatMessage {
     id: string;
@@ -51,42 +55,7 @@ export interface ChatStore extends Readable<ChatState> {
     actions: ChatActions;
 }
 
-function buildGroupedModels(settings: PluginSettings, providerManager: ProviderManager): ModelGroup[] {
-    const presentProviderIds = new Set(providerManager.getAllProviders().map((p) => p.getId()));
-    const groups: ModelGroup[] = [];
-    for (const p of settings.providers) {
-        if (!presentProviderIds.has(p.id) || !isRuntimeEnabled(p)) continue;
-        const descriptor = toProviderDescriptor(p);
-        const items: ModelGroupItem[] = descriptor.models.map((m) => ({
-            key: `${p.id}::${m.modelId}`,
-            label: m.displayName,
-            modelId: m.modelId,
-        }));
-        groups.push({ providerId: p.id, providerName: p.name, items });
-    }
-    return groups;
-}
-
-function extractTextFromResult(result: unknown): string {
-    if (typeof result === "string") return result;
-    if (result && typeof result === "object") {
-        const r = result as Record<string, unknown>;
-        if (typeof r["finalOutput"] === "string") return r["finalOutput"] as string;
-        const content = r["content"];
-        if (typeof content === "string") return content;
-        if (Array.isArray(content)) {
-            const texts = content
-                .filter((item) => !!item && typeof item === "object")
-                .map((item) => (item as { type?: unknown; text?: unknown }))
-                .filter((it) => it.type === "text" || it.type === "output_text")
-                .map((it) => (typeof it.text === "string" ? it.text : ""));
-            if (texts.length > 0) return texts.join("");
-        }
-        if (typeof r["text"] === "string") return r["text"] as string;
-        if (typeof r["message"] === "string") return r["message"] as string;
-    }
-    return "No response content available";
-}
+// buildGroupedModels & extractTextFromResult 已移动至独立模块
 
 export function createChatStore(opts: {
     agentManager: AgentManager;
@@ -117,42 +86,20 @@ export function createChatStore(opts: {
     const subscribers = new Set<(s: ChatState) => void>();
     const notify = () => subscribers.forEach((fn) => fn(state));
 
-    function recomputeDerived() {
-        state.availableAgents = agentManager.listAgents();
-        // Default selections
-        if (!state.selectedAgent && state.availableAgents.length > 0) {
-            state.selectedAgent = state.availableAgents[0];
-        } else if (state.selectedAgent) {
-            const match = state.availableAgents.find((a) => a.id === state.selectedAgent?.id);
-            state.selectedAgent = match ?? state.availableAgents[0] ?? null;
-        }
-        state.modelGroups = buildGroupedModels(getSettings(), providerManager);
-        if (!state.selectedModelKey) {
-            const first = state.modelGroups.find((g) => g.items.length > 0)?.items[0];
-            state.selectedModelKey = first ? first.key : "";
-        } else {
-            const keys = new Set<string>();
-            for (const g of state.modelGroups) for (const it of g.items) keys.add(it.key);
-            if (!keys.has(state.selectedModelKey)) {
-                const first = state.modelGroups.find((g) => g.items.length > 0)?.items[0];
-                state.selectedModelKey = first ? first.key : "";
-            }
-        }
-        state.canSend = state.selectedAgent !== null && state.selectedModelKey !== "" && !state.isLoading;
-    }
+    function recompute() { recomputeDerived({ state, agents: agentManager.listAgents(), settings: getSettings(), providerManager }); }
 
     async function createAgentInstance(): Promise<void> {
         if (!state.selectedAgent) { currentAgentInstance = null; return; }
         try {
             state.isLoading = true; notify();
-            if (state.selectedModelKey.includes("::")) {
-                const [providerId, modelId] = state.selectedModelKey.split("::");
-                currentAgentInstance = await agentManager.createAgentInstanceWithModel(state.selectedAgent.id, providerId, modelId);
+            const parsed = parseModelKey(state.selectedModelKey);
+            if (parsed) {
+                currentAgentInstance = await agentManager.createAgentInstanceWithModel(state.selectedAgent.id, parsed.providerId, parsed.modelId);
             } else {
                 currentAgentInstance = await agentManager.createAgentInstance(state.selectedAgent.id);
             }
         } finally {
-            state.isLoading = false; recomputeDerived(); notify();
+            state.isLoading = false; recompute(); notify();
         }
     }
 
@@ -172,7 +119,7 @@ export function createChatStore(opts: {
     }
 
     async function init(): Promise<void> {
-        recomputeDerived();
+    recompute();
         await createSessionInternal();
         await refreshSessionList();
         await createAgentInstance();
@@ -180,9 +127,9 @@ export function createChatStore(opts: {
     }
 
     // Subscriptions to external events
-    const offAgents = agentManager.subscribeAgentsChange(() => { recomputeDerived(); notify(); });
-    const offProv = eventBus.on('providersUpdated', () => { recomputeDerived(); notify(); });
-    const offModels = eventBus.on('modelsUpdated', () => { recomputeDerived(); notify(); });
+    const offAgents = eventBus.on('agentsChanged', () => { recompute(); notify(); });
+    const offProv = eventBus.on('providersUpdated', () => { recompute(); notify(); });
+    const offModels = eventBus.on('modelsUpdated', () => { recompute(); notify(); });
 
     // Public actions
     const actions: ChatActions = {
@@ -190,7 +137,7 @@ export function createChatStore(opts: {
             if (!state.canSend || !currentAgentInstance || !state.selectedAgent) return;
             const userMessage: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: text, timestamp: Date.now() };
             state.messages = [...state.messages, userMessage];
-            state.isLoading = true; recomputeDerived(); notify();
+            state.isLoading = true; recompute(); notify();
 
             try {
                 // Write user message to session if available
@@ -210,46 +157,21 @@ export function createChatStore(opts: {
 
                 // 构建运行输入：优先 session 历史，其次本地 messages 回退
                 let inputForRun: AgentInputItem[];
-                const buildFromState = (): AgentInputItem[] => {
-                    return state.messages
-                        .filter(m => !m.isStreaming) // 排除尚未完成的流式占位
-                        .map(m => {
-                            if (m.role === 'user') {
-                                return { type: 'message', role: 'user', content: [{ type: 'input_text', text: m.content }] } as unknown as AgentInputItem;
-                            }
-                            return { type: 'message', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: m.content }] } as unknown as AgentInputItem;
-                        });
-                };
                 try {
-                    if (maybeSession) {
-                        inputForRun = await maybeSession.toAgentInputHistory();
-                        // 如果 session 为空（首次）则追加当前用户消息
-                        if (!inputForRun.some(it => (it as { role?: string }).role === 'user' && (it as { content?: unknown }).content)) {
-                            inputForRun = buildFromState();
-                        }
-                    } else {
-                        inputForRun = buildFromState();
-                    }
+                    const history = maybeSession ? await maybeSession.toAgentInputHistory() : null;
+                    inputForRun = composeRunInput({ sessionHistory: history, fallbackState: state.messages });
                 } catch {
-                    inputForRun = buildFromState();
+                    inputForRun = buildAgentInputFromState(state.messages);
                 }
 
                 const stream = await run(currentAgentInstance, inputForRun, { stream: true });
-                let accumulated = "";
-
+                let accumulated = '';
                 const lastIndex = state.messages.length - 1;
-                // Consume async events
-                for await (const ev of stream as AsyncIterable<RunStreamEvent>) {
-                    if (ev.type === 'raw_model_stream_event') {
-                        const d = ev.data as { type?: unknown; delta?: unknown; event?: { type?: unknown; delta?: unknown } };
-                        if (d.type === 'output_text_delta' && typeof d.delta === 'string') {
-                            accumulated += d.delta;
-                        } else if (d.event && typeof d.event.delta === 'string') {
-                            const t = d.event.type;
-                            if (t === 'response.output_text.delta' || t === 'output_text.delta' || t === 'output_text_delta') {
-                                accumulated += d.event.delta as string;
-                            }
-                        }
+                for await (const ev of stream as AsyncIterable<unknown>) {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const delta = extractDelta(ev as any);
+                    if (delta) {
+                        accumulated += delta;
                         state.messages[lastIndex] = { ...state.messages[lastIndex], content: accumulated };
                         notify();
                     }
@@ -297,17 +219,17 @@ export function createChatStore(opts: {
                 state.messages = [...state.messages, { id: crypto.randomUUID(), role: 'assistant', content: `Error: ${msg}`, timestamp: Date.now() }];
                 notify();
             } finally {
-                state.isLoading = false; recomputeDerived(); notify();
+                state.isLoading = false; recompute(); notify();
             }
         },
         changeAgent(agentId: string) {
             const next = agentManager.listAgents().find((a) => a.id === agentId) ?? null;
-            state.selectedAgent = next; recomputeDerived(); notify();
+            state.selectedAgent = next; recompute(); notify();
             // Recreate agent instance on next tick
             void createAgentInstance();
         },
         changeModel(key: string) {
-            state.selectedModelKey = key; recomputeDerived(); notify();
+            state.selectedModelKey = key; recompute(); notify();
             void createAgentInstance();
         },
         async createSession() {
@@ -326,7 +248,7 @@ export function createChatStore(opts: {
                 const rest = state.sessionList.filter(s => s.id !== state.currentSessionId);
                 state.sessionList = [{ id: state.currentSessionId }, ...rest];
             }
-            recomputeDerived();
+            recompute();
             notify();
         },
         async selectSession(id: string) {
@@ -337,17 +259,7 @@ export function createChatStore(opts: {
                 if (target) {
                     state.currentSessionId = id;
                 const items = await target.getItems();
-                const isUser = (x: AgentItem): x is UserMessageItem => (x as { role?: unknown }).role === 'user';
-                const isAssistant = (x: AgentItem): x is AssistantMessageItem => (x as { role?: unknown }).role === 'assistant';
-                const mapped: ChatMessage[] = items
-                    .filter((it): it is UserMessageItem | AssistantMessageItem => isUser(it) || isAssistant(it))
-                    .map((it) => ({
-                        id: crypto.randomUUID(),
-                        role: it.role,
-                        content: typeof it.content === 'string' ? it.content : Array.isArray(it.content) ? (it.content as Array<{ text?: string }>).map((p) => p.text ?? '').join('') : '',
-                        timestamp: Date.now(),
-                    }));
-                state.messages = mapped;
+                state.messages = mapSessionItemsToChatMessages(items);
                 } else {
                     await createSessionInternal();
                     state.messages = [];
@@ -372,7 +284,7 @@ export function createChatStore(opts: {
                 console.warn('Failed to delete session:', e);
             }
         await refreshSessionList();
-            recomputeDerived();
+            recompute();
             notify();
         },
         async dispose() {
