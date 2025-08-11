@@ -1,11 +1,11 @@
 import type { Tool } from '@openai/agents';
-import type { AgentConfig } from '../types/agent';
-import type { ToolConfig, AgentAsToolConfig } from '../types/tool';
+import type { AgentConfig } from '../../types/agent';
+import type { ToolConfig, AgentAsToolConfig } from '../../types/tool';
 import { functionToolRegistry } from './function-registry';
 import { createHostedTool } from './hosted-registry';
 import { buildAgentAsTool } from './agent-as-tool';
-import type { AgentManager } from '../agent/agent-manager';
-import { createLogger } from '../utils/logger';
+import type { AgentManager } from '../agent-manager';
+import { createLogger } from '../../utils/logger';
 
 export interface ToolDiagnostic {
 	level: 'warn' | 'error';
