@@ -1,12 +1,12 @@
-import type { DatabaseManager } from "../database-manager";
-import type { AgentConfig } from "../../types/agent";
-import { 
+import type { DatabaseManager } from '../database-manager';
+import type { AgentConfig } from '../../types/agent';
+import {
 	rowToAgentConfig,
 	serializeModelSettings,
 	serializeTools,
 	serializeGuardrails,
-	serializeMcpServers
-} from "../mappers/agent-mapper";
+	serializeMcpServers,
+} from '../mappers/agent-mapper';
 
 export class AgentRepository {
 	constructor(private dbm: DatabaseManager) {}
@@ -55,8 +55,7 @@ export class AgentRepository {
 
 	async list(): Promise<AgentConfig[]> {
 		const db = this.dbm.getDatabase();
-		const { rows } =
-			await db.sql`SELECT * FROM agents ORDER BY updated_at DESC`;
+		const { rows } = await db.sql`SELECT * FROM agents ORDER BY updated_at DESC`;
 		return (rows as Record<string, unknown>[]).map(rowToAgentConfig);
 	}
 

@@ -34,13 +34,15 @@ export class CortexSettingTab extends PluginSettingTab {
 		dock.createEl('h3', { text: 'Providers' });
 
 		// Build from unified providers list
-		const entries = this.plugin.settings.providers.map(p => ({ key: p.id, label: p.name }));
+		const entries = this.plugin.settings.providers.map((p) => ({ key: p.id, label: p.name }));
 
 		// Default selection from saved activeProviderId or first provider
-		if (!this.selectedProviderKey) this.selectedProviderKey = this.plugin.settings.activeProviderId || entries[0]?.key || null;
+		if (!this.selectedProviderKey)
+			this.selectedProviderKey =
+				this.plugin.settings.activeProviderId || entries[0]?.key || null;
 
 		const btnRow = dock.createDiv({ cls: 'provider-dock-row' });
-		entries.forEach(e => {
+		entries.forEach((e) => {
 			const btn = btnRow.createEl('button', { text: e.label });
 			btn.addClass('mod-cta');
 			if (this.selectedProviderKey === e.key) btn.addClass('is-active');
@@ -59,8 +61,9 @@ export class CortexSettingTab extends PluginSettingTab {
 		new Setting(wrap)
 			.setName('Add Provider')
 			.setDesc('Add an OpenAI-compatible provider')
-			.addButton(btn =>
-				btn.setButtonText(this.showAddProviderForm ? 'Close' : 'New Provider')
+			.addButton((btn) =>
+				btn
+					.setButtonText(this.showAddProviderForm ? 'Close' : 'New Provider')
 					.onClick(() => {
 						this.showAddProviderForm = !this.showAddProviderForm;
 						this.display();
@@ -79,38 +82,51 @@ export class CortexSettingTab extends PluginSettingTab {
 		new Setting(formContainer)
 			.setName('Provider Name')
 			.setDesc('Displayed in the dock')
-			.addText(t => t.setPlaceholder('My Provider').onChange(v => (nameValue = v)));
+			.addText((t) => t.setPlaceholder('My Provider').onChange((v) => (nameValue = v)));
 
 		new Setting(formContainer)
 			.setName('Base URL')
 			.setDesc('OpenAI-compatible API base URL')
-			.addText(t => t.setPlaceholder('https://api.example.com/v1').onChange(v => (baseUrlValue = v)));
+			.addText((t) =>
+				t.setPlaceholder('https://api.example.com/v1').onChange((v) => (baseUrlValue = v))
+			);
 
 		new Setting(formContainer)
 			.setName('API Key')
 			.setDesc('API key for this provider')
-			.addText(t => {
+			.addText((t) => {
 				// Mask API key input
 				t.inputEl.type = 'password';
 				// Prevent autocomplete where possible
 				t.inputEl.autocomplete = 'new-password';
-				t.setPlaceholder('your-api-key').onChange(v => (apiKeyValue = v));
+				t.setPlaceholder('your-api-key').onChange((v) => (apiKeyValue = v));
 			});
 
-		new Setting(formContainer).addButton(b =>
-			b.setButtonText('Add').setCta().onClick(async () => {
-				try {
-					const input: CreateProviderInput = { name: nameValue, baseUrl: baseUrlValue, apiKey: apiKeyValue };
-					CreateProviderInputSchema.parse(input);
-					await this.plugin.addCustomProvider(input);
-					this.showAddProviderForm = false;
-					new Notice('Provider added successfully!');
-					this.display();
-				} catch (err) {
-					console.error('Error adding provider:', err);
-					new Notice(err instanceof Error ? `Error: ${err.message}` : 'Failed to add provider');
-				}
-			})
+		new Setting(formContainer).addButton((b) =>
+			b
+				.setButtonText('Add')
+				.setCta()
+				.onClick(async () => {
+					try {
+						const input: CreateProviderInput = {
+							name: nameValue,
+							baseUrl: baseUrlValue,
+							apiKey: apiKeyValue,
+						};
+						CreateProviderInputSchema.parse(input);
+						await this.plugin.addCustomProvider(input);
+						this.showAddProviderForm = false;
+						new Notice('Provider added successfully!');
+						this.display();
+					} catch (err) {
+						console.error('Error adding provider:', err);
+						new Notice(
+							err instanceof Error
+								? `Error: ${err.message}`
+								: 'Failed to add provider'
+						);
+					}
+				})
 		);
 	}
 
@@ -120,7 +136,7 @@ export class CortexSettingTab extends PluginSettingTab {
 
 		const key = this.selectedProviderKey;
 		if (!key) return;
-		const pIndex = this.plugin.settings.providers.findIndex(p => p.id === key);
+		const pIndex = this.plugin.settings.providers.findIndex((p) => p.id === key);
 		if (pIndex >= 0) this.renderProviderPage(page, pIndex);
 	}
 
@@ -128,20 +144,20 @@ export class CortexSettingTab extends PluginSettingTab {
 		const provider = this.plugin.settings.providers[index];
 		host.createEl('h3', { text: provider.name });
 
-		const header = new Setting(host)
-			.setName('Provider')
-			.setDesc(provider.name);
+		const header = new Setting(host).setName('Provider').setDesc(provider.name);
 
 		if (provider.id.startsWith('custom-')) {
-			header.addExtraButton(b =>
-				b.setIcon('trash')
+			header.addExtraButton((b) =>
+				b
+					.setIcon('trash')
 					.setTooltip('Remove provider')
 					.onClick(async () => {
 						this.plugin.settings.providers.splice(index, 1);
 						await this.plugin.saveSettings();
-                    await this.plugin.refreshProviders();
-                    this.plugin.eventBus.emit('providersUpdated');
-						this.selectedProviderKey = this.plugin.settings.activeProviderId = this.plugin.settings.providers[0]?.id ?? null;
+						await this.plugin.refreshProviders();
+						this.plugin.eventBus.emit('providersUpdated');
+						this.selectedProviderKey = this.plugin.settings.activeProviderId =
+							this.plugin.settings.providers[0]?.id ?? null;
 						this.display();
 						new Notice('Provider removed successfully!');
 					})
@@ -153,37 +169,35 @@ export class CortexSettingTab extends PluginSettingTab {
 			new Setting(host)
 				.setName('Base URL')
 				.setDesc('OpenAI-compatible API base URL')
-				.addText(t =>
-					t.setValue(provider.baseUrl || '')
-						.onChange(async v => {
-							this.plugin.settings.providers[index].baseUrl = v;
-							this.plugin.settings.providers[index].enabled = !!v;
-							await this.plugin.saveSettings();
-							await this.plugin.refreshProviders();
-						})
+				.addText((t) =>
+					t.setValue(provider.baseUrl || '').onChange(async (v) => {
+						this.plugin.settings.providers[index].baseUrl = v;
+						this.plugin.settings.providers[index].enabled = !!v;
+						await this.plugin.saveSettings();
+						await this.plugin.refreshProviders();
+					})
 				);
 		}
 
 		new Setting(host)
 			.setName('API Key')
 			.setDesc('API key for this provider')
-			.addText(t => {
+			.addText((t) => {
 				// Mask API key input
 				t.inputEl.type = 'password';
 				// Prevent autocomplete where possible
 				t.inputEl.autocomplete = 'new-password';
-				t.setValue(provider.apiKey || '')
-					.onChange(async v => {
-						// Save API key
-						this.plugin.settings.providers[index].apiKey = v;
-						// For OpenAI provider, auto-enable when API key is present; disable when cleared
-						if (this.plugin.settings.providers[index].providerType === 'OpenAI') {
-							this.plugin.settings.providers[index].enabled = !!v;
-						}
-                    await this.plugin.saveSettings();
-                    await this.plugin.refreshProviders();
-                    this.plugin.eventBus.emit('providersUpdated');
-					});
+				t.setValue(provider.apiKey || '').onChange(async (v) => {
+					// Save API key
+					this.plugin.settings.providers[index].apiKey = v;
+					// For OpenAI provider, auto-enable when API key is present; disable when cleared
+					if (this.plugin.settings.providers[index].providerType === 'OpenAI') {
+						this.plugin.settings.providers[index].enabled = !!v;
+					}
+					await this.plugin.saveSettings();
+					await this.plugin.refreshProviders();
+					this.plugin.eventBus.emit('providersUpdated');
+				});
 			});
 
 		this.renderModelsEditor(host, provider.id);
@@ -194,16 +208,16 @@ export class CortexSettingTab extends PluginSettingTab {
 
 		// Resolve model list reference
 		const getModels = (): ProviderModelEntry[] => {
-			const idx = this.plugin.settings.providers.findIndex(p => p.id === providerKey);
+			const idx = this.plugin.settings.providers.findIndex((p) => p.id === providerKey);
 			return idx >= 0 ? this.plugin.settings.providers[idx].models : [];
 		};
-        const setModels = async (models: ProviderModelEntry[]) => {
-            const idx = this.plugin.settings.providers.findIndex(p => p.id === providerKey);
-            if (idx >= 0) this.plugin.settings.providers[idx].models = models;
-            await this.plugin.saveSettings();
-            // Broadcast models updated via EventBus so views can refresh their dropdowns immediately
-            this.plugin.eventBus.emit('modelsUpdated', { providerId: providerKey });
-        };
+		const setModels = async (models: ProviderModelEntry[]) => {
+			const idx = this.plugin.settings.providers.findIndex((p) => p.id === providerKey);
+			if (idx >= 0) this.plugin.settings.providers[idx].models = models;
+			await this.plugin.saveSettings();
+			// Broadcast models updated via EventBus so views can refresh their dropdowns immediately
+			this.plugin.eventBus.emit('modelsUpdated', { providerId: providerKey });
+		};
 
 		// Add form
 		let displayName = '';
@@ -211,22 +225,27 @@ export class CortexSettingTab extends PluginSettingTab {
 		const addWrap = host.createDiv({ cls: 'model-add-wrap' });
 		new Setting(addWrap)
 			.setName('Model display name')
-			.addText(t => t.setPlaceholder('GPT‑4.1 (friendly)').onChange(v => (displayName = v)));
+			.addText((t) =>
+				t.setPlaceholder('GPT‑4.1 (friendly)').onChange((v) => (displayName = v))
+			);
 		new Setting(addWrap)
 			.setName('Model ID')
 			.setDesc('API model identifier, e.g., gpt-4o-mini')
-			.addText(t => t.setPlaceholder('gpt-4o-mini').onChange(v => (modelId = v)));
-		new Setting(addWrap).addButton(b =>
-			b.setButtonText('Add model').setCta().onClick(async () => {
-				const list = getModels();
-				const next = [...list, { displayName, modelId }];
-				await setModels(next);
-                new Notice('Model added');
-                // Also notify provider updates for safety (in case first model appears)
-                this.plugin.eventBus.emit('providersUpdated');
-                this.display();
-            })
-        );
+			.addText((t) => t.setPlaceholder('gpt-4o-mini').onChange((v) => (modelId = v)));
+		new Setting(addWrap).addButton((b) =>
+			b
+				.setButtonText('Add model')
+				.setCta()
+				.onClick(async () => {
+					const list = getModels();
+					const next = [...list, { displayName, modelId }];
+					await setModels(next);
+					new Notice('Model added');
+					// Also notify provider updates for safety (in case first model appears)
+					this.plugin.eventBus.emit('providersUpdated');
+					this.display();
+				})
+		);
 
 		// Existing models
 		const listWrap = host.createDiv({ cls: 'model-list-wrap' });
@@ -234,17 +253,20 @@ export class CortexSettingTab extends PluginSettingTab {
 			new Setting(listWrap)
 				.setName(m.displayName)
 				.setDesc(`ID: ${m.modelId}`)
-				.addExtraButton(b =>
-					b.setIcon('trash').setTooltip('Remove').onClick(async () => {
-						const list = getModels();
-						list.splice(idx, 1);
-                    await setModels([...list]);
-                    // Notify views so dropdown updates if selected key disappears
-                    this.plugin.eventBus.emit('providersUpdated');
-                    this.display();
-                    new Notice('Model removed');
-                })
-            );
+				.addExtraButton((b) =>
+					b
+						.setIcon('trash')
+						.setTooltip('Remove')
+						.onClick(async () => {
+							const list = getModels();
+							list.splice(idx, 1);
+							await setModels([...list]);
+							// Notify views so dropdown updates if selected key disappears
+							this.plugin.eventBus.emit('providersUpdated');
+							this.display();
+							new Notice('Model removed');
+						})
+				);
 		});
 	}
 }

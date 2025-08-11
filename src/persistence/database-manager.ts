@@ -1,5 +1,5 @@
-import { PGlite } from "@electric-sql/pglite";
-import { createLogger, type Logger } from "../utils/logger";
+import { PGlite } from '@electric-sql/pglite';
+import { createLogger, type Logger } from '../utils/logger';
 
 export interface DatabaseOptions {
 	/**
@@ -37,7 +37,7 @@ export class DatabaseManager {
 				this.db = await PGlite.create({
 					wasmModule: this.opts.wasmModule,
 					fsBundle: this.opts.fsBundle,
-					dataDir: dataDir
+					dataDir: dataDir,
 				});
 			} else {
 				// 使用 IndexedDB 存储，避免文件系统路径问题
@@ -49,14 +49,20 @@ export class DatabaseManager {
 			this.initialized = true;
 		} catch (error) {
 			this.logger.error('Failed to initialize PGlite database:', error);
-			this.logger.error('This is likely due to import.meta.url issues in Electron environment.');
-			this.logger.error('Please provide preloaded wasmModule and fsBundle in DatabaseOptions.');
-			throw new Error('Failed to initialize PGlite database. Use preloaded resources to avoid import.meta.url issues.');
+			this.logger.error(
+				'This is likely due to import.meta.url issues in Electron environment.'
+			);
+			this.logger.error(
+				'Please provide preloaded wasmModule and fsBundle in DatabaseOptions.'
+			);
+			throw new Error(
+				'Failed to initialize PGlite database. Use preloaded resources to avoid import.meta.url issues.'
+			);
 		}
 	}
 
 	private async runMigrations(): Promise<void> {
-		if (!this.db) throw new Error("Database not initialized");
+		if (!this.db) throw new Error('Database not initialized');
 
 		// 迁移表
 		await this.db.exec(`
@@ -67,23 +73,21 @@ export class DatabaseManager {
 			);
 		`);
 
-		const { rows } = await this.db
-			.sql`SELECT MAX(version) as v FROM migrations`;
-		const current = ((rows?.[0] as Record<string, unknown>)?.v ??
-			0) as number;
+		const { rows } = await this.db.sql`SELECT MAX(version) as v FROM migrations`;
+		const current = ((rows?.[0] as Record<string, unknown>)?.v ?? 0) as number;
 
 		if (current < 1) {
 			// 执行 V0 schema
 			await this.db.exec(SCHEMA_SQL);
 			await this.db.sql`
 				INSERT INTO migrations (version, name)
-				VALUES (${CURRENT_SCHEMA_VERSION}, ${"V0 schema (agents, sessions)"})
+				VALUES (${CURRENT_SCHEMA_VERSION}, ${'V0 schema (agents, sessions)'})
 			`;
 		}
 	}
 
 	getDatabase(): PGlite {
-		if (!this.db) throw new Error("Database not initialized");
+		if (!this.db) throw new Error('Database not initialized');
 		return this.db;
 	}
 

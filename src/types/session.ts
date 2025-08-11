@@ -6,81 +6,73 @@
  * 多模态内容片段类型（与 Agents SDK 对齐的精简版）
  */
 export type InputTextPart = {
-	type: "input_text";
+	type: 'input_text';
 	text: string;
 	providerData?: Record<string, unknown>;
 };
 export type OutputTextPart = {
-	type: "output_text";
+	type: 'output_text';
 	text: string;
 	providerData?: Record<string, unknown>;
 };
 export type RefusalPart = {
-	type: "refusal";
+	type: 'refusal';
 	refusal: string;
 	providerData?: Record<string, unknown>;
 };
 export type ImageInputPart = {
-	type: "input_image";
+	type: 'input_image';
 	image: string | { id: string };
 	providerData?: Record<string, unknown>;
 };
 export type ImageOutputPart = {
-	type: "image";
+	type: 'image';
 	image: string;
 	providerData?: Record<string, unknown>;
 };
 export type FileInputPart = {
-	type: "input_file";
+	type: 'input_file';
 	file: string | { id: string };
 	providerData?: Record<string, unknown>;
 };
 export type AudioPart = {
-	type: "audio";
+	type: 'audio';
 	audio: string | { id: string };
 	format?: string | null;
 	transcript?: string | null;
 	providerData?: Record<string, unknown>;
 };
 
-export type UserContentPart =
-	| InputTextPart
-	| ImageInputPart
-	| FileInputPart
-	| AudioPart;
-export type AssistantContentPart =
-	| RefusalPart
-	| OutputTextPart
-	| AudioPart
-	| ImageOutputPart;
+export type UserContentPart = InputTextPart | ImageInputPart | FileInputPart | AudioPart;
+export type AssistantContentPart = RefusalPart | OutputTextPart | AudioPart | ImageOutputPart;
 
 export type UserMessageItem = {
-	type?: "message";
+	type?: 'message';
 	id?: string;
 	providerData?: Record<string, unknown>;
-	role: "user";
+	role: 'user';
 	content: string | UserContentPart[];
 };
 
 export type AssistantMessageItem = {
-	type?: "message";
+	type?: 'message';
 	id?: string;
 	providerData?: Record<string, unknown>;
-	role: "assistant";
-	status: "in_progress" | "completed" | "incomplete";
+	role: 'assistant';
+	status: 'in_progress' | 'completed' | 'incomplete';
 	content: AssistantContentPart[];
 };
 
 export type SystemMessageItem = {
-	type?: "message";
+	type?: 'message';
 	id?: string;
 	providerData?: Record<string, unknown>;
-	role: "system";
+	role: 'system';
 	content: string;
 };
 
 export type HostedToolCallItem = {
-	type: "hosted_tool_call";
+	type: 'hosted_tool_call';
 	id?: string;
 	name: string;
 	arguments?: string;
@@ -90,41 +82,41 @@ export type HostedToolCallItem = {
 };
 
 export type FunctionCallItem = {
-	type: "function_call";
+	type: 'function_call';
 	id?: string;
 	callId: string;
 	name: string;
 	arguments: string;
 	providerData?: Record<string, unknown>;
-	status?: "in_progress" | "completed" | "incomplete";
+	status?: 'in_progress' | 'completed' | 'incomplete';
 };
 
 export type FunctionCallResultItem = {
-	type: "function_call_result";
+	type: 'function_call_result';
 	id?: string;
 	callId: string;
 	name: string;
 	output:
-		| { type: "text"; text: string; providerData?: Record<string, unknown> }
+		| { type: 'text'; text: string; providerData?: Record<string, unknown> }
 		| {
-				type: "image";
+				type: 'image';
 				data: string;
 				mediaType: string;
 				providerData?: Record<string, unknown>;
-		};
+		  };
 	providerData?: Record<string, unknown>;
-	status?: "in_progress" | "completed" | "incomplete";
+	status?: 'in_progress' | 'completed' | 'incomplete';
 };
 
 export type ReasoningItem = {
-	type: "reasoning";
+	type: 'reasoning';
 	id?: string;
 	content: object[];
 	providerData?: Record<string, unknown>;
 };
 
 export type UnknownItem = {
-	type: "unknown";
+	type: 'unknown';
 	id?: string;
 	providerData?: Record<string, unknown>;
 };
@@ -209,8 +201,6 @@ export interface SessionEvents {
 	/** 当发生错误时触发 */
 	error: (error: Error) => void;
 }
-
-
 
 /**
  * 将当前会话历史转换为可直接用于 run 的 AgentInputItem[] 的选项

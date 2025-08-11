@@ -1,8 +1,8 @@
-import { OpenAI } from "openai";
-import type { Model } from "@openai/agents-core";
-import { OpenAIProvider } from "@openai/agents-openai";
+import { OpenAI } from 'openai';
+import type { Model } from '@openai/agents-core';
+import { OpenAIProvider } from '@openai/agents-openai';
 
-import type { ProviderConfig, IProvider } from "../types";
+import type { ProviderConfig, IProvider } from '../types';
 
 export class OpenAICompatibleProvider implements IProvider {
 	private _config: ProviderConfig;
@@ -13,10 +13,10 @@ export class OpenAICompatibleProvider implements IProvider {
 		this._config = config;
 	}
 
-    async initialize(): Promise<void> {
-        if (!this._config.baseUrl) {
-            throw new Error("Base URL is required for OpenAICompatibleProvider");
-        }
+	async initialize(): Promise<void> {
+		if (!this._config.baseUrl) {
+			throw new Error('Base URL is required for OpenAICompatibleProvider');
+		}
 
 		const customOpenAIClient = new OpenAI({
 			apiKey: this._config.apiKey ?? 'none',
@@ -35,7 +35,7 @@ export class OpenAICompatibleProvider implements IProvider {
 
 	async getModel(modelName: string): Promise<Model> {
 		if (!this._openaiCompatibleProvider) {
-			throw new Error("Provider not initialized");
+			throw new Error('Provider not initialized');
 		}
 		// Fetch the model from the OpenAI Compatible provider
 		return this._openaiCompatibleProvider.getModel(modelName);
@@ -43,7 +43,7 @@ export class OpenAICompatibleProvider implements IProvider {
 
 	async getAvailableModels(): Promise<string[]> {
 		if (!this._config.baseUrl) {
-			throw new Error("Provider not initialized - base URL is required");
+			throw new Error('Provider not initialized - base URL is required');
 		}
 
 		try {
@@ -54,10 +54,10 @@ export class OpenAICompatibleProvider implements IProvider {
 			});
 
 			const modelsPage = await customOpenAIClient.models.list();
-			return modelsPage.data.map(model => model.id);
+			return modelsPage.data.map((model) => model.id);
 		} catch (error) {
-			console.error("Failed to fetch available models:", error);
-			throw new Error("Failed to fetch available models from OpenAI Compatible provider");
+			console.error('Failed to fetch available models:', error);
+			throw new Error('Failed to fetch available models from OpenAI Compatible provider');
 		}
 	}
 

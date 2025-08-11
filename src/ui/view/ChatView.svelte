@@ -1,109 +1,141 @@
 <script lang="ts">
-import { onMount } from "svelte";
-import type { AgentManager } from "../../agent/agent-manager";
-import type { ProviderManager } from "../../providers/provider-manager";
-import { MarkdownRenderer, Component, setIcon as setObsidianIcon } from "obsidian";
-import type { WorkspaceLeaf, App } from "obsidian";
-import type { AgentConfig } from "../../types";
-import ChatPanel from "../component/layout/ChatPanel.svelte";
-import ChatHeader from "../component/layout/ChatHeader.svelte";
-import PromptBar from "../component/input/PromptBar.svelte";
-import type { SessionService } from "../../services/session-service";
-import type { EventBus } from "../../services/event-bus";
-import { createChatStore, type ChatState } from "../store/chat-store";
+	import { onMount } from 'svelte';
+	import type { AgentManager } from '../../agent/agent-manager';
+	import type { ProviderManager } from '../../providers/provider-manager';
+	import { MarkdownRenderer, Component, setIcon as setObsidianIcon } from 'obsidian';
+	import type { WorkspaceLeaf, App } from 'obsidian';
+	import type { AgentConfig } from '../../types';
+	import ChatPanel from '../component/layout/ChatPanel.svelte';
+	import ChatHeader from '../component/layout/ChatHeader.svelte';
+	import PromptBar from '../component/input/PromptBar.svelte';
+	import type { SessionService } from '../../services/session-service';
+	import type { EventBus } from '../../services/event-bus';
+	import { createChatStore, type ChatState } from '../store/chat-store';
 
-// Props
-let {
-	agentManager,
-	providerManager,
-	getSettings,
-	workspaceLeaf,
-	app,
-	sessionService,
-	eventBus,
-}: {
-	agentManager: AgentManager;
-	providerManager: ProviderManager;
-	getSettings: () => import("../../types").PluginSettings;
-	workspaceLeaf: WorkspaceLeaf;
-	app: App;
-	sessionService: SessionService;
-	eventBus: EventBus;
-} = $props();
+	// Props
+	let {
+		agentManager,
+		providerManager,
+		getSettings,
+		workspaceLeaf,
+		app,
+		sessionService,
+		eventBus,
+	}: {
+		agentManager: AgentManager;
+		providerManager: ProviderManager;
+		getSettings: () => import('../../types').PluginSettings;
+		workspaceLeaf: WorkspaceLeaf;
+		app: App;
+		sessionService: SessionService;
+		eventBus: EventBus;
+	} = $props();
 
-// State (backed by store subscription)
-let messages = $state<ChatState["messages"]>([]);
-let selectedAgent = $state<AgentConfig | null>(null);
-let selectedModelKey = $state<string>("");
-let isLoading = $state(false);
-let chatContainer = $state<HTMLElement>();
-let currentSessionId = $state<string>("");
-let sessionList = $state<Array<{ id: string; name?: string }>>([]);
-let focusInput: (() => void) | null = null;
-let mdComponent: Component | null = null;
-let availableAgents = $state<AgentConfig[]>([]);
-type GroupedModel = { providerId: string; providerName: string; items: { key: string; label: string; modelId: string }[] };
-let availableModelGroups = $state<GroupedModel[]>([]);
-let canSend = $state(false);
-let chatStore: ReturnType<typeof createChatStore> | null = null;
-
-onMount(() => {
-	try { mdComponent = new Component(); } catch (e) { console.warn("Failed to init markdown component:", e); }
-	chatStore = createChatStore({ agentManager, providerManager, getSettings, app, sessionService, eventBus, workspaceLeaf });
-	const unsubscribe = chatStore.subscribe((s) => {
-		messages = s.messages;
-		selectedAgent = s.selectedAgent;
-		selectedModelKey = s.selectedModelKey;
-		isLoading = s.isLoading;
-		sessionList = s.sessionList;
-		currentSessionId = s.currentSessionId;
-		availableAgents = s.availableAgents;
-		availableModelGroups = s.modelGroups;
-		canSend = s.canSend;
-	});
-	return () => {
-		void chatStore?.actions.dispose();
-		unsubscribe();
-		try { mdComponent?.unload?.(); } catch {}
+	// State (backed by store subscription)
+	let messages = $state<ChatState['messages']>([]);
+	let selectedAgent = $state<AgentConfig | null>(null);
+	let selectedModelKey = $state<string>('');
+	let isLoading = $state(false);
+	let chatContainer = $state<HTMLElement>();
+	let currentSessionId = $state<string>('');
+	let sessionList = $state<Array<{ id: string; name?: string }>>([]);
+	let focusInput: (() => void) | null = null;
+	let mdComponent: Component | null = null;
+	let availableAgents = $state<AgentConfig[]>([]);
+	type GroupedModel = {
+		providerId: string;
+		providerName: string;
+		items: { key: string; label: string; modelId: string }[];
 	};
-});
+	let availableModelGroups = $state<GroupedModel[]>([]);
+	let canSend = $state(false);
+	let chatStore: ReturnType<typeof createChatStore> | null = null;
 
-function renderObsidianMarkdown(el: HTMLElement, md: string) {
-	if (!el) return;
-	el.replaceChildren();
-	const sourcePath = app.workspace.getActiveFile()?.path ?? "";
-	if (!mdComponent) mdComponent = new Component();
-	void MarkdownRenderer.render(app, md ?? "", el, sourcePath, mdComponent).catch((e) => {
-		console.warn("MarkdownRenderer failed:", e);
-	});
-}
-
-async function handleCreateSession() { await chatStore?.actions.createSession(); }
-async function handleSelectSession(id: string) { await chatStore?.actions.selectSession(id); }
-
-// Auto-scroll effect
-$effect(() => {
-	if (!chatContainer) return;
-	const _len = messages.length; // dependency trigger
-	requestAnimationFrame(() => {
-		if (chatContainer && chatContainer.scrollTop + chatContainer.clientHeight >= chatContainer.scrollHeight - 100) {
-			chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: "smooth" });
+	onMount(() => {
+		try {
+			mdComponent = new Component();
+		} catch (e) {
+			console.warn('Failed to init markdown component:', e);
 		}
+		chatStore = createChatStore({
+			agentManager,
+			providerManager,
+			getSettings,
+			app,
+			sessionService,
+			eventBus,
+			workspaceLeaf,
+		});
+		const unsubscribe = chatStore.subscribe((s) => {
+			messages = s.messages;
+			selectedAgent = s.selectedAgent;
+			selectedModelKey = s.selectedModelKey;
+			isLoading = s.isLoading;
+			sessionList = s.sessionList;
+			currentSessionId = s.currentSessionId;
+			availableAgents = s.availableAgents;
+			availableModelGroups = s.modelGroups;
+			canSend = s.canSend;
+		});
+		return () => {
+			void chatStore?.actions.dispose();
+			unsubscribe();
+			try {
+				mdComponent?.unload?.();
+			} catch {}
+		};
 	});
-});
 
-async function handleSendMessage(text: string) {
-	await chatStore?.actions.sendMessage(text);
-	try { focusInput?.(); } catch {}
-}
+	function renderObsidianMarkdown(el: HTMLElement, md: string) {
+		if (!el) return;
+		el.replaceChildren();
+		const sourcePath = app.workspace.getActiveFile()?.path ?? '';
+		if (!mdComponent) mdComponent = new Component();
+		void MarkdownRenderer.render(app, md ?? '', el, sourcePath, mdComponent).catch((e) => {
+			console.warn('MarkdownRenderer failed:', e);
+		});
+	}
 
-function handleModelChange(key: string) { chatStore?.actions.changeModel(key); }
-function handleAgentChange(agent: AgentConfig) { chatStore?.actions.changeAgent(agent.id); }
+	async function handleCreateSession() {
+		await chatStore?.actions.createSession();
+	}
+	async function handleSelectSession(id: string) {
+		await chatStore?.actions.selectSession(id);
+	}
 
-function handleOpenAgentView() {
-	const workspace = app.workspace;
-	workspace.getLeaf(true).setViewState({ type: "cortex-agent-view", active: true });
-}
+	// Auto-scroll effect
+	$effect(() => {
+		if (!chatContainer) return;
+		const _len = messages.length; // dependency trigger
+		requestAnimationFrame(() => {
+			if (
+				chatContainer &&
+				chatContainer.scrollTop + chatContainer.clientHeight >=
+					chatContainer.scrollHeight - 100
+			) {
+				chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+			}
+		});
+	});
+
+	async function handleSendMessage(text: string) {
+		await chatStore?.actions.sendMessage(text);
+		try {
+			focusInput?.();
+		} catch {}
+	}
+
+	function handleModelChange(key: string) {
+		chatStore?.actions.changeModel(key);
+	}
+	function handleAgentChange(agent: AgentConfig) {
+		chatStore?.actions.changeAgent(agent.id);
+	}
+
+	function handleOpenAgentView() {
+		const workspace = app.workspace;
+		workspace.getLeaf(true).setViewState({ type: 'cortex-agent-view', active: true });
+	}
 </script>
 
 <div class="chat-view">
@@ -135,15 +167,17 @@ function handleOpenAgentView() {
 		onSendMessage={handleSendMessage}
 		onAgentChange={handleAgentChange}
 		onModelChange={handleModelChange}
-		onReady={(api: { focusInput: () => void }) => { focusInput = api.focusInput; }}
+		onReady={(api: { focusInput: () => void }) => {
+			focusInput = api.focusInput;
+		}}
 	/>
 </div>
 
 <style>
-.chat-view {
-	display: flex;
-	flex-direction: column;
-	height: 100%;
-	background: var(--background-primary);
-}
+	.chat-view {
+		display: flex;
+		flex-direction: column;
+		height: 100%;
+		background: var(--background-primary);
+	}
 </style>

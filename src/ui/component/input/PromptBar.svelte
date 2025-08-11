@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { onMount } from "svelte";
-	import type { AgentConfig } from "../../../types";
+	import { onMount } from 'svelte';
+	import type { AgentConfig } from '../../../types';
 
 	type ModelGroup = {
 		providerId: string;
@@ -12,7 +12,7 @@
 		availableAgents = [],
 		modelGroups = [],
 		selectedAgent = null,
-		selectedModelKey = "",
+		selectedModelKey = '',
 		canSend = false,
 		isLoading = false,
 		onSendMessage,
@@ -33,7 +33,7 @@
 	} = $props();
 
 	// State
-	let inputText = $state("");
+	let inputText = $state('');
 	let textareaElement: HTMLTextAreaElement;
 
 	// Expose a tiny API for parent to focus the input
@@ -52,14 +52,14 @@
 	let rootEl: HTMLDivElement;
 
 	// Derived state
-	const isInputEmpty = $derived(inputText.trim() === "");
+	const isInputEmpty = $derived(inputText.trim() === '');
 	const canSendMessage = $derived(canSend && !isInputEmpty && !isLoading);
 
 	// Auto-resize textarea based on content
 	$effect(() => {
 		if (textareaElement && inputText !== undefined) {
 			// Reset height to auto to get accurate scrollHeight
-			textareaElement.style.height = "auto";
+			textareaElement.style.height = 'auto';
 
 			// Calculate new height based on content
 			const scrollHeight = textareaElement.scrollHeight;
@@ -67,16 +67,13 @@
 			const maxHeight = 160; // Maximum height in pixels (about 6-7 lines)
 
 			// Set height within bounds
-			const newHeight = Math.max(
-				minHeight,
-				Math.min(scrollHeight, maxHeight),
-			);
-			textareaElement.style.height = newHeight + "px";
+			const newHeight = Math.max(minHeight, Math.min(scrollHeight, maxHeight));
+			textareaElement.style.height = newHeight + 'px';
 		}
 	});
 
 	function handleSend() {
-		console.log("handleSend called:", {
+		console.log('handleSend called:', {
 			canSendMessage,
 			inputText,
 			canSend,
@@ -88,14 +85,14 @@
 		const text = inputText.trim();
 		if (text) {
 			onSendMessage(text);
-			inputText = "";
+			inputText = '';
 			// Keep focus for quick follow-ups
 			queueMicrotask(() => focusInput());
 		}
 	}
 
 	function handleKeydown(event: KeyboardEvent) {
-		if (event.key === "Enter" && !event.shiftKey) {
+		if (event.key === 'Enter' && !event.shiftKey) {
 			event.preventDefault();
 			handleSend();
 		}
@@ -122,7 +119,7 @@
 			<label for="agent-select">Agent:</label>
 			<select
 				id="agent-select"
-				value={selectedAgent?.id || ""}
+				value={selectedAgent?.id || ''}
 				onchange={handleAgentSelect}
 				disabled={isLoading}
 			>
@@ -171,12 +168,7 @@
 				title="Send message"
 			>
 				{#if isLoading}
-					<svg
-						class="loading-icon"
-						viewBox="0 0 24 24"
-						width="16"
-						height="16"
-					>
+					<svg class="loading-icon" viewBox="0 0 24 24" width="16" height="16">
 						<circle
 							cx="12"
 							cy="12"
@@ -202,12 +194,7 @@
 						</path>
 					</svg>
 				{:else}
-					<svg
-						viewBox="0 0 24 24"
-						width="16"
-						height="16"
-						fill="currentColor"
-					>
+					<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
 						<path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
 					</svg>
 				{/if}

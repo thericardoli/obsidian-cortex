@@ -11,9 +11,9 @@
 
 	const formattedTime = $derived(
 		new Date(timestamp).toLocaleTimeString([], {
-			hour: "2-digit",
-			minute: "2-digit",
-		}),
+			hour: '2-digit',
+			minute: '2-digit',
+		})
 	);
 
 	// no copy button in user message; selection is enabled in CSS

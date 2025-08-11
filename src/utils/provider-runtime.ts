@@ -1,4 +1,4 @@
-import type { ProviderSettingsEntry } from "../types/settings";
+import type { ProviderSettingsEntry } from '../types/settings';
 import type { ProviderRuntimeConfig, ProviderDescriptor } from '../types/provider';
 
 /**
@@ -6,11 +6,11 @@ import type { ProviderRuntimeConfig, ProviderDescriptor } from '../types/provide
  * given its persisted settings and available credentials/URL.
  */
 export function isRuntimeEnabled(p: ProviderSettingsEntry): boolean {
-    return (
-        p.enabled === true &&
-        ((p.providerType === 'OpenAI' && !!p.apiKey) ||
-        (p.providerType === 'OpenAICompatible' && !!p.baseUrl && !!p.apiKey))
-    );
+	return (
+		p.enabled === true &&
+		((p.providerType === 'OpenAI' && !!p.apiKey) ||
+			(p.providerType === 'OpenAICompatible' && !!p.baseUrl && !!p.apiKey))
+	);
 }
 
 /**
@@ -23,7 +23,7 @@ export function toRuntimeConfig(provider: ProviderSettingsEntry): ProviderRuntim
 		providerType: provider.providerType,
 		apiKey: provider.apiKey,
 		baseUrl: provider.baseUrl,
-		enabled: provider.enabled
+		enabled: provider.enabled,
 	};
 }
 
@@ -35,10 +35,9 @@ export function toProviderDescriptor(provider: ProviderSettingsEntry): ProviderD
 		id: provider.id,
 		name: provider.name,
 		enabled: provider.enabled,
-		models: provider.models.map(model => ({
+		models: provider.models.map((model) => ({
 			modelId: model.modelId,
-			displayName: model.displayName
-		}))
+			displayName: model.displayName,
+		})),
 	};
 }
-

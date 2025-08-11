@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { copyToClipboard } from "../../utils/clipboard";
-	import { onDestroy } from "svelte";
+	import { copyToClipboard } from '../../utils/clipboard';
+	import { onDestroy } from 'svelte';
 
 	let {
 		content,
@@ -18,9 +18,9 @@
 
 	const formattedTime = $derived(
 		new Date(timestamp).toLocaleTimeString([], {
-			hour: "2-digit",
-			minute: "2-digit",
-		}),
+			hour: '2-digit',
+			minute: '2-digit',
+		})
 	);
 
 	let copied = $state(false);
@@ -38,7 +38,7 @@
 
 	// Throttle markdown rendering to avoid heavy reflows on high-frequency streaming updates
 	let renderTimer: number | null = null;
-	let lastRenderedContent = "";
+	let lastRenderedContent = '';
 
 	function scheduleMarkdownRender() {
 		const md = content;
@@ -59,29 +59,29 @@
 			try {
 				renderMarkdown(host, md);
 			} catch (e) {
-				console.warn("MarkdownRenderer failed:", e);
+				console.warn('MarkdownRenderer failed:', e);
 			}
 			// Normalize code-copy buttons' icons after render
 			queueMicrotask(() => {
 				if (!host) return;
 				const selector = [
-					".copy-code-button",
-					".codeblock-copy",
-					".code-block-copy",
-					".copy-code",
-				].join(",");
+					'.copy-code-button',
+					'.codeblock-copy',
+					'.code-block-copy',
+					'.copy-code',
+				].join(',');
 				const buttons = host.querySelectorAll(selector);
 				buttons.forEach((btn) => {
 					const el = btn as HTMLElement;
-					if (el.dataset.iconInited === "1") return;
-					el.dataset.iconInited = "1";
+					if (el.dataset.iconInited === '1') return;
+					el.dataset.iconInited = '1';
 					try {
 						el.replaceChildren();
-						if (setIcon) setIcon(el, "copy");
-						el.setAttribute("title", "复制代码");
-						el.setAttribute("aria-label", "复制代码");
+						if (setIcon) setIcon(el, 'copy');
+						el.setAttribute('title', '复制代码');
+						el.setAttribute('aria-label', '复制代码');
 					} catch (e) {
-						console.warn("Failed to set icon for code copy button", e);
+						console.warn('Failed to set icon for code copy button', e);
 					}
 				});
 			});
@@ -104,10 +104,10 @@
 	// Render icons via Obsidian setIcon for unified style
 	$effect(() => {
 		if (setIcon && copyIconEl) {
-			setIcon(copyIconEl, "copy");
+			setIcon(copyIconEl, 'copy');
 		}
 		if (setIcon && copyIconSuccessEl) {
-			setIcon(copyIconSuccessEl, "check");
+			setIcon(copyIconSuccessEl, 'check');
 		}
 	});
 </script>
@@ -132,11 +132,7 @@
 				aria-label="复制AI回复"
 				class:copied
 			>
-				<span
-					class="am-icon am-icon-copy"
-					aria-hidden="true"
-					bind:this={copyIconEl}
-				></span>
+				<span class="am-icon am-icon-copy" aria-hidden="true" bind:this={copyIconEl}></span>
 				<span
 					class="am-icon am-icon-success"
 					aria-hidden="true"

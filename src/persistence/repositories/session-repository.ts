@@ -91,7 +91,7 @@ export class SessionRepository {
 		const row = rows[0] as Record<string, unknown>;
 		return {
 			id: row.id as string,
-			name: row.name as string | undefined
+			name: row.name as string | undefined,
 		};
 	}
 }

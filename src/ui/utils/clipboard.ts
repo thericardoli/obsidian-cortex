@@ -5,14 +5,14 @@ export async function copyToClipboard(text: string): Promise<boolean> {
 	} catch (e) {
 		try {
 			// Fallback for older environments without async clipboard
-			const ta = document.createElement("textarea");
+			const ta = document.createElement('textarea');
 			ta.value = text;
-			ta.style.position = "fixed";
-			ta.style.left = "-9999px";
+			ta.style.position = 'fixed';
+			ta.style.left = '-9999px';
 			document.body.appendChild(ta);
 			ta.focus();
 			ta.select();
-			const ok = document.execCommand("copy");
+			const ok = document.execCommand('copy');
 			document.body.removeChild(ta);
 			return ok;
 		} catch {

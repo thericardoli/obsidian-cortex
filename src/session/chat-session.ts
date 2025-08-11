@@ -8,10 +8,10 @@ import type {
 	FunctionCallItem,
 	FunctionCallResultItem,
 	SystemMessageItem,
-} from "../types/session";
-import { EventEmitter } from "events";
-import type { SessionRepository } from "../persistence/repositories/session-repository";
-import { createLogger, type Logger } from "../utils/logger";
+} from '../types/session';
+import { EventEmitter } from 'events';
+import type { SessionRepository } from '../persistence/repositories/session-repository';
+import { createLogger, type Logger } from '../utils/logger';
 
 /**
  * 智能缓存 Session
@@ -24,10 +24,7 @@ export class chatSession extends EventEmitter implements ISession {
 	private isLoaded = false;
 	private logger: Logger;
 
-	constructor(options: {
-		sessionId: string;
-		repo?: SessionRepository;
-	}) {
+	constructor(options: { sessionId: string; repo?: SessionRepository }) {
 		super();
 		this.sessionId = options.sessionId;
 		this.repo = options.repo;
@@ -53,7 +50,7 @@ export class chatSession extends EventEmitter implements ISession {
 			}
 			this.isLoaded = true;
 		} catch (error) {
-			this.emit("error", new Error(`Failed to load session: ${error}`));
+			this.emit('error', new Error(`Failed to load session: ${error}`));
 			throw error;
 		}
 	}
@@ -85,9 +82,9 @@ export class chatSession extends EventEmitter implements ISession {
 			this.memoryCache.push(...items);
 
 			// 立即触发事件
-			this.emit("itemAdded", items);
+			this.emit('itemAdded', items);
 		} catch (error) {
-			this.emit("error", new Error(`Failed to add items: ${error}`));
+			this.emit('error', new Error(`Failed to add items: ${error}`));
 			throw error;
 		}
 	}
@@ -97,7 +94,7 @@ export class chatSession extends EventEmitter implements ISession {
 
 		const item = this.memoryCache.pop() ?? null;
 		if (item) {
-			this.emit("itemRemoved", item);
+			this.emit('itemRemoved', item);
 		}
 		return item;
 	}
@@ -106,7 +103,7 @@ export class chatSession extends EventEmitter implements ISession {
 		await this.ensureLoaded();
 
 		this.memoryCache = [];
-		this.emit("sessionCleared");
+		this.emit('sessionCleared');
 	}
 
 	/**
@@ -114,9 +111,7 @@ export class chatSession extends EventEmitter implements ISession {
 	 */
 	async saveSessionToDatabase(): Promise<void> {
 		if (!this.repo) {
-			console.warn(
-				"No repository available for saving. Data will only be kept in memory."
-			);
+			console.warn('No repository available for saving. Data will only be kept in memory.');
 			return;
 		}
 
@@ -128,14 +123,9 @@ export class chatSession extends EventEmitter implements ISession {
 			if (this.memoryCache.length > 0) {
 				await this.repo.addItems(this.sessionId, this.memoryCache);
 			}
-			this.logger.info(
-				`✅ 已保存 ${this.memoryCache.length} 条聊天记录到数据库`
-			);
+			this.logger.info(`✅ 已保存 ${this.memoryCache.length} 条聊天记录到数据库`);
 		} catch (error) {
-			this.emit(
-				"error",
-				new Error(`Failed to save session to database: ${error}`)
-			);
+			this.emit('error', new Error(`Failed to save session to database: ${error}`));
 			throw error;
 		}
 	}
@@ -153,9 +143,7 @@ export class chatSession extends EventEmitter implements ISession {
 		await this.saveSessionToDatabase();
 	}
 
-	async toAgentInputHistory(
-		options?: ToAgentInputHistoryOptions
-	): Promise<AgentInputItem[]> {
+	async toAgentInputHistory(options?: ToAgentInputHistoryOptions): Promise<AgentInputItem[]> {
 		const opts = {
 			includeHostedToolCalls: true,
 			includeReasoning: false,
@@ -171,71 +159,75 @@ export class chatSession extends EventEmitter implements ISession {
 					if (isUserMessage(item)) {
 						const textParts = Array.isArray(item.content)
 							? item.content
-							: [{ type: "input_text", text: String(item.content ?? "") }];
-						return { role: "user" as const, content: textParts, type: "message" as const };
+							: [{ type: 'input_text', text: String(item.content ?? '') }];
+						return {
+							role: 'user' as const,
+							content: textParts,
+							type: 'message' as const,
+						};
 					}
 					if (isAssistantMessage(item)) {
 						const outParts = Array.isArray(item.content)
 							? item.content
-							: [{ type: "output_text", text: String(item.content ?? "") }];
-						return { role: "assistant" as const, content: outParts, status: item.status, type: "message" as const };
+							: [{ type: 'output_text', text: String(item.content ?? '') }];
+						return {
+							role: 'assistant' as const,
+							content: outParts,
+							status: item.status,
+							type: 'message' as const,
+						};
 					}
 					if (isSystemMessage(item)) {
-						const sysParts = [{ type: "input_text", text: String(item.content ?? "") }];
-						return { role: "system" as const, content: sysParts, type: "message" as const };
+						const sysParts = [{ type: 'input_text', text: String(item.content ?? '') }];
+						return {
+							role: 'system' as const,
+							content: sysParts,
+							type: 'message' as const,
+						};
 					}
 					return undefined;
 				}
 				if (isFunctionCall(item)) {
 					return {
-						type: "function_call" as const,
+						type: 'function_call' as const,
 						callId: item.callId,
 						name: item.name,
 						arguments: item.arguments,
-						status: item.status ?? "in_progress",
+						status: item.status ?? 'in_progress',
 					};
 				}
 				if (isFunctionResult(item)) {
 					return {
-						type: "function_call_result" as const,
+						type: 'function_call_result' as const,
 						callId: item.callId,
 						name: item.name,
 						output: item.output,
-						status: item.status ?? "completed",
+						status: item.status ?? 'completed',
 					};
 				}
 				if (
 					opts.includeHostedToolCalls &&
 					hasType(item) &&
-					item.type === "hosted_tool_call"
+					item.type === 'hosted_tool_call'
 				) {
 					const obj = item as {
-						type: "hosted_tool_call";
+						type: 'hosted_tool_call';
 						name: string;
 						arguments?: string;
 						output?: string;
 						status?: string;
 					};
 					return {
-						type: "hosted_tool_call",
+						type: 'hosted_tool_call',
 						name: obj.name,
 						arguments: obj.arguments,
 						output: obj.output,
 						status: obj.status,
 					};
 				}
-				if (
-					opts.includeReasoning &&
-					hasType(item) &&
-					item.type === "reasoning"
-				)
+				if (opts.includeReasoning && hasType(item) && item.type === 'reasoning')
 					return item;
-				if (
-					opts.includeUnknown &&
-					hasType(item) &&
-					item.type === "unknown"
-				)
-					return item;
+				if (opts.includeUnknown && hasType(item) && item.type === 'unknown') return item;
 				return undefined;
 			})
 			.filter((x): x is Exclude<typeof x, undefined> => x !== undefined);
@@ -247,31 +239,29 @@ export class chatSession extends EventEmitter implements ISession {
  * 类型守卫与类型判断
  */
 function hasType(x: AgentItem): x is AgentItem & { type: string } {
-	return typeof (x as { type?: unknown }).type === "string";
+	return typeof (x as { type?: unknown }).type === 'string';
 }
-function hasRole(
-	x: AgentItem
-): x is UserMessageItem | AssistantMessageItem | SystemMessageItem {
+function hasRole(x: AgentItem): x is UserMessageItem | AssistantMessageItem | SystemMessageItem {
 	const r = (x as { role?: unknown }).role;
-	return r === "user" || r === "assistant" || r === "system";
+	return r === 'user' || r === 'assistant' || r === 'system';
 }
 function isMessageItem(
 	item: AgentItem
 ): item is UserMessageItem | AssistantMessageItem | SystemMessageItem {
-	return (!hasType(item) || item.type === "message") && hasRole(item);
+	return (!hasType(item) || item.type === 'message') && hasRole(item);
 }
 function isSystemMessage(item: AgentItem): item is SystemMessageItem {
-	return isMessageItem(item) && item.role === "system";
+	return isMessageItem(item) && item.role === 'system';
 }
 function isUserMessage(item: AgentItem): item is UserMessageItem {
-	return isMessageItem(item) && item.role === "user";
+	return isMessageItem(item) && item.role === 'user';
 }
 function isAssistantMessage(item: AgentItem): item is AssistantMessageItem {
-	return isMessageItem(item) && item.role === "assistant";
+	return isMessageItem(item) && item.role === 'assistant';
 }
 function isFunctionCall(item: AgentItem): item is FunctionCallItem {
-	return hasType(item) && item.type === "function_call";
+	return hasType(item) && item.type === 'function_call';
 }
 function isFunctionResult(item: AgentItem): item is FunctionCallResultItem {
-	return hasType(item) && item.type === "function_call_result";
+	return hasType(item) && item.type === 'function_call_result';
 }

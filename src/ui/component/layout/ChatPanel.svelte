@@ -1,11 +1,11 @@
 <script lang="ts">
-	import UserMessage from "../message/UserMessage.svelte";
-	import AssistantMessage from "../message/AssistantMessage.svelte";
-	import LoadingIndicator from "../feedback/LoadingIndicator.svelte";
+	import UserMessage from '../message/UserMessage.svelte';
+	import AssistantMessage from '../message/AssistantMessage.svelte';
+	import LoadingIndicator from '../feedback/LoadingIndicator.svelte';
 
 	type Message = {
 		id: string;
-		role: "user" | "assistant";
+		role: 'user' | 'assistant';
 		content: string;
 		timestamp: number;
 		isStreaming?: boolean;
@@ -34,7 +34,7 @@
 		return el.scrollTop + el.clientHeight >= el.scrollHeight - 120;
 	}
 
-	function scrollToBottom(behavior: ScrollBehavior = "auto") {
+	function scrollToBottom(behavior: ScrollBehavior = 'auto') {
 		if (!container) return;
 		container.scrollTo({ top: container.scrollHeight, behavior });
 	}
@@ -46,8 +46,8 @@
 		const onScroll = () => {
 			stickToBottom = isNearBottom(el);
 		};
-		el.addEventListener("scroll", onScroll, { passive: true });
-		return () => el.removeEventListener("scroll", onScroll);
+		el.addEventListener('scroll', onScroll, { passive: true });
+		return () => el.removeEventListener('scroll', onScroll);
 	});
 
 	$effect(() => {
@@ -55,7 +55,7 @@
 		const _len = messages.length;
 		if (!container) return;
 		queueMicrotask(() => {
-			if (stickToBottom) scrollToBottom("smooth");
+			if (stickToBottom) scrollToBottom('smooth');
 		});
 	});
 
@@ -64,7 +64,7 @@
 		const _loading = isLoading;
 		if (!container) return;
 		queueMicrotask(() => {
-			if (stickToBottom) scrollToBottom("smooth");
+			if (stickToBottom) scrollToBottom('smooth');
 		});
 	});
 
@@ -75,7 +75,7 @@
 		let ro: ResizeObserver | null = null;
 		try {
 			ro = new ResizeObserver(() => {
-				if (stickToBottom) scrollToBottom("auto");
+				if (stickToBottom) scrollToBottom('auto');
 			});
 			ro.observe(target);
 		} catch {}
@@ -90,7 +90,7 @@
 <div class="chat-panel" bind:this={container}>
 	<div class="messages-container" bind:this={messagesEl}>
 		{#each messages as message (message.id)}
-			{#if message.role === "user"}
+			{#if message.role === 'user'}
 				<UserMessage
 					content={message.content}
 					timestamp={message.timestamp}

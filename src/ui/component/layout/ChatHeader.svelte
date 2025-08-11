@@ -92,18 +92,22 @@
 					<div class="history-empty">暂无会话</div>
 				{:else}
 					{#each sessions as s}
-						<div class="history-row {currentSessionId === s.id ? 'active' : ''}" title={s.id}>
-							<button
-								class="history-item"
-								onclick={() => handleSelectSession(s.id)}
-							>
-								<span class="dot {currentSessionId === s.id ? 'dot-active' : ''}"></span>
-								{(s.name && s.name.trim()) ? s.name : s.id}
+						<div
+							class="history-row {currentSessionId === s.id ? 'active' : ''}"
+							title={s.id}
+						>
+							<button class="history-item" onclick={() => handleSelectSession(s.id)}>
+								<span class="dot {currentSessionId === s.id ? 'dot-active' : ''}"
+								></span>
+								{s.name && s.name.trim() ? s.name : s.id}
 							</button>
 							<button
 								class="delete-btn"
 								aria-label="删除会话"
-								onclick={async (e) => { e.stopPropagation(); await onDeleteSession?.(s.id); }}
+								onclick={async (e) => {
+									e.stopPropagation();
+									await onDeleteSession?.(s.id);
+								}}
 								disabled={isLoading}
 							>
 								✕
@@ -149,7 +153,11 @@
 	.spacer {
 		flex: 1;
 	}
-	.icon { width: 16px; height: 16px; display: inline-block; }
+	.icon {
+		width: 16px;
+		height: 16px;
+		display: inline-block;
+	}
 	.header-icon-button {
 		padding: 0.35rem;
 		border: 1px solid var(--background-modifier-border);
@@ -161,10 +169,17 @@
 		justify-content: center;
 		cursor: pointer;
 	}
-	.header-icon-button:hover { background: var(--background-modifier-hover); }
-	.header-icon-button:disabled { opacity: 0.6; cursor: not-allowed; }
+	.header-icon-button:hover {
+		background: var(--background-modifier-hover);
+	}
+	.header-icon-button:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+	}
 
-	.history-wrapper { position: relative; }
+	.history-wrapper {
+		position: relative;
+	}
 	.history-dropdown {
 		position: absolute;
 		right: 0;
@@ -176,10 +191,13 @@
 		border: 1px solid var(--background-modifier-border);
 		border-radius: 0.5rem;
 		background: var(--background-primary);
-		box-shadow: 0 6px 18px rgba(0,0,0,0.2);
+		box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
 		z-index: 10;
 	}
-	.history-empty { padding: 0.5rem; opacity: 0.7; }
+	.history-empty {
+		padding: 0.5rem;
+		opacity: 0.7;
+	}
 	.history-item {
 		width: 100%;
 		text-align: left;
@@ -193,15 +211,46 @@
 		gap: 0.5rem;
 		cursor: pointer;
 	}
-	.history-item:hover { background: var(--background-modifier-hover); }
+	.history-item:hover {
+		background: var(--background-modifier-hover);
+	}
 	/* 历史行与激活态 */
-	.history-row { display: flex; align-items: center; gap: 0.25rem; }
-	.history-row.active .history-item { font-weight: 600; background: var(--background-modifier-hover); }
-	.delete-btn { border: none; background: transparent; color: var(--text-faint); cursor: pointer; padding: 0.25rem; border-radius: 0.375rem; font-size: 0.7rem; line-height: 1; }
-	.delete-btn:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
-	.delete-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-	.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--background-modifier-border); }
-	.dot-active { background: var(--interactive-accent); }
+	.history-row {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+	}
+	.history-row.active .history-item {
+		font-weight: 600;
+		background: var(--background-modifier-hover);
+	}
+	.delete-btn {
+		border: none;
+		background: transparent;
+		color: var(--text-faint);
+		cursor: pointer;
+		padding: 0.25rem;
+		border-radius: 0.375rem;
+		font-size: 0.7rem;
+		line-height: 1;
+	}
+	.delete-btn:hover {
+		background: var(--background-modifier-hover);
+		color: var(--text-normal);
+	}
+	.delete-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+	.dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: var(--background-modifier-border);
+	}
+	.dot-active {
+		background: var(--interactive-accent);
+	}
 	.agents-button {
 		padding: 0.4rem 0.75rem;
 		border: 1px solid var(--background-modifier-border);

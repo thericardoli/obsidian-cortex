@@ -9,7 +9,7 @@ import { createLogger } from '../utils/logger';
  */
 export class PGliteResourceLoader {
 	private static logger = createLogger('persistence');
-	
+
 	/**
 	 * 从打包的二进制资源加载 PGlite 所需的 WASM 模块和文件系统包
 	 * @returns Promise 包含 wasmModule 和 fsBundle，如果加载失败则返回 null
@@ -20,7 +20,7 @@ export class PGliteResourceLoader {
 	} | null> {
 		try {
 			this.logger.info('Loading PGlite resources from bundled binaries...');
-			
+
 			// esbuild 的 'binary' loader 可能返回 ArrayBuffer 或 Uint8Array
 			const toArrayBuffer = (x: ArrayBuffer | Uint8Array): ArrayBuffer => {
 				if (x instanceof ArrayBuffer) {
@@ -31,7 +31,10 @@ export class PGliteResourceLoader {
 				}
 				// 最后的兜底方案
 				const uint8Array = new Uint8Array(x as ArrayBuffer | Uint8Array);
-				return uint8Array.buffer.slice(uint8Array.byteOffset, uint8Array.byteOffset + uint8Array.byteLength);
+				return uint8Array.buffer.slice(
+					uint8Array.byteOffset,
+					uint8Array.byteOffset + uint8Array.byteLength
+				);
 			};
 
 			const wasmBytes = toArrayBuffer(wasmBin as ArrayBuffer | Uint8Array);
@@ -39,15 +42,15 @@ export class PGliteResourceLoader {
 
 			// 编译 WASM 模块
 			const wasmModule = await WebAssembly.compile(wasmBytes);
-			
+
 			// 创建文件系统包 Blob
 			const fsBundle = new Blob([fsBytes]);
 
 			this.logger.info('✅ PGlite assets loaded from bundled binaries', {
 				wasm: wasmBytes.byteLength,
-				data: fsBytes.byteLength
+				data: fsBytes.byteLength,
 			});
-			
+
 			return { wasmModule, fsBundle };
 		} catch (error) {
 			this.logger.error('❌ Failed to import PGlite binaries from bundle:', error);

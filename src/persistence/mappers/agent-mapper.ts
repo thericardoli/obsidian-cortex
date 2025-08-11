@@ -10,7 +10,9 @@ export function rowToAgentConfig(row: Record<string, unknown>): AgentConfig {
 		modelConfig: {
 			provider: row.model_provider as string,
 			model: row.model as string,
-			settings: deserializeModelSettings(row.model_settings as string | Record<string, unknown>)
+			settings: deserializeModelSettings(
+				row.model_settings as string | Record<string, unknown>
+			),
 		},
 		tools: deserializeTools(row.tools as string | unknown[]),
 		inputGuardrails: deserializeGuardrails(row.input_guardrails as string | unknown[]),
@@ -23,7 +25,9 @@ export function serializeModelSettings(settings: Record<string, unknown> | undef
 	return JSON.stringify(settings ?? {});
 }
 
-export function deserializeModelSettings(serialized: string | Record<string, unknown>): Record<string, unknown> {
+export function deserializeModelSettings(
+	serialized: string | Record<string, unknown>
+): Record<string, unknown> {
 	if (typeof serialized === 'object' && serialized !== null) {
 		return serialized as Record<string, unknown>;
 	}

@@ -1,18 +1,11 @@
 <script lang="ts">
-	import { onMount } from "svelte";
-	import type { App, WorkspaceLeaf } from "obsidian";
-	import type { AgentManager } from "../../agent/agent-manager";
-	import type { ProviderManager } from "../../providers/provider-manager";
-	import type {
-		AgentConfig,
-		AgentConfigInput,
-		ModelSettings,
-	} from "../../types";
-	import type {
-		ProviderDescriptor,
-		ModelDescriptor,
-	} from "../../types/provider";
-	import { toProviderDescriptor } from "../../utils/provider-runtime";
+	import { onMount } from 'svelte';
+	import type { App, WorkspaceLeaf } from 'obsidian';
+	import type { AgentManager } from '../../agent/agent-manager';
+	import type { ProviderManager } from '../../providers/provider-manager';
+	import type { AgentConfig, AgentConfigInput, ModelSettings } from '../../types';
+	import type { ProviderDescriptor, ModelDescriptor } from '../../types/provider';
+	import { toProviderDescriptor } from '../../utils/provider-runtime';
 
 	let {
 		agentManager,
@@ -23,7 +16,7 @@
 	}: {
 		agentManager: AgentManager;
 		providerManager: ProviderManager;
-		getSettings: () => import("../../types").PluginSettings;
+		getSettings: () => import('../../types').PluginSettings;
 		workspaceLeaf: WorkspaceLeaf;
 		app: App;
 	} = $props();
@@ -46,9 +39,7 @@
 
 	let form = $state<EditableAgent | null>(null);
 
-	const selectedAgent = $derived(
-		agents.find((a) => a.id === selectedAgentId) || null,
-	);
+	const selectedAgent = $derived(agents.find((a) => a.id === selectedAgentId) || null);
 
 	const canSave = $derived(() => {
 		if (!form) return false;
@@ -67,7 +58,7 @@
 			if (!f) return [] as ModelDescriptor[];
 			const p = providers.find((p) => p.id === f.providerId);
 			return p?.models ?? [];
-		})(),
+		})()
 	);
 
 	onMount(() => {
@@ -113,13 +104,13 @@
 		const firstProvider = providers[0];
 		const firstModel = firstProvider?.models?.[0];
 		form = {
-			name: "",
-			instructions: "",
-			providerId: firstProvider?.id || "",
-			modelId: firstModel?.modelId || "",
+			name: '',
+			instructions: '',
+			providerId: firstProvider?.id || '',
+			modelId: firstModel?.modelId || '',
 			settings: {
 				temperature: 0.7,
-				toolChoice: "auto",
+				toolChoice: 'auto',
 				parallelToolCalls: false,
 			},
 		};
@@ -161,7 +152,7 @@
 				refreshAgents();
 			}
 		} catch (e) {
-			console.error("Failed to save agent", e);
+			console.error('Failed to save agent', e);
 		} finally {
 			isLoading = false;
 		}
@@ -183,7 +174,7 @@
 				form = null;
 			}
 		} catch (e) {
-			console.error("Failed to delete agent", e);
+			console.error('Failed to delete agent', e);
 		} finally {
 			isLoading = false;
 		}
@@ -191,25 +182,20 @@
 
 	function sanitizeSettings(s: Partial<ModelSettings>): ModelSettings {
 		const out: any = {};
-		if (s.temperature !== undefined)
-			out.temperature = Number(s.temperature);
+		if (s.temperature !== undefined) out.temperature = Number(s.temperature);
 		if (s.maxTokens !== undefined) out.maxTokens = Number(s.maxTokens);
 		if (s.topP !== undefined) out.topP = Number(s.topP);
-		if (s.frequencyPenalty !== undefined)
-			out.frequencyPenalty = Number(s.frequencyPenalty);
-		if (s.presencePenalty !== undefined)
-			out.presencePenalty = Number(s.presencePenalty);
+		if (s.frequencyPenalty !== undefined) out.frequencyPenalty = Number(s.frequencyPenalty);
+		if (s.presencePenalty !== undefined) out.presencePenalty = Number(s.presencePenalty);
 		if (s.toolChoice !== undefined) out.toolChoice = s.toolChoice as any;
-		if (s.parallelToolCalls !== undefined)
-			out.parallelToolCalls = Boolean(s.parallelToolCalls);
+		if (s.parallelToolCalls !== undefined) out.parallelToolCalls = Boolean(s.parallelToolCalls);
 		return out as ModelSettings;
 	}
 
 	function handleProviderChange(id: string) {
 		if (!form) return;
 		form.providerId = id;
-		const firstModel =
-			providers.find((p) => p.id === id)?.models?.[0]?.modelId || "";
+		const firstModel = providers.find((p) => p.id === id)?.models?.[0]?.modelId || '';
 		form.modelId = firstModel;
 	}
 
@@ -226,7 +212,7 @@
 		if (!prov) return;
 		const exists = prov.models.some((m) => m.modelId === f.modelId);
 		if (!exists) {
-			f.modelId = prov.models[0]?.modelId || "";
+			f.modelId = prov.models[0]?.modelId || '';
 		}
 	});
 </script>
@@ -235,11 +221,7 @@
 	<div class="sidebar">
 		<div class="header">
 			<h3>Agents</h3>
-			<button
-				class="primary"
-				onclick={handleCreateNew}
-				disabled={isLoading}>New</button
-			>
+			<button class="primary" onclick={handleCreateNew} disabled={isLoading}>New</button>
 		</div>
 		<ul class="agent-list">
 			{#each agents as a (a.id)}
@@ -267,9 +249,7 @@
 					id="agent-name"
 					type="text"
 					value={form.name}
-					oninput={(e) =>
-						form &&
-						(form.name = (e.target as HTMLInputElement).value)}
+					oninput={(e) => form && (form.name = (e.target as HTMLInputElement).value)}
 					placeholder="Agent name"
 				/>
 
@@ -279,10 +259,7 @@
 					rows="6"
 					value={form.instructions}
 					oninput={(e) =>
-						form &&
-						(form.instructions = (
-							e.target as HTMLTextAreaElement
-						).value)}
+						form && (form.instructions = (e.target as HTMLTextAreaElement).value)}
 					placeholder="System instructions for the agent"
 				></textarea>
 
@@ -290,10 +267,7 @@
 				<select
 					id="agent-provider"
 					bind:value={form.providerId}
-					onchange={(e) =>
-						handleProviderChange(
-							(e.target as HTMLSelectElement).value,
-						)}
+					onchange={(e) => handleProviderChange((e.target as HTMLSelectElement).value)}
 				>
 					<option value="" disabled>Select provider</option>
 					{#each providers as p (p.id)}
@@ -305,10 +279,7 @@
 				<select
 					id="agent-model"
 					bind:value={form.modelId}
-					onchange={(e) =>
-						handleModelChange(
-							(e.target as HTMLSelectElement).value,
-						)}
+					onchange={(e) => handleModelChange((e.target as HTMLSelectElement).value)}
 				>
 					<option value="" disabled>Select model</option>
 					{#each currentProviderModels as m (m.modelId)}
@@ -327,12 +298,10 @@
 					min="0"
 					max="2"
 					step="0.1"
-					value={form.settings.temperature ?? ""}
+					value={form.settings.temperature ?? ''}
 					oninput={(e) =>
 						form &&
-						(form.settings.temperature = Number(
-							(e.target as HTMLInputElement).value,
-						))}
+						(form.settings.temperature = Number((e.target as HTMLInputElement).value))}
 				/>
 
 				<label for="agent-max-tokens">Max Tokens</label>
@@ -341,12 +310,10 @@
 					type="number"
 					min="1"
 					step="1"
-					value={form.settings.maxTokens ?? ""}
+					value={form.settings.maxTokens ?? ''}
 					oninput={(e) =>
 						form &&
-						(form.settings.maxTokens = Number(
-							(e.target as HTMLInputElement).value,
-						))}
+						(form.settings.maxTokens = Number((e.target as HTMLInputElement).value))}
 				/>
 
 				<label for="agent-top-p">Top P</label>
@@ -356,12 +323,9 @@
 					min="0"
 					max="1"
 					step="0.05"
-					value={form.settings.topP ?? ""}
+					value={form.settings.topP ?? ''}
 					oninput={(e) =>
-						form &&
-						(form.settings.topP = Number(
-							(e.target as HTMLInputElement).value,
-						))}
+						form && (form.settings.topP = Number((e.target as HTMLInputElement).value))}
 				/>
 
 				<label for="agent-freq-pen">Frequency Penalty</label>
@@ -371,11 +335,11 @@
 					min="-2"
 					max="2"
 					step="0.1"
-					value={form.settings.frequencyPenalty ?? ""}
+					value={form.settings.frequencyPenalty ?? ''}
 					oninput={(e) =>
 						form &&
 						(form.settings.frequencyPenalty = Number(
-							(e.target as HTMLInputElement).value,
+							(e.target as HTMLInputElement).value
 						))}
 				/>
 
@@ -386,23 +350,21 @@
 					min="-2"
 					max="2"
 					step="0.1"
-					value={form.settings.presencePenalty ?? ""}
+					value={form.settings.presencePenalty ?? ''}
 					oninput={(e) =>
 						form &&
 						(form.settings.presencePenalty = Number(
-							(e.target as HTMLInputElement).value,
+							(e.target as HTMLInputElement).value
 						))}
 				/>
 
 				<label for="agent-tool-choice">Tool Choice</label>
 				<select
 					id="agent-tool-choice"
-					value={(form.settings.toolChoice as any) ?? "auto"}
+					value={(form.settings.toolChoice as any) ?? 'auto'}
 					onchange={(e) =>
 						form &&
-						(form.settings.toolChoice = (
-							e.target as HTMLSelectElement
-						).value as any)}
+						(form.settings.toolChoice = (e.target as HTMLSelectElement).value as any)}
 				>
 					<option value="auto">auto</option>
 					<option value="required">required</option>
@@ -416,23 +378,19 @@
 					checked={!!form.settings.parallelToolCalls}
 					onchange={(e) =>
 						form &&
-						(form.settings.parallelToolCalls = (
-							e.target as HTMLInputElement
-						).checked)}
+						(form.settings.parallelToolCalls = (e.target as HTMLInputElement).checked)}
 				/>
 			</div>
 
 			<div class="actions">
 				{#if !isCreating}
-					<button
-						class="danger"
-						onclick={handleDelete}
-						disabled={isLoading}>Delete</button
+					<button class="danger" onclick={handleDelete} disabled={isLoading}
+						>Delete</button
 					>
 				{/if}
 				<div class="spacer"></div>
 				<button onclick={handleSave} class="primary" disabled={!canSave}
-					>{isCreating ? "Create" : "Save"}</button
+					>{isCreating ? 'Create' : 'Save'}</button
 				>
 			</div>
 		{:else}
@@ -500,10 +458,10 @@
 		grid-column: 1 / -1;
 		margin-top: 0.5rem;
 	}
-	input[type="text"],
+	input[type='text'],
 	textarea,
 	select,
-	input[type="number"] {
+	input[type='number'] {
 		width: 100%;
 		padding: 0.5rem;
 		border: 1px solid var(--background-modifier-border);

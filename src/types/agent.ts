@@ -1,9 +1,9 @@
-import { z } from "zod";
-import { ToolConfigSchema } from "../types/tool";
+import { z } from 'zod';
+import { ToolConfigSchema } from '../types/tool';
 
 // Tool choice types
 export const ToolChoiceSchema = z.union([
-	z.enum(["auto", "required", "none"]),
+	z.enum(['auto', 'required', 'none']),
 	z.string(), // 特定工具名称
 ]);
 
@@ -17,7 +17,7 @@ export const ModelSettingsSchema = z
 		presencePenalty: z.number().min(-2).max(2).optional(),
 
 		// Tool
-		toolChoice: ToolChoiceSchema.default("auto"),
+		toolChoice: ToolChoiceSchema.default('auto'),
 		parallelToolCalls: z.boolean().default(false),
 	})
 	.strict();
@@ -37,7 +37,7 @@ export type ModelConfig = z.infer<typeof ModelConfigSchema>;
 
 // Output type configuration
 export const OutputTypeSchema = z.union([
-	z.literal("text"), // 默认文本输出
+	z.literal('text'), // 默认文本输出
 	z.record(z.any()), // JSON schema对象
 	z.any(), // Zod schema
 ]);
@@ -47,7 +47,7 @@ export type OutputType = z.infer<typeof OutputTypeSchema>;
 // Guardrail configuration
 export const GuardrailConfigSchema = z
 	.object({
-		type: z.enum(["input", "output"]),
+		type: z.enum(['input', 'output']),
 		name: z.string(),
 		enabled: z.boolean().default(true),
 		config: z.record(z.any()).optional(),
@@ -129,9 +129,6 @@ export const AgentConfigInputSchema = z
 export type AgentConfigInput = z.infer<typeof AgentConfigInputSchema>;
 
 // Agent update input schema
-export const UpdateAgentConfigInputSchema =
-	AgentConfigInputSchema.partial().strict();
+export const UpdateAgentConfigInputSchema = AgentConfigInputSchema.partial().strict();
 
-export type UpdateAgentConfigInput = z.infer<
-	typeof UpdateAgentConfigInputSchema
->;
+export type UpdateAgentConfigInput = z.infer<typeof UpdateAgentConfigInputSchema>;

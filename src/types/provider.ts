@@ -1,7 +1,7 @@
-import { z } from "zod";
-import type { Model } from "@openai/agents-core";
+import { z } from 'zod';
+import type { Model } from '@openai/agents-core';
 
-export const ModelProviderTypeSchema = z.enum(["OpenAI", "OpenAICompatible"]);
+export const ModelProviderTypeSchema = z.enum(['OpenAI', 'OpenAICompatible']);
 
 export const ProviderConfigSchema = z
 	.object({
@@ -22,7 +22,7 @@ export type ProviderConfig = z.infer<typeof ProviderConfigSchema>;
 export interface ProviderRuntimeConfig {
 	id: string;
 	name: string;
-	providerType: "OpenAI" | "OpenAICompatible";
+	providerType: 'OpenAI' | 'OpenAICompatible';
 	apiKey?: string;
 	baseUrl?: string;
 	enabled: boolean;
@@ -42,10 +42,10 @@ export interface ModelDescriptor {
 }
 
 export interface IProvider {
-    initialize(): Promise<void>;
-    getModel(modelName: string): Promise<Model>;
+	initialize(): Promise<void>;
+	getModel(modelName: string): Promise<Model>;
 	getAvailableModels(): Promise<string[]>;
-    getId(): string;
-    getName(): string;
-    isInitialized(): boolean;
+	getId(): string;
+	getName(): string;
+	isInitialized(): boolean;
 }

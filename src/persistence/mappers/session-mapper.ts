@@ -23,7 +23,9 @@ export function serializeMetadata(metadata: Record<string, unknown>): string {
 	return JSON.stringify(metadata ?? {});
 }
 
-export function deserializeMetadata(serialized: string | Record<string, unknown>): Record<string, unknown> {
+export function deserializeMetadata(
+	serialized: string | Record<string, unknown>
+): Record<string, unknown> {
 	if (typeof serialized === 'object' && serialized !== null) {
 		return serialized as Record<string, unknown>;
 	}

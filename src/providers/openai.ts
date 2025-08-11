@@ -1,8 +1,8 @@
-import { OpenAI } from "openai";
-import type { Model } from "@openai/agents-core";
-import { OpenAIProvider } from "@openai/agents-openai";
+import { OpenAI } from 'openai';
+import type { Model } from '@openai/agents-core';
+import { OpenAIProvider } from '@openai/agents-openai';
 
-import type { ProviderConfig, IProvider } from "../types";
+import type { ProviderConfig, IProvider } from '../types';
 
 export class OpenAIProvider_Custom implements IProvider {
 	private _config: ProviderConfig;
@@ -15,7 +15,7 @@ export class OpenAIProvider_Custom implements IProvider {
 
 	async initialize(): Promise<void> {
 		if (!this._config.apiKey) {
-			throw new Error("API key is required for OpenAI Provider");
+			throw new Error('API key is required for OpenAI Provider');
 		}
 
 		const openAIClient = new OpenAI({
@@ -34,7 +34,7 @@ export class OpenAIProvider_Custom implements IProvider {
 
 	async getModel(modelName: string): Promise<Model> {
 		if (!this._openaiProvider) {
-			throw new Error("Provider not initialized");
+			throw new Error('Provider not initialized');
 		}
 		// Fetch the model from the OpenAI provider
 		return this._openaiProvider.getModel(modelName);
@@ -42,7 +42,7 @@ export class OpenAIProvider_Custom implements IProvider {
 
 	async getAvailableModels(): Promise<string[]> {
 		if (!this._config.apiKey) {
-			throw new Error("Provider not initialized - API key is required");
+			throw new Error('Provider not initialized - API key is required');
 		}
 
 		try {
@@ -52,10 +52,10 @@ export class OpenAIProvider_Custom implements IProvider {
 			});
 
 			const modelsPage = await openAIClient.models.list();
-			return modelsPage.data.map(model => model.id);
+			return modelsPage.data.map((model) => model.id);
 		} catch (error) {
-			console.error("Failed to fetch available models:", error);
-			throw new Error("Failed to fetch available models from OpenAI");
+			console.error('Failed to fetch available models:', error);
+			throw new Error('Failed to fetch available models from OpenAI');
 		}
 	}
 
