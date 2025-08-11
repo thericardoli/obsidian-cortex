@@ -1,6 +1,12 @@
 import type { DatabaseManager } from "../database-manager";
 import type { AgentConfig } from "../../types/agent";
-import { rowToAgentConfig } from "../mappers/agent-mapper";
+import { 
+	rowToAgentConfig,
+	serializeModelSettings,
+	serializeTools,
+	serializeGuardrails,
+	serializeMcpServers
+} from "../mappers/agent-mapper";
 
 export class AgentRepository {
 	constructor(private dbm: DatabaseManager) {}
@@ -17,11 +23,11 @@ export class AgentRepository {
 			) VALUES (
 				${agent.id}, ${agent.name}, ${agent.instructions},
 				${agent.modelConfig.provider}, ${agent.modelConfig.model},
-				${JSON.stringify(agent.modelConfig.settings ?? {})},
-				${JSON.stringify(agent.tools ?? [])},
-				${JSON.stringify(agent.inputGuardrails ?? [])},
-				${JSON.stringify(agent.outputGuardrails ?? [])},
-				${JSON.stringify(agent.mcpServers ?? [])},
+				${serializeModelSettings(agent.modelConfig.settings)},
+				${serializeTools(agent.tools ?? [])},
+				${serializeGuardrails(agent.inputGuardrails ?? [])},
+				${serializeGuardrails(agent.outputGuardrails ?? [])},
+				${serializeMcpServers(agent.mcpServers ?? [])},
 				${JSON.stringify({})},
 				to_timestamp(${agent.createdAt}/1000.0),
 				to_timestamp(${agent.updatedAt}/1000.0)
@@ -31,11 +37,11 @@ export class AgentRepository {
 				instructions=${agent.instructions},
 				model_provider=${agent.modelConfig.provider},
 				model=${agent.modelConfig.model},
-				model_settings=${JSON.stringify(agent.modelConfig.settings ?? {})},
-				tools=${JSON.stringify(agent.tools ?? [])},
-				input_guardrails=${JSON.stringify(agent.inputGuardrails ?? [])},
-				output_guardrails=${JSON.stringify(agent.outputGuardrails ?? [])},
-				mcp_servers=${JSON.stringify(agent.mcpServers ?? [])},
+				model_settings=${serializeModelSettings(agent.modelConfig.settings)},
+				tools=${serializeTools(agent.tools ?? [])},
+				input_guardrails=${serializeGuardrails(agent.inputGuardrails ?? [])},
+				output_guardrails=${serializeGuardrails(agent.outputGuardrails ?? [])},
+				mcp_servers=${serializeMcpServers(agent.mcpServers ?? [])},
 				updated_at=NOW()
 		`;
 	}

@@ -10,6 +10,7 @@ import type { ProviderManager } from '../../providers/provider-manager';
 import type { PluginSettings } from '../../types';
 import type { SessionService } from '../../services/session-service';
 import type { EventBus } from '../../services/event-bus';
+import { createLogger, type Logger } from '../../utils/logger';
 
 export const VIEW_TYPE_CHAT = 'cortex-side-chat-view';
 
@@ -20,6 +21,7 @@ export class ChatViewLeaf extends ItemView {
     private getSettings: () => PluginSettings;
     private sessionService: SessionService;
     private eventBus: EventBus;
+    private logger: Logger;
 
     constructor(leaf: WorkspaceLeaf, agentManager: AgentManager, providerManager: ProviderManager, getSettings: () => PluginSettings, sessionService: SessionService, eventBus: EventBus) {
         super(leaf);
@@ -28,6 +30,7 @@ export class ChatViewLeaf extends ItemView {
         this.getSettings = getSettings;
         this.sessionService = sessionService;
         this.eventBus = eventBus;
+        this.logger = createLogger('ui');
     }
 
     getViewType(): string {
@@ -85,7 +88,7 @@ export class ChatViewLeaf extends ItemView {
         // This method could be used to force a refresh if needed
         if (this.chatViewComponent) {
             // The component will automatically react to changes in managers
-            console.log('Chat view will automatically refresh based on manager changes');
+            this.logger.debug('Chat view will automatically refresh based on manager changes');
         }
     }
 }

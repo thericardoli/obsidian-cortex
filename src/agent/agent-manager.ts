@@ -9,6 +9,7 @@ import type { PersistenceManager } from '../persistence/persistence-manager';
 import { functionToolRegistry, type ToolExecutor } from "../tool/function-registry";
 import { createHostedTool } from "../tool/hosted-registry";
 import { buildAgentAsTool } from "../tool/agent-as-tool";
+import { createLogger, type Logger } from "../utils/logger";
 
 export class AgentManager {
     private _providerManager: ProviderManager;
@@ -16,10 +17,12 @@ export class AgentManager {
     private _agentCache: Map<string, AgentConfig> = new Map();
     // Subscribers to agent list/config changes
     private _agentChangeListeners: Set<() => void> = new Set();
+    private logger: Logger;
 
     constructor(providerManager: ProviderManager, persistenceManager?: PersistenceManager | null) {
         this._providerManager = providerManager;
         this._persistenceManager = persistenceManager || null;
+        this.logger = createLogger('agent');
     }
 
     /**
@@ -64,10 +67,10 @@ export class AgentManager {
                 this._agentCache.set(agent.id, agent);
             }
             
-            console.log(`Loaded ${agents.length} agents from database`);
+            this.logger.info(`Loaded ${agents.length} agents from database`);
             this._notifyAgentsChanged();
         } catch (error) {
-            console.error('Failed to load agents from database:', error);
+            this.logger.error('Failed to load agents from database:', error);
         }
     }
 

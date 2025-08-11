@@ -11,6 +11,7 @@ import type {
 } from "../types/session";
 import { EventEmitter } from "events";
 import type { SessionRepository } from "../persistence/repositories/session-repository";
+import { createLogger, type Logger } from "../utils/logger";
 
 /**
  * 智能缓存 Session
@@ -21,6 +22,7 @@ export class chatSession extends EventEmitter implements ISession {
 	private memoryCache: AgentItem[] = [];
 	private repo?: SessionRepository;
 	private isLoaded = false;
+	private logger: Logger;
 
 	constructor(options: {
 		sessionId: string;
@@ -29,6 +31,7 @@ export class chatSession extends EventEmitter implements ISession {
 		super();
 		this.sessionId = options.sessionId;
 		this.repo = options.repo;
+		this.logger = createLogger('session');
 	}
 
 	/**
@@ -125,7 +128,7 @@ export class chatSession extends EventEmitter implements ISession {
 			if (this.memoryCache.length > 0) {
 				await this.repo.addItems(this.sessionId, this.memoryCache);
 			}
-			console.log(
+			this.logger.info(
 				`✅ 已保存 ${this.memoryCache.length} 条聊天记录到数据库`
 			);
 		} catch (error) {

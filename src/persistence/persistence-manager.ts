@@ -1,4 +1,3 @@
-import type { Plugin } from 'obsidian';
 import { DatabaseManager, type DatabaseOptions } from './database-manager';
 import { AgentRepository } from './repositories/agent-repository';
 import { SessionRepository } from './repositories/session-repository';
@@ -14,11 +13,8 @@ export class PersistenceManager {
 	private sessionRepository: SessionRepository | null = null;
 	private initialized = false;
 
-	constructor(
-		private plugin: Plugin,
-		private options: PersistenceManagerOptions = {}
-	) {
-		this.dbManager = new DatabaseManager(plugin, options);
+	constructor(private options: PersistenceManagerOptions = {}) {
+		this.dbManager = new DatabaseManager(options);
 	}
 
 	async initialize(): Promise<void> {

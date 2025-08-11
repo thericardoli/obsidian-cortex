@@ -1,5 +1,6 @@
 import type { DatabaseManager } from '../database-manager';
 import type { AgentItem } from '../../types/session';
+import { serializeItems, deserializeItems } from '../mappers/session-mapper';
 
 export class SessionRepository {
 	constructor(private dbm: DatabaseManager) {}
@@ -16,7 +17,8 @@ export class SessionRepository {
 		const db = this.dbm.getDatabase();
 		const { rows } = await db.sql`SELECT items FROM sessions WHERE id=${sessionId}`;
 		if (!rows[0]) return [];
-		const all: AgentItem[] = (rows[0] as Record<string, unknown>).items as AgentItem[] ?? [];
+		const serializedItems = (rows[0] as Record<string, unknown>).items;
+		const all = deserializeItems(serializedItems as string | unknown[]);
 		return typeof limit === 'number' ? all.slice(-limit) : all;
 	}
 
@@ -27,7 +29,7 @@ export class SessionRepository {
 
 		await db.sql`
 			UPDATE sessions
-				SET items=${JSON.stringify(next)}, updated_at=NOW()
+				SET items=${serializeItems(next)}, updated_at=NOW()
 			WHERE id=${sessionId}
 		`;
 	}
@@ -41,7 +43,7 @@ export class SessionRepository {
 
 		await db.sql`
 			UPDATE sessions
-				SET items=${JSON.stringify(next)}, updated_at=NOW()
+				SET items=${serializeItems(next)}, updated_at=NOW()
 			WHERE id=${sessionId}
 		`;
 		return popped;

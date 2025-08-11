@@ -1,5 +1,5 @@
 import { PGlite } from "@electric-sql/pglite";
-import type { Plugin } from "obsidian";
+import { createLogger, type Logger } from "../utils/logger";
 
 export interface DatabaseOptions {
 	/**
@@ -17,8 +17,11 @@ const CURRENT_SCHEMA_VERSION = 1;
 export class DatabaseManager {
 	private db: PGlite | null = null;
 	private initialized = false;
+	private logger: Logger;
 
-	constructor(private plugin: Plugin, private opts: DatabaseOptions = {}) {}
+	constructor(private opts: DatabaseOptions = {}) {
+		this.logger = createLogger('persistence');
+	}
 
 	async initialize(): Promise<void> {
 		if (this.initialized) return;
@@ -26,11 +29,11 @@ export class DatabaseManager {
 		try {
 			// 使用 IndexedDB 存储
 			const dataDir = 'idb://cortex-db';
-			console.log('Using IndexedDB storage for PGlite:', dataDir);
+			this.logger.info('Using IndexedDB storage for PGlite:', dataDir);
 
 			// 优先使用预加载的 WASM 模块和文件系统包
 			if (this.opts.wasmModule && this.opts.fsBundle) {
-				console.log('Initializing PGlite with preloaded WASM module and fsBundle');
+				this.logger.info('Initializing PGlite with preloaded WASM module and fsBundle');
 				this.db = await PGlite.create({
 					wasmModule: this.opts.wasmModule,
 					fsBundle: this.opts.fsBundle,
@@ -38,16 +41,16 @@ export class DatabaseManager {
 				});
 			} else {
 				// 使用 IndexedDB 存储，避免文件系统路径问题
-				console.log('Initializing PGlite with IndexedDB storage:', dataDir);
+				this.logger.info('Initializing PGlite with IndexedDB storage:', dataDir);
 				this.db = await PGlite.create(dataDir);
 			}
 
 			await this.runMigrations();
 			this.initialized = true;
 		} catch (error) {
-			console.error('Failed to initialize PGlite database:', error);
-			console.error('This is likely due to import.meta.url issues in Electron environment.');
-			console.error('Please provide preloaded wasmModule and fsBundle in DatabaseOptions.');
+			this.logger.error('Failed to initialize PGlite database:', error);
+			this.logger.error('This is likely due to import.meta.url issues in Electron environment.');
+			this.logger.error('Please provide preloaded wasmModule and fsBundle in DatabaseOptions.');
 			throw new Error('Failed to initialize PGlite database. Use preloaded resources to avoid import.meta.url issues.');
 		}
 	}

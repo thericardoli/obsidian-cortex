@@ -1,12 +1,14 @@
 // 使用绝对路径导入二进制文件（绕过 package.json exports 限制）
 import wasmBin from '../../node_modules/@electric-sql/pglite/dist/pglite.wasm';
 import fsDataBin from '../../node_modules/@electric-sql/pglite/dist/pglite.data';
+import { createLogger } from '../utils/logger';
 
 /**
  * PGlite 资源加载器
  * 使用打包时内联的二进制资源，避免运行时路径解析问题
  */
 export class PGliteResourceLoader {
+	private static logger = createLogger('persistence');
 	
 	/**
 	 * 从打包的二进制资源加载 PGlite 所需的 WASM 模块和文件系统包
@@ -17,7 +19,7 @@ export class PGliteResourceLoader {
 		fsBundle: Blob;
 	} | null> {
 		try {
-			console.log('Loading PGlite resources from bundled binaries...');
+			this.logger.info('Loading PGlite resources from bundled binaries...');
 			
 			// esbuild 的 'binary' loader 可能返回 ArrayBuffer 或 Uint8Array
 			const toArrayBuffer = (x: ArrayBuffer | Uint8Array): ArrayBuffer => {
@@ -41,14 +43,14 @@ export class PGliteResourceLoader {
 			// 创建文件系统包 Blob
 			const fsBundle = new Blob([fsBytes]);
 
-			console.log('✅ PGlite assets loaded from bundled binaries', {
+			this.logger.info('✅ PGlite assets loaded from bundled binaries', {
 				wasm: wasmBytes.byteLength,
 				data: fsBytes.byteLength
 			});
 			
 			return { wasmModule, fsBundle };
 		} catch (error) {
-			console.error('❌ Failed to import PGlite binaries from bundle:', error);
+			this.logger.error('❌ Failed to import PGlite binaries from bundle:', error);
 			return null;
 		}
 	}

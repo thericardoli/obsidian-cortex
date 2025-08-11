@@ -44,7 +44,7 @@ export default class CortexPlugin extends Plugin {
                 if (pgliteResources) {
                     console.log('PGlite resources loaded successfully');
                     
-                    this.persistenceManager = new PersistenceManager(this, {
+                    this.persistenceManager = new PersistenceManager({
                         wasmModule: pgliteResources.wasmModule,
                         fsBundle: pgliteResources.fsBundle
                         // 不需要 pluginBasePath，因为我们使用 IndexedDB 存储
