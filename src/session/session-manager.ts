@@ -1,6 +1,7 @@
 import type { ISession, SessionOptions } from '../types/session';
 import { EventEmitter } from 'events';
 import type { PersistenceManager } from '../persistence/persistence-manager';
+import { createLogger } from '../utils/logger';
 
 /**
  * Session 管理器
@@ -11,6 +12,7 @@ export class SessionManager extends EventEmitter {
     private sessions: Map<string, ISession> = new Map();
     private defaultOptions: Partial<SessionOptions> = {};
     private persistenceManager?: PersistenceManager;
+    private logger = createLogger('session');
 
     constructor(defaultOptions?: Partial<SessionOptions>, persistenceManager?: PersistenceManager) {
         super();
@@ -91,7 +93,7 @@ export class SessionManager extends EventEmitter {
                 }
             } catch (error) {
                 this.emit('sessionError', { sessionId, error });
-                console.error(`Failed to load session ${sessionId} from database:`, error);
+                this.logger.error(`Failed to load session ${sessionId} from database`, error);
             }
         }
 
@@ -157,7 +159,7 @@ export class SessionManager extends EventEmitter {
             }));
         } catch (error) {
             this.emit('sessionError', { error });
-            console.error(`Failed to list sessions:`, error);
+            this.logger.error('Failed to list sessions', error);
             return [];
         }
     }
@@ -241,7 +243,7 @@ export class SessionManager extends EventEmitter {
             try {
                 await this.deleteSession(sessionId);
             } catch (error) {
-                console.error(`Failed to delete session ${sessionId}:`, error);
+                this.logger.error(`Failed to delete session ${sessionId}`, error);
             }
         }
     }
@@ -269,12 +271,9 @@ export class SessionManager extends EventEmitter {
      * 释放所有资源
      */
     public async dispose(): Promise<void> {
-        await this.clearAllSessions();
-        this.removeAllListeners();
+    await this.clearAllSessions();
+    this.removeAllListeners();
     }
 }
 
-/**
- * 全局 Session 管理器实例
- */
-export const globalSessionManager = new SessionManager();
+// NOTE: globalSessionManager 已被废弃，不再导出。请通过 SessionService 获取会话能力。

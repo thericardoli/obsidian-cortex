@@ -10,7 +10,8 @@ export * from '../types/session';
 export { chatSession as CachedSession } from './chat-session';
 
 // Session 管理器  
-export { SessionManager, globalSessionManager } from './session-manager';
+// globalSessionManager 已废弃：仅导出 SessionManager 类
+export { SessionManager } from './session-manager';
 
 // 便捷函数
 export { 

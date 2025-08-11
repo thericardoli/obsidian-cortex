@@ -3,8 +3,23 @@
  * 提供快速创建和管理 Session 的便捷方法
  */
 
-import { globalSessionManager } from './session-manager';
+// DEPRECATED MODULE
+// 本文件将在后续版本移除：请改用 SessionService API。这里保留 shim 并输出警告一次。
+// createSession/getSession 等函数仅在开发期辅助迁移。
 import type { ISession } from '../types/session';
+import { SessionManager } from './session-manager';
+import { createLogger } from '../utils/logger';
+
+// 使用 session scope 复用；消息内含 deprecated 前缀
+const logger = createLogger('session');
+let warned = false;
+function warnOnce() {
+    if (warned) return; warned = true;
+    logger.warn('session-utils 已废弃：请通过 SessionService 获取/管理会话。该 shim 将在后续版本移除。');
+}
+
+// 临时独立实例（不与主 SessionService 共享）。仅供兼容，不保证持久化。
+const deprecatedShimManager = new SessionManager();
 
 /**
  * 创建新的 Session（使用智能缓存）
@@ -12,7 +27,8 @@ import type { ISession } from '../types/session';
  * @returns 新创建的 Session 实例
  */
 export async function createSession(sessionId: string): Promise<ISession> {
-    return await globalSessionManager.createSession(sessionId);
+    warnOnce();
+    return await deprecatedShimManager.createSession(sessionId);
 }
 
 /**
@@ -21,7 +37,8 @@ export async function createSession(sessionId: string): Promise<ISession> {
  * @returns Session 实例，如果不存在则返回 null
  */
 export async function getSession(sessionId: string): Promise<ISession | null> {
-    return await globalSessionManager.getSession(sessionId);
+    warnOnce();
+    return await deprecatedShimManager.getSession(sessionId);
 }
 
 /**
@@ -30,7 +47,8 @@ export async function getSession(sessionId: string): Promise<ISession | null> {
  * @returns Session 实例，如果不存在则返回 null
  */
 export function getSessionFromMemory(sessionId: string): ISession | null {
-    return globalSessionManager.getSessionFromMemory(sessionId);
+    warnOnce();
+    return deprecatedShimManager.getSessionFromMemory(sessionId);
 }
 
 /**
@@ -39,7 +57,8 @@ export function getSessionFromMemory(sessionId: string): ISession | null {
  * @returns 是否成功删除
  */
 export async function deleteSession(sessionId: string): Promise<boolean> {
-    return await globalSessionManager.deleteSession(sessionId);
+    warnOnce();
+    return await deprecatedShimManager.deleteSession(sessionId);
 }
 
 /**
@@ -47,7 +66,8 @@ export async function deleteSession(sessionId: string): Promise<boolean> {
  * @returns Session ID 数组
  */
 export function getAllSessionIds(): string[] {
-    return globalSessionManager.getSessionIds();
+    warnOnce();
+    return deprecatedShimManager.getSessionIds();
 }
 
 /**
@@ -55,14 +75,16 @@ export function getAllSessionIds(): string[] {
  * @returns Session 总数
  */
 export function getSessionCount(): number {
-    return globalSessionManager.getSessionCount();
+    warnOnce();
+    return deprecatedShimManager.getSessionCount();
 }
 
 /**
  * 清空所有 Sessions
  */
 export async function clearAllSessions(): Promise<void> {
-    return await globalSessionManager.clearAllSessions();
+    warnOnce();
+    return await deprecatedShimManager.clearAllSessions();
 }
 
 /**
@@ -71,7 +93,8 @@ export async function clearAllSessions(): Promise<void> {
  * @returns 新创建的 Session 实例
  */
 export async function createNewSession(sessionId?: string): Promise<ISession> {
-    return await globalSessionManager.createNewSession(sessionId);
+    warnOnce();
+    return await deprecatedShimManager.createNewSession(sessionId);
 }
 
 /**
@@ -82,7 +105,8 @@ export async function createNewSession(sessionId?: string): Promise<ISession> {
 export async function getAllSessions(
     limit = 20
 ): Promise<Array<{ id: string; name?: string; createdAt?: string; updatedAt?: string }>> {
-    return await globalSessionManager.getAllSessions(limit);
+    warnOnce();
+    return await deprecatedShimManager.getAllSessions(limit);
 }
 
 /**
@@ -90,5 +114,6 @@ export async function getAllSessions(
  * @returns 新的Session ID
  */
 export function generateSessionId(): string {
-    return globalSessionManager.generateSessionId();
+    warnOnce();
+    return deprecatedShimManager.generateSessionId();
 }
