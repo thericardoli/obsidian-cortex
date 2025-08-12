@@ -1,55 +1,25 @@
 <script lang="ts">
-	// No props needed - pure visual component
+	// Simple loading component for general loading states (like agent initialization)
 </script>
 
-<div class="loading-indicator">
-	<div class="loading-header">
-		<span class="assistant-label">Assistant</span>
-		<span class="thinking-text">is thinking...</span>
+<div class="simple-loading">
+	<div class="dots">
+		<div class="dot"></div>
+		<div class="dot"></div>
+		<div class="dot"></div>
 	</div>
-	<div class="loading-content">
-		<div class="dots">
-			<div class="dot"></div>
-			<div class="dot"></div>
-			<div class="dot"></div>
-		</div>
-	</div>
+	<span class="loading-text">Loading...</span>
 </div>
 
 <style>
-	.loading-indicator {
-		display: flex;
-		flex-direction: column;
-		align-items: flex-start;
-		max-width: 80%;
-		margin-right: auto;
-	}
-
-	.loading-header {
+	.simple-loading {
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-		margin-bottom: 0.25rem;
-		font-size: 0.875rem;
+		justify-content: center;
+		padding: 1rem;
 		color: var(--text-muted);
-	}
-
-	.assistant-label {
-		font-weight: 500;
-		color: var(--text-normal);
-	}
-
-	.thinking-text {
-		font-size: 0.75rem;
-		font-style: italic;
-	}
-
-	.loading-content {
-		background: var(--background-secondary);
-		padding: 0.75rem 1rem;
-		border-radius: 1rem 1rem 1rem 0.25rem;
-		border: 1px solid var(--background-modifier-border);
-		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+		font-size: 0.875rem;
 	}
 
 	.dots {
@@ -89,5 +59,9 @@
 			opacity: 1;
 			transform: scale(1);
 		}
+	}
+
+	.loading-text {
+		font-style: italic;
 	}
 </style>

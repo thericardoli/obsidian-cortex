@@ -118,7 +118,16 @@
 		<span class="timestamp">{formattedTime}</span>
 	</div>
 	<div class="message-content">
-		{#if content && content.trim().length > 0}
+		{#if streaming && (!content || content.trim().length === 0)}
+			<!-- AI还没有开始输出时的loading状态 -->
+			<div class="ai-loading">
+				<div class="dots">
+					<div class="dot"></div>
+					<div class="dot"></div>
+					<div class="dot"></div>
+				</div>
+			</div>
+		{:else if content && content.trim().length > 0}
 			{#if streaming}
 				<!-- 流式阶段：先用轻量纯文本展示，避免频繁 Markdown 重排 -->
 				<div class="streaming-text">{content}</div>
@@ -140,7 +149,7 @@
 				></span>
 			</button>
 		{:else}
-			<div class="thinking-placeholder">Thinking...</div>
+			<div class="empty-placeholder">No response available</div>
 		{/if}
 	</div>
 </div>
@@ -238,6 +247,57 @@
 		overflow-wrap: anywhere;
 	}
 
+	/* AI loading状态 - 三个dot动画 */
+	.ai-loading {
+		display: flex;
+		align-items: center;
+		padding: 0.5rem 0;
+	}
+
+	.dots {
+		display: flex;
+		align-items: center;
+		gap: 0.3rem;
+	}
+
+	.dot {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background: var(--text-muted);
+		animation: pulse 1.4s ease-in-out infinite both;
+	}
+
+	.dot:nth-child(1) {
+		animation-delay: -0.32s;
+	}
+
+	.dot:nth-child(2) {
+		animation-delay: -0.16s;
+	}
+
+	.dot:nth-child(3) {
+		animation-delay: 0s;
+	}
+
+	@keyframes pulse {
+		0%,
+		80%,
+		100% {
+			opacity: 0.3;
+			transform: scale(0.8);
+		}
+		40% {
+			opacity: 1;
+			transform: scale(1);
+		}
+	}
+
+	.empty-placeholder {
+		color: var(--text-muted);
+		font-style: italic;
+	}
+
 	.markdown-body :global(pre) {
 		background: var(--background-primary);
 		border: 1px solid var(--background-modifier-border);
@@ -265,10 +325,5 @@
 	.markdown-body :global(ul),
 	.markdown-body :global(ol) {
 		padding-left: 1.25rem;
-	}
-
-	.thinking-placeholder {
-		color: var(--text-muted);
-		font-style: italic;
 	}
 </style>

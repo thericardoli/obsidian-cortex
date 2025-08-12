@@ -28,7 +28,12 @@
 	// Auto-scroll management (stick to bottom when user hasn't scrolled up)
 	let messagesEl: HTMLElement | null = null;
 	let bottomAnchor: HTMLDivElement | null = null;
-	let stickToBottom = true;
+	let stickToBottom = $state(true);
+	
+	// 检查是否有正在流式输出的assistant消息
+	const hasStreamingAssistant = $derived(
+		messages.some(msg => msg.role === 'assistant' && msg.isStreaming)
+	);
 
 	function isNearBottom(el: HTMLElement) {
 		return el.scrollTop + el.clientHeight >= el.scrollHeight - 120;
@@ -107,7 +112,7 @@
 			{/if}
 		{/each}
 
-		{#if isLoading}
+		{#if isLoading && !hasStreamingAssistant}
 			<LoadingIndicator />
 		{/if}
 		<!-- anchor used for scrollIntoView if needed in future -->
