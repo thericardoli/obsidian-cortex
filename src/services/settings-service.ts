@@ -51,7 +51,24 @@ export class SettingsService implements SettingsServiceApi {
 			typeof v === 'object' && v !== null;
 		const toStringOr = (v: unknown, fallback: string): string =>
 			typeof v === 'string' ? v : fallback;
-		const toBool = (v: unknown): boolean => v === true || v === 'true' || (v as any) === 1;
+		// Accept true boolean, string 'true', or numeric 1 as truthy; avoid any casts.
+		const toBool = (v: unknown): boolean => v === true || v === 'true' || v === 1;
+		// Normalize user-entered baseUrl: add https:// if missing, ensure valid URL; return undefined if invalid
+		const normalizeBaseUrl = (v: unknown): string | undefined => {
+			if (typeof v !== 'string') return undefined;
+			let url = v.trim();
+			if (!url) return undefined;
+			if (!/^https?:\/\//i.test(url)) {
+				url = 'https://' + url; // assume https if protocol omitted
+			}
+			try {
+				// Validate
+				new URL(url);
+				return url;
+			} catch {
+				return undefined;
+			}
+		};
 		const toModels = (v: unknown): { displayName: string; modelId: string }[] =>
 			Array.isArray(v)
 				? v
@@ -84,7 +101,7 @@ export class SettingsService implements SettingsServiceApi {
 						| 'OpenAI'
 						| 'OpenAICompatible',
 					apiKey: typeof p.apiKey === 'string' ? p.apiKey : undefined,
-					baseUrl: typeof p.baseUrl === 'string' ? p.baseUrl : undefined,
+					baseUrl: normalizeBaseUrl(p.baseUrl),
 					enabled: toBool(p.enabled),
 					models: toModels(p.models),
 				}))
@@ -107,7 +124,7 @@ export class SettingsService implements SettingsServiceApi {
 				name: 'OpenAI',
 				providerType: 'OpenAI',
 				apiKey: typeof openai.apiKey === 'string' ? openai.apiKey : undefined,
-				baseUrl: 'https://api.openai.com/v1',
+				baseUrl: normalizeBaseUrl(openai.baseUrl) || 'https://api.openai.com/v1',
 				enabled: toBool(openai.enabled) || typeof openai.apiKey === 'string',
 				models: toModels(openai.models),
 			});
@@ -140,7 +157,7 @@ export class SettingsService implements SettingsServiceApi {
 					| 'OpenAI'
 					| 'OpenAICompatible',
 				apiKey: typeof p.apiKey === 'string' ? p.apiKey : undefined,
-				baseUrl: typeof p.baseUrl === 'string' ? p.baseUrl : undefined,
+				baseUrl: normalizeBaseUrl(p.baseUrl),
 				enabled: toBool(p.enabled),
 				models: toModels(p.models),
 			});
