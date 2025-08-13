@@ -1,6 +1,9 @@
 # vscode
 .vscode 
 
+# kiro
+.kiro
+
 # Intellij
 *.iml
 .idea

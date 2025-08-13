@@ -13,16 +13,3 @@ export { chatSession as CachedSession } from './chat-session';
 // globalSessionManager 已废弃：仅导出 SessionManager 类
 export { SessionManager } from './session-manager';
 
-// 便捷函数
-export {
-	createSession,
-	getSession,
-	getSessionFromMemory,
-	deleteSession,
-	getAllSessionIds,
-	getSessionCount,
-	clearAllSessions,
-	createNewSession,
-	getAllSessions,
-	generateSessionId,
-} from './session-utils';
