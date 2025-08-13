@@ -90,6 +90,7 @@ export function createChatStore(opts: {
 
 	let currentAgentInstance: Agent | null = null;
 	let disposed = false;
+	let streamRenderInterval: number | null = null; // For smooth streaming
 
 	const subscribers = new Set<(s: ChatState) => void>();
 	const notify = () => subscribers.forEach((fn) => fn(state));
@@ -171,6 +172,13 @@ export function createChatStore(opts: {
 	const actions: ChatActions = {
 		async sendMessage(text: string) {
 			if (!state.canSend || !currentAgentInstance || !state.selectedAgent) return;
+
+			// Stop any previous rendering
+			if (streamRenderInterval) {
+				clearInterval(streamRenderInterval);
+				streamRenderInterval = null;
+			}
+
 			const userMessage: ChatMessage = {
 				id: crypto.randomUUID(),
 				role: 'user',
@@ -182,133 +190,146 @@ export function createChatStore(opts: {
 			recompute();
 			notify();
 
-			try {
-				// Write user message to session if available
+			const assistant: ChatMessage = {
+				id: crypto.randomUUID(),
+				role: 'assistant',
+				content: '',
+				timestamp: Date.now(),
+				isStreaming: true,
+			};
+			state.messages = [...state.messages, assistant];
+			const lastIndex = state.messages.length - 1;
+			notify();
+
+			const executeStreaming = async () => {
+				let streamBuffer = '';
+				let isStreamFetchingComplete = false;
 				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				const maybeSession = await (async () => {
-					try {
-						return await opts.sessionService.get(state.currentSessionId);
-					} catch {
-						return null;
-					}
-				})();
-				if (maybeSession) {
-					// 标准化：用户消息始终为 input_text 片段数组
-					await maybeSession.addItems([
-						{
-							role: 'user',
-							type: 'message',
-							content: [{ type: 'input_text', text }],
-						} as unknown as AgentItem,
-					]);
-				}
+				let maybeSession: any | null = null;
 
-				const assistant: ChatMessage = {
-					id: crypto.randomUUID(),
-					role: 'assistant',
-					content: '',
-					timestamp: Date.now(),
-					isStreaming: true,
-				};
-				state.messages = [...state.messages, assistant];
-				notify();
-
-				// 构建运行输入：优先 session 历史，其次本地 messages 回退
-				let inputForRun: AgentInputItem[];
 				try {
-					const history = maybeSession ? await maybeSession.toAgentInputHistory() : null;
-					inputForRun = composeRunInput({
-						sessionHistory: history,
-						fallbackState: state.messages,
-					});
-				} catch {
-					inputForRun = buildAgentInputFromState(state.messages);
-				}
-
-				const stream = await run(currentAgentInstance, inputForRun, { stream: true });
-				let accumulated = '';
-				const lastIndex = state.messages.length - 1;
-				for await (const ev of stream as AsyncIterable<unknown>) {
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					const delta = extractDelta(ev as any);
-					if (delta) {
-						accumulated += delta;
-						state.messages[lastIndex] = {
-							...state.messages[lastIndex],
-							content: accumulated,
-						};
-						notify();
-					}
-				}
-
-				// Fallback: if no chunks produced any content, try final output field
-				const lastMsg = state.messages[lastIndex];
-				if (lastMsg && lastMsg.isStreaming) {
-					if (!lastMsg.content || lastMsg.content.length === 0) {
+					maybeSession = await (async () => {
 						try {
-							// eslint-disable-next-line @typescript-eslint/no-explicit-any
-							const fallbackAny = (stream as any)?.finalOutput;
-							if (typeof fallbackAny === 'string' && fallbackAny.length > 0) {
-								state.messages[lastIndex] = {
-									...lastMsg,
-									content: fallbackAny,
-									isStreaming: false,
-								};
-							} else {
-								state.messages[lastIndex] = {
-									...lastMsg,
-									content: extractTextFromResult(stream),
-									isStreaming: false,
-								};
-							}
+							return await opts.sessionService.get(state.currentSessionId);
 						} catch {
-							state.messages[lastIndex] = {
-								...lastMsg,
-								content: 'No response content available',
-								isStreaming: false,
-							};
+							return null;
 						}
-					} else {
-						state.messages[lastIndex] = { ...lastMsg, isStreaming: false };
+					})();
+
+					if (maybeSession) {
+						await maybeSession.addItems([
+							{
+								role: 'user',
+								type: 'message',
+								content: [{ type: 'input_text', text }],
+							} as unknown as AgentItem,
+						]);
 					}
+
+					let inputForRun: AgentInputItem[];
+					try {
+						const history = maybeSession ? await maybeSession.toAgentInputHistory() : null;
+						inputForRun = composeRunInput({
+							sessionHistory: history,
+							fallbackState: state.messages,
+						});
+					} catch {
+						inputForRun = buildAgentInputFromState(state.messages);
+					}
+
+					const stream = await run(currentAgentInstance!, inputForRun, { stream: true });
+
+					const streamReader = async () => {
+						for await (const ev of stream as AsyncIterable<unknown>) {
+							// eslint-disable-next-line @typescript-eslint/no-explicit-any
+							const delta = extractDelta(ev as any);
+							if (delta) streamBuffer += delta;
+						}
+						isStreamFetchingComplete = true;
+					};
+					streamReader().catch((e) => {
+						console.error('Stream reading failed:', e);
+						isStreamFetchingComplete = true;
+					});
+
+					streamRenderInterval = window.setInterval(() => {
+						const isRenderingFinished =
+							isStreamFetchingComplete && streamBuffer.length === 0;
+
+						if (streamBuffer.length > 0) {
+							const chunkSize = 2; // Render 2 chars per interval for smooth typing
+							const chunk = streamBuffer.slice(0, chunkSize);
+							streamBuffer = streamBuffer.slice(chunkSize);
+
+							state.messages[lastIndex].content += chunk;
+							notify();
+						}
+
+						if (isRenderingFinished) {
+							clearInterval(streamRenderInterval!);
+							streamRenderInterval = null;
+
+							const lastMsg = state.messages[lastIndex];
+
+							if (!lastMsg.content || lastMsg.content.length === 0) {
+								try {
+									// eslint-disable-next-line @typescript-eslint/no-explicit-any
+									const fallbackAny = (stream as any)?.finalOutput;
+									if (typeof fallbackAny === 'string' && fallbackAny.length > 0) {
+										lastMsg.content = fallbackAny;
+									} else {
+										lastMsg.content = extractTextFromResult(stream);
+									}
+								} catch {
+									lastMsg.content = 'No response content available';
+								}
+							}
+
+							lastMsg.isStreaming = false;
+
+							if (maybeSession) {
+								const finalText = lastMsg.content ?? '';
+								const assistantItem: AssistantMessageItem = {
+									role: 'assistant',
+									type: 'message',
+									status: 'completed',
+									content: [
+										{ type: 'output_text', text: finalText },
+									] as unknown as AssistantMessageItem['content'],
+								};
+								maybeSession.addItems([assistantItem]);
+							}
+
+							state.isLoading = false;
+							recompute();
+							notify();
+						}
+					}, 15); // 15ms interval
+				} catch (error) {
+					if (streamRenderInterval) clearInterval(streamRenderInterval);
+
+					const last = state.messages[state.messages.length - 1];
+					if (last?.role === 'assistant' && last?.content === '') {
+						state.messages = state.messages.slice(0, -1);
+					}
+					const msg = error instanceof Error ? error.message : 'Unknown error occurred';
+					state.messages = [
+						...state.messages,
+						{
+							id: crypto.randomUUID(),
+							role: 'assistant',
+							content: `Error: ${msg}`,
+							timestamp: Date.now(),
+						},
+					];
+
+					state.isLoading = false;
+					recompute();
 					notify();
 				}
+			};
 
-				// Persist assistant message to session
-				if (maybeSession) {
-					const finalText = state.messages[lastIndex]?.content ?? '';
-					const assistantItem: AssistantMessageItem = {
-						role: 'assistant',
-						type: 'message',
-						status: 'completed',
-						content: [
-							{ type: 'output_text', text: finalText },
-						] as unknown as AssistantMessageItem['content'],
-					};
-					await maybeSession.addItems([assistantItem]);
-				}
-			} catch (error) {
-				// Remove placeholder if present
-				const last = state.messages[state.messages.length - 1];
-				if (last?.role === 'assistant' && last?.content === '') {
-					state.messages = state.messages.slice(0, -1);
-				}
-				const msg = error instanceof Error ? error.message : 'Unknown error occurred';
-				state.messages = [
-					...state.messages,
-					{
-						id: crypto.randomUUID(),
-						role: 'assistant',
-						content: `Error: ${msg}`,
-						timestamp: Date.now(),
-					},
-				];
-				notify();
-			} finally {
-				state.isLoading = false;
-				recompute();
-				notify();
-			}
+			executeStreaming();
 		},
 		changeAgent(agentId: string) {
 			const next = agentManager.listAgents().find((a) => a.id === agentId) ?? null;
