@@ -94,6 +94,28 @@ export function createChatStore(opts: {
 	const subscribers = new Set<(s: ChatState) => void>();
 	const notify = () => subscribers.forEach((fn) => fn(state));
 
+	// --- Throttling mechanism ---
+	let throttleTimeout: ReturnType<typeof setTimeout> | null = null;
+	const THROTTLE_MS = 50; // Update UI at most every 50ms
+
+	const throttledNotify = () => {
+		if (!throttleTimeout) {
+			throttleTimeout = setTimeout(() => {
+				throttleTimeout = null;
+				notify();
+			}, THROTTLE_MS);
+		}
+	};
+
+	const flushThrottledNotify = () => {
+		if (throttleTimeout) {
+			clearTimeout(throttleTimeout);
+			throttleTimeout = null;
+		}
+		notify();
+	};
+	// --- End Throttling ---
+
 	function recompute() {
 		recomputeDerived({
 			state,
@@ -180,7 +202,7 @@ export function createChatStore(opts: {
 			state.messages = [...state.messages, userMessage];
 			state.isLoading = true;
 			recompute();
-			notify();
+			flushThrottledNotify();
 
 			try {
 				// Write user message to session if available
@@ -211,7 +233,7 @@ export function createChatStore(opts: {
 					isStreaming: true,
 				};
 				state.messages = [...state.messages, assistant];
-				notify();
+				flushThrottledNotify();
 
 				// 构建运行输入：优先 session 历史，其次本地 messages 回退
 				let inputForRun: AgentInputItem[];
@@ -237,7 +259,7 @@ export function createChatStore(opts: {
 							...state.messages[lastIndex],
 							content: accumulated,
 						};
-						notify();
+						throttledNotify();
 					}
 				}
 
@@ -271,7 +293,7 @@ export function createChatStore(opts: {
 					} else {
 						state.messages[lastIndex] = { ...lastMsg, isStreaming: false };
 					}
-					notify();
+					flushThrottledNotify();
 				}
 
 				// Persist assistant message to session
@@ -303,11 +325,11 @@ export function createChatStore(opts: {
 						timestamp: Date.now(),
 					},
 				];
-				notify();
+				flushThrottledNotify();
 			} finally {
 				state.isLoading = false;
 				recompute();
-				notify();
+				flushThrottledNotify();
 			}
 		},
 		changeAgent(agentId: string) {
