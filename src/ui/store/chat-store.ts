@@ -90,31 +90,10 @@ export function createChatStore(opts: {
 
 	let currentAgentInstance: Agent | null = null;
 	let disposed = false;
+	let generation = 0;
 
 	const subscribers = new Set<(s: ChatState) => void>();
 	const notify = () => subscribers.forEach((fn) => fn(state));
-
-	// --- Throttling mechanism ---
-	let throttleTimeout: ReturnType<typeof setTimeout> | null = null;
-	const THROTTLE_MS = 50; // Update UI at most every 50ms
-
-	const throttledNotify = () => {
-		if (!throttleTimeout) {
-			throttleTimeout = setTimeout(() => {
-				throttleTimeout = null;
-				notify();
-			}, THROTTLE_MS);
-		}
-	};
-
-	const flushThrottledNotify = () => {
-		if (throttleTimeout) {
-			clearTimeout(throttleTimeout);
-			throttleTimeout = null;
-		}
-		notify();
-	};
-	// --- End Throttling ---
 
 	function recompute() {
 		recomputeDerived({
@@ -193,6 +172,10 @@ export function createChatStore(opts: {
 	const actions: ChatActions = {
 		async sendMessage(text: string) {
 			if (!state.canSend || !currentAgentInstance || !state.selectedAgent) return;
+
+			const myGen = ++generation;
+			const sessionIdAtStart = state.currentSessionId;
+
 			const userMessage: ChatMessage = {
 				id: crypto.randomUUID(),
 				role: 'user',
@@ -202,20 +185,19 @@ export function createChatStore(opts: {
 			state.messages = [...state.messages, userMessage];
 			state.isLoading = true;
 			recompute();
-			flushThrottledNotify();
+			notify();
+
+			let rafId: number | null = null;
 
 			try {
-				// Write user message to session if available
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				const maybeSession = await (async () => {
 					try {
-						return await opts.sessionService.get(state.currentSessionId);
+						return await opts.sessionService.get(sessionIdAtStart);
 					} catch {
 						return null;
 					}
 				})();
 				if (maybeSession) {
-					// 标准化：用户消息始终为 input_text 片段数组
 					await maybeSession.addItems([
 						{
 							role: 'user',
@@ -233,9 +215,32 @@ export function createChatStore(opts: {
 					isStreaming: true,
 				};
 				state.messages = [...state.messages, assistant];
-				flushThrottledNotify();
+				notify();
 
-				// 构建运行输入：优先 session 历史，其次本地 messages 回退
+				const lastIndex = state.messages.length - 1;
+				const chunks: string[] = [];
+
+				const commitAndUpdate = (final = false) => {
+					if (generation !== myGen || state.currentSessionId !== sessionIdAtStart) {
+						if (rafId) cancelAnimationFrame(rafId);
+						return; // Stale, do not commit
+					}
+					state.messages[lastIndex] = {
+						...state.messages[lastIndex],
+						content: chunks.join(''),
+						isStreaming: !final,
+					};
+					notify();
+				};
+
+				const scheduleUpdate = () => {
+					if (rafId != null) return;
+					rafId = requestAnimationFrame(() => {
+						rafId = null;
+						commitAndUpdate();
+					});
+				};
+
 				let inputForRun: AgentInputItem[];
 				try {
 					const history = maybeSession ? await maybeSession.toAgentInputHistory() : null;
@@ -248,69 +253,48 @@ export function createChatStore(opts: {
 				}
 
 				const stream = await run(currentAgentInstance, inputForRun, { stream: true });
-				let accumulated = '';
-				const lastIndex = state.messages.length - 1;
+
 				for await (const ev of stream as AsyncIterable<unknown>) {
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					if (generation !== myGen) return;
 					const delta = extractDelta(ev as any);
 					if (delta) {
-						accumulated += delta;
-						state.messages[lastIndex] = {
-							...state.messages[lastIndex],
-							content: accumulated,
-						};
-						throttledNotify();
+						chunks.push(delta);
+						scheduleUpdate();
 					}
 				}
 
-				// Fallback: if no chunks produced any content, try final output field
+				if (rafId) cancelAnimationFrame(rafId);
+
 				const lastMsg = state.messages[lastIndex];
-				if (lastMsg && lastMsg.isStreaming) {
-					if (!lastMsg.content || lastMsg.content.length === 0) {
-						try {
-							// eslint-disable-next-line @typescript-eslint/no-explicit-any
-							const fallbackAny = (stream as any)?.finalOutput;
-							if (typeof fallbackAny === 'string' && fallbackAny.length > 0) {
-								state.messages[lastIndex] = {
-									...lastMsg,
-									content: fallbackAny,
-									isStreaming: false,
-								};
-							} else {
-								state.messages[lastIndex] = {
-									...lastMsg,
-									content: extractTextFromResult(stream),
-									isStreaming: false,
-								};
-							}
-						} catch {
-							state.messages[lastIndex] = {
-								...lastMsg,
-								content: 'No response content available',
-								isStreaming: false,
-							};
+				if (!lastMsg.content || lastMsg.content.length === 0) {
+					try {
+						const fallbackAny = (stream as any)?.finalOutput;
+						if (typeof fallbackAny === 'string' && fallbackAny.length > 0) {
+							chunks.push(fallbackAny);
+						} else {
+							chunks.push(extractTextFromResult(stream));
 						}
-					} else {
-						state.messages[lastIndex] = { ...lastMsg, isStreaming: false };
+					} catch {
+						chunks.push('No response content available');
 					}
-					flushThrottledNotify();
 				}
 
-				// Persist assistant message to session
+				commitAndUpdate(true);
+
 				if (maybeSession) {
 					const finalText = state.messages[lastIndex]?.content ?? '';
-					const assistantItem: AssistantMessageItem = {
-						role: 'assistant',
-						type: 'message',
-						status: 'completed',
-						content: [
-							{ type: 'output_text', text: finalText },
-						] as unknown as AssistantMessageItem['content'],
-					};
-					await maybeSession.addItems([assistantItem]);
+					await maybeSession.addItems([
+						{
+							role: 'assistant',
+							type: 'message',
+							status: 'completed',
+							content: [{ type: 'output_text', text: finalText }],
+						} as AssistantMessageItem,
+					]);
 				}
 			} catch (error) {
-				// Remove placeholder if present
+				if (generation !== myGen) return;
+				if (rafId) cancelAnimationFrame(rafId);
 				const last = state.messages[state.messages.length - 1];
 				if (last?.role === 'assistant' && last?.content === '') {
 					state.messages = state.messages.slice(0, -1);
@@ -325,11 +309,13 @@ export function createChatStore(opts: {
 						timestamp: Date.now(),
 					},
 				];
-				flushThrottledNotify();
+				notify();
 			} finally {
-				state.isLoading = false;
-				recompute();
-				flushThrottledNotify();
+				if (generation === myGen) {
+					state.isLoading = false;
+					recompute();
+					notify();
+				}
 			}
 		},
 		changeAgent(agentId: string) {
