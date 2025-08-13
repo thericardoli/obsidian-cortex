@@ -1,5 +1,6 @@
 import { run } from '@openai/agents';
 import type { Agent } from '@openai/agents';
+import type { RunStreamEvent } from '@openai/agents-core';
 import type { Readable } from 'svelte/store';
 import type { App, WorkspaceLeaf } from 'obsidian';
 
@@ -9,8 +10,12 @@ import type { PluginSettings } from '../../types';
 import type { AgentConfig } from '../../types/agent';
 import type { SessionServiceApi } from '../../services/session-service';
 import type { EventBus } from '../../services/event-bus';
-import type { AgentInputItem } from '../../types/session';
-import type { AgentItem, AssistantMessageItem } from '../../types/session';
+import type {
+	AgentInputItem,
+	AgentItem,
+	AssistantMessageItem,
+	ISession,
+} from '../../types/session';
 import { parseModelKey } from '../../utils/model-key';
 import { composeRunInput, buildAgentInputFromState } from './chat/input-builder';
 import { extractDelta } from './chat/stream-parser';
@@ -204,8 +209,7 @@ export function createChatStore(opts: {
 			const executeStreaming = async () => {
 				let streamBuffer = '';
 				let isStreamFetchingComplete = false;
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				let maybeSession: any | null = null;
+				let maybeSession: ISession | null = null;
 
 				try {
 					maybeSession = await (async () => {
@@ -217,13 +221,12 @@ export function createChatStore(opts: {
 					})();
 
 					if (maybeSession) {
-						await maybeSession.addItems([
-							{
-								role: 'user',
-								type: 'message',
-								content: [{ type: 'input_text', text }],
-							} as unknown as AgentItem,
-						]);
+						const userItem: AgentItem = {
+							role: 'user',
+							type: 'message',
+							content: [{ type: 'input_text', text }],
+						};
+						await maybeSession.addItems([userItem]);
 					}
 
 					let inputForRun: AgentInputItem[];
@@ -237,12 +240,15 @@ export function createChatStore(opts: {
 						inputForRun = buildAgentInputFromState(state.messages);
 					}
 
-					const stream = await run(currentAgentInstance!, inputForRun, { stream: true });
+					// The run(stream:true) returns an async iterable of RunStreamEvent (augmented with a finalOutput maybe)
+					type RunStream = AsyncIterable<RunStreamEvent> & { finalOutput?: string };
+					const agentRef = currentAgentInstance; // local copy for type narrowing
+					if (!agentRef) throw new Error('Agent instance disposed');
+					const stream = (await run(agentRef, inputForRun, { stream: true })) as RunStream;
 
 					const streamReader = async () => {
-						for await (const ev of stream as AsyncIterable<unknown>) {
-							// eslint-disable-next-line @typescript-eslint/no-explicit-any
-							const delta = extractDelta(ev as any);
+						for await (const ev of stream) {
+							const delta = extractDelta(ev);
 							if (delta) streamBuffer += delta;
 						}
 						isStreamFetchingComplete = true;
@@ -266,17 +272,18 @@ export function createChatStore(opts: {
 						}
 
 						if (isRenderingFinished) {
-							clearInterval(streamRenderInterval!);
+							if (streamRenderInterval !== null) {
+								clearInterval(streamRenderInterval);
+							}
 							streamRenderInterval = null;
 
 							const lastMsg = state.messages[lastIndex];
 
 							if (!lastMsg.content || lastMsg.content.length === 0) {
 								try {
-									// eslint-disable-next-line @typescript-eslint/no-explicit-any
-									const fallbackAny = (stream as any)?.finalOutput;
-									if (typeof fallbackAny === 'string' && fallbackAny.length > 0) {
-										lastMsg.content = fallbackAny;
+									const fallbackOutput = stream.finalOutput;
+									if (typeof fallbackOutput === 'string' && fallbackOutput.length > 0) {
+										lastMsg.content = fallbackOutput;
 									} else {
 										lastMsg.content = extractTextFromResult(stream);
 									}
@@ -293,9 +300,7 @@ export function createChatStore(opts: {
 									role: 'assistant',
 									type: 'message',
 									status: 'completed',
-									content: [
-										{ type: 'output_text', text: finalText },
-									] as unknown as AssistantMessageItem['content'],
+									content: [{ type: 'output_text', text: finalText }],
 								};
 								maybeSession.addItems([assistantItem]);
 							}
