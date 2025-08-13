@@ -9,7 +9,7 @@ import type { PluginSettings } from '../../types';
 import type { AgentConfig } from '../../types/agent';
 import type { SessionServiceApi } from '../../services/session-service';
 import type { EventBus } from '../../services/event-bus';
-import type { AgentInputItem } from '../../types/session';
+import type { AgentInputItem, ISession } from '../../types/session';
 import type { AgentItem, AssistantMessageItem } from '../../types/session';
 import { parseModelKey } from '../../utils/model-key';
 import { composeRunInput, buildAgentInputFromState } from './chat/input-builder';
@@ -204,8 +204,7 @@ export function createChatStore(opts: {
 			const executeStreaming = async () => {
 				let streamBuffer = '';
 				let isStreamFetchingComplete = false;
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				let maybeSession: any | null = null;
+				let maybeSession: ISession | null = null;
 
 				try {
 					maybeSession = await (async () => {
