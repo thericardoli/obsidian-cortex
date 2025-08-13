@@ -29,10 +29,10 @@
 	let messagesEl: HTMLElement | null = null;
 	let bottomAnchor: HTMLDivElement | null = null;
 	let stickToBottom = $state(true);
-	
+
 	// 检查是否有正在流式输出的assistant消息
 	const hasStreamingAssistant = $derived(
-		messages.some(msg => msg.role === 'assistant' && msg.isStreaming)
+		messages.some((msg) => msg.role === 'assistant' && msg.isStreaming)
 	);
 
 	function isNearBottom(el: HTMLElement) {
@@ -125,7 +125,9 @@
 		flex: 1;
 		overflow-y: auto;
 		padding: 1rem;
+		padding-right: 0.5rem; /* 减少右侧内边距为滚动条留出空间 */
 		background: var(--background-primary);
+		box-sizing: border-box;
 	}
 
 	.messages-container {
@@ -135,21 +137,35 @@
 		max-width: 100%;
 	}
 
-	/* Scrollbar styling for consistency with Obsidian */
+	/* Scrollbar styling for consistency with Obsidian - positioned inside */
+	.chat-panel {
+		scrollbar-gutter: stable;
+	}
+
 	.chat-panel::-webkit-scrollbar {
 		width: 8px;
+		background: transparent;
 	}
 
 	.chat-panel::-webkit-scrollbar-track {
-		background: var(--background-secondary);
+		background: transparent;
+		margin: 4px;
 	}
 
 	.chat-panel::-webkit-scrollbar-thumb {
 		background: var(--background-modifier-border);
 		border-radius: 4px;
+		border: 1px solid var(--background-primary);
+		background-clip: padding-box;
 	}
 
 	.chat-panel::-webkit-scrollbar-thumb:hover {
 		background: var(--text-muted);
+		border: 1px solid var(--background-primary);
+		background-clip: padding-box;
+	}
+
+	.chat-panel::-webkit-scrollbar-corner {
+		background: transparent;
 	}
 </style>

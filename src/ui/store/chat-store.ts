@@ -178,7 +178,7 @@ export function createChatStore(opts: {
 		async sendMessage(text: string) {
 			if (!state.canSend || !currentAgentInstance || !state.selectedAgent) return;
 
-			// Stop any previous rendering
+			// Stop any previous rendering interval (legacy – now we push on each delta)
 			if (streamRenderInterval) {
 				clearInterval(streamRenderInterval);
 				streamRenderInterval = null;
@@ -207,11 +207,9 @@ export function createChatStore(opts: {
 			notify();
 
 			const executeStreaming = async () => {
-				let streamBuffer = '';
-				let isStreamFetchingComplete = false;
 				let maybeSession: ISession | null = null;
-
 				try {
+					// 1. 加载会话
 					maybeSession = await (async () => {
 						try {
 							return await opts.sessionService.get(state.currentSessionId);
@@ -220,6 +218,7 @@ export function createChatStore(opts: {
 						}
 					})();
 
+					// 2. 先写入用户消息到会话
 					if (maybeSession) {
 						const userItem: AgentItem = {
 							role: 'user',
@@ -229,9 +228,12 @@ export function createChatStore(opts: {
 						await maybeSession.addItems([userItem]);
 					}
 
+					// 3. 构造输入
 					let inputForRun: AgentInputItem[];
 					try {
-						const history = maybeSession ? await maybeSession.toAgentInputHistory() : null;
+						const history = maybeSession
+							? await maybeSession.toAgentInputHistory()
+							: null;
 						inputForRun = composeRunInput({
 							sessionHistory: history,
 							fallbackState: state.messages,
@@ -240,77 +242,56 @@ export function createChatStore(opts: {
 						inputForRun = buildAgentInputFromState(state.messages);
 					}
 
-					// The run(stream:true) returns an async iterable of RunStreamEvent (augmented with a finalOutput maybe)
+					// 4. 运行流式请求
 					type RunStream = AsyncIterable<RunStreamEvent> & { finalOutput?: string };
-					const agentRef = currentAgentInstance; // local copy for type narrowing
+					const agentRef = currentAgentInstance;
 					if (!agentRef) throw new Error('Agent instance disposed');
-					const stream = (await run(agentRef, inputForRun, { stream: true })) as RunStream;
+					const stream = (await run(agentRef, inputForRun, {
+						stream: true,
+					})) as RunStream;
 
-					const streamReader = async () => {
-						for await (const ev of stream) {
-							const delta = extractDelta(ev);
-							if (delta) streamBuffer += delta;
-						}
-						isStreamFetchingComplete = true;
-					};
-					streamReader().catch((e) => {
-						console.error('Stream reading failed:', e);
-						isStreamFetchingComplete = true;
-					});
-
-					streamRenderInterval = window.setInterval(() => {
-						const isRenderingFinished =
-							isStreamFetchingComplete && streamBuffer.length === 0;
-
-						if (streamBuffer.length > 0) {
-							const chunkSize = 2; // Render 2 chars per interval for smooth typing
-							const chunk = streamBuffer.slice(0, chunkSize);
-							streamBuffer = streamBuffer.slice(chunkSize);
-
-							state.messages[lastIndex].content += chunk;
+					// 5. 逐 delta 直接更新（避免后台标签页定时器被 throttle 导致停滞）
+					for await (const ev of stream) {
+						const delta = extractDelta(ev);
+						if (delta) {
+							state.messages[lastIndex].content += delta;
 							notify();
 						}
+					}
 
-						if (isRenderingFinished) {
-							if (streamRenderInterval !== null) {
-								clearInterval(streamRenderInterval);
+					// 6. 补全最终内容（若未取到 delta）
+					const lastMsg = state.messages[lastIndex];
+					if (!lastMsg.content || lastMsg.content.length === 0) {
+						try {
+							const fallbackOutput = stream.finalOutput;
+							if (typeof fallbackOutput === 'string' && fallbackOutput.length > 0) {
+								lastMsg.content = fallbackOutput;
+							} else {
+								lastMsg.content = extractTextFromResult(stream);
 							}
-							streamRenderInterval = null;
-
-							const lastMsg = state.messages[lastIndex];
-
-							if (!lastMsg.content || lastMsg.content.length === 0) {
-								try {
-									const fallbackOutput = stream.finalOutput;
-									if (typeof fallbackOutput === 'string' && fallbackOutput.length > 0) {
-										lastMsg.content = fallbackOutput;
-									} else {
-										lastMsg.content = extractTextFromResult(stream);
-									}
-								} catch {
-									lastMsg.content = 'No response content available';
-								}
-							}
-
-							lastMsg.isStreaming = false;
-
-							if (maybeSession) {
-								const finalText = lastMsg.content ?? '';
-								const assistantItem: AssistantMessageItem = {
-									role: 'assistant',
-									type: 'message',
-									status: 'completed',
-									content: [{ type: 'output_text', text: finalText }],
-								};
-								maybeSession.addItems([assistantItem]);
-							}
-
-							state.isLoading = false;
-							recompute();
-							notify();
+						} catch {
+							lastMsg.content = 'No response content available';
 						}
-					}, 15); // 15ms interval
+					}
+					lastMsg.isStreaming = false;
+
+					// 7. 落库 assistant 消息
+					if (maybeSession) {
+						const finalText = lastMsg.content ?? '';
+						const assistantItem: AssistantMessageItem = {
+							role: 'assistant',
+							type: 'message',
+							status: 'completed',
+							content: [{ type: 'output_text', text: finalText }],
+						};
+						maybeSession.addItems([assistantItem]);
+					}
+
+					state.isLoading = false;
+					recompute();
+					notify();
 				} catch (error) {
+					// 清理 interval（防御性）
 					if (streamRenderInterval) clearInterval(streamRenderInterval);
 
 					const last = state.messages[state.messages.length - 1];

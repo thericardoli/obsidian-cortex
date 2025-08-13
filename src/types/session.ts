@@ -103,7 +103,7 @@ export type FunctionCallResultItem = {
 				data: string;
 				mediaType: string;
 				providerData?: Record<string, unknown>;
-		};
+		  };
 	providerData?: Record<string, unknown>;
 	status?: 'in_progress' | 'completed' | 'incomplete';
 };
