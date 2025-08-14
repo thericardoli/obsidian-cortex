@@ -111,7 +111,7 @@
 			settings: {
 				temperature: 0.7,
 				toolChoice: 'auto',
-				parallelToolCalls: false,
+				parallelToolCalls: true,
 			},
 		};
 	}
@@ -120,6 +120,12 @@
 		if (!form) return;
 		isLoading = true;
 		try {
+			const settings = {
+				...sanitizeSettings(form.settings),
+				toolChoice: 'auto' as const,
+				parallelToolCalls: true,
+			};
+
 			if (isCreating) {
 				const payload: AgentConfigInput = {
 					name: form.name.trim(),
@@ -127,7 +133,7 @@
 					modelConfig: {
 						provider: form.providerId,
 						model: form.modelId,
-						settings: sanitizeSettings(form.settings),
+						settings,
 					},
 					tools: [],
 					inputGuardrails: [],
@@ -146,7 +152,7 @@
 					modelConfig: {
 						provider: form.providerId,
 						model: form.modelId,
-						settings: sanitizeSettings(form.settings),
+						settings,
 					},
 				});
 				refreshAgents();
@@ -187,8 +193,6 @@
 		if (s.topP !== undefined) out.topP = Number(s.topP);
 		if (s.frequencyPenalty !== undefined) out.frequencyPenalty = Number(s.frequencyPenalty);
 		if (s.presencePenalty !== undefined) out.presencePenalty = Number(s.presencePenalty);
-		if (s.toolChoice !== undefined) out.toolChoice = s.toolChoice as any;
-		if (s.parallelToolCalls !== undefined) out.parallelToolCalls = Boolean(s.parallelToolCalls);
 		return out as ModelSettings;
 	}
 
@@ -358,28 +362,6 @@
 						))}
 				/>
 
-				<label for="agent-tool-choice">Tool Choice</label>
-				<select
-					id="agent-tool-choice"
-					value={(form.settings.toolChoice as any) ?? 'auto'}
-					onchange={(e) =>
-						form &&
-						(form.settings.toolChoice = (e.target as HTMLSelectElement).value as any)}
-				>
-					<option value="auto">auto</option>
-					<option value="required">required</option>
-					<option value="none">none</option>
-				</select>
-
-				<label for="agent-parallel">Parallel Tool Calls</label>
-				<input
-					id="agent-parallel"
-					type="checkbox"
-					checked={!!form.settings.parallelToolCalls}
-					onchange={(e) =>
-						form &&
-						(form.settings.parallelToolCalls = (e.target as HTMLInputElement).checked)}
-				/>
 			</div>
 
 			<div class="actions">
