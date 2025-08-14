@@ -1,7 +1,7 @@
 import type { Tool } from '@openai/agents';
 import type { Agent } from '@openai/agents';
-import type { AgentAsToolConfig } from '../../types/tool';
-import type { AgentManager } from '../agent-manager';
+import type { AgentAsToolConfig } from '../types/tool';
+import type { AgentManager } from '../agent/agent-manager';
 
 export async function buildAgentAsTool(
 	manager: AgentManager,

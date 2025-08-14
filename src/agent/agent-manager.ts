@@ -5,8 +5,8 @@ import { AgentConfigInputSchema, UpdateAgentConfigInputSchema } from '../types/a
 import type { ToolConfig } from '../types/tool';
 import { ProviderManager } from '../providers';
 import type { PersistenceManager } from '../persistence/persistence-manager';
-import { functionToolRegistry, type ToolExecutor } from './tool/function-registry';
-import { buildTools } from './tool/tool-conversion';
+import { functionToolRegistry, type ToolExecutor } from '../tool/function-registry';
+import { buildTools } from '../tool/tool-conversion';
 import { createLogger, type Logger } from '../utils/logger';
 import type { EventBus } from '../services/event-bus';
 
