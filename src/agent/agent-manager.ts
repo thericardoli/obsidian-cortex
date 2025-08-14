@@ -6,6 +6,7 @@ import type { ToolConfig } from '../types/tool';
 import { ProviderManager } from '../providers';
 import type { PersistenceManager } from '../persistence/persistence-manager';
 import { functionToolRegistry, type ToolExecutor } from '../tool/function-registry';
+import { registerBuiltinTools } from '../tool/builtin';
 import { buildTools } from '../tool/tool-conversion';
 import { createLogger, type Logger } from '../utils/logger';
 import type { EventBus } from '../services/event-bus';
@@ -26,6 +27,11 @@ export class AgentManager {
 		this._persistenceManager = persistenceManager || null;
 		this.logger = createLogger('agent');
 		this.eventBus = eventBus;
+
+		// Register built-in tools
+		registerBuiltinTools().catch((err) => {
+			this.logger.error('Failed to register built-in tools', err);
+		});
 	}
 
 	/**

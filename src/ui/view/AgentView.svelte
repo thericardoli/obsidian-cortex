@@ -3,9 +3,10 @@
 	import type { App, WorkspaceLeaf } from 'obsidian';
 	import type { AgentManager } from '../../agent/agent-manager';
 	import type { ProviderManager } from '../../providers/provider-manager';
-	import type { AgentConfig, AgentConfigInput, ModelSettings } from '../../types';
+	import type { AgentConfig, AgentConfigInput, ModelSettings, FunctionTool } from '../../types';
 	import type { ProviderDescriptor, ModelDescriptor } from '../../types/provider';
 	import { toProviderDescriptor } from '../../utils/provider-runtime';
+	import BuiltinToolSelector from '../component/tool/BuiltinToolSelector.svelte';
 
 	let {
 		agentManager,
@@ -35,6 +36,7 @@
 		providerId: string;
 		modelId: string;
 		settings: Partial<ModelSettings>;
+		tools: FunctionTool[];
 	};
 
 	let form = $state<EditableAgent | null>(null);
@@ -88,6 +90,7 @@
 			providerId: agent.modelConfig.provider,
 			modelId: agent.modelConfig.model,
 			settings: { ...agent.modelConfig.settings },
+			tools: agent.tools.filter((t) => t.type === 'function') as FunctionTool[],
 		};
 	}
 
@@ -113,6 +116,7 @@
 				toolChoice: 'auto',
 				parallelToolCalls: true,
 			},
+			tools: [],
 		};
 	}
 
@@ -135,7 +139,7 @@
 						model: form.modelId,
 						settings,
 					},
-					tools: [],
+					tools: form.tools,
 					inputGuardrails: [],
 					outputGuardrails: [],
 					mcpServers: [],
@@ -154,6 +158,7 @@
 						model: form.modelId,
 						settings,
 					},
+					tools: form.tools,
 				});
 				refreshAgents();
 			}
@@ -362,6 +367,9 @@
 						))}
 				/>
 
+				<div class="section-span">
+					<BuiltinToolSelector bind:selectedTools={form.tools} />
+				</div>
 			</div>
 
 			<div class="actions">
