@@ -10,6 +10,7 @@ import { SettingsService } from './src/services/settings-service';
 import { ProviderService } from './src/services/provider-service';
 import { SessionService } from './src/services/session-service';
 import { SimpleEventBus, type EventBus } from './src/services/event-bus';
+import { registerBuiltinTools } from './src/tool/builtin';
 
 export default class CortexPlugin extends Plugin {
     private agentManager: AgentManager;
@@ -77,6 +78,9 @@ export default class CortexPlugin extends Plugin {
 
             // Initialize providers from settings via service
             await this.providerService.refreshFromSettings(this.settings);
+
+            // Register builtin tools
+            registerBuiltinTools(this.app);
 
             // Register the chat view
             this.registerView(

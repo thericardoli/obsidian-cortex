@@ -3,9 +3,10 @@
 	import type { App, WorkspaceLeaf } from 'obsidian';
 	import type { AgentManager } from '../../agent/agent-manager';
 	import type { ProviderManager } from '../../providers/provider-manager';
-	import type { AgentConfig, AgentConfigInput, ModelSettings } from '../../types';
+	import type { AgentConfig, AgentConfigInput, ModelSettings, ToolConfig, FunctionToolConfig } from '../../types';
 	import type { ProviderDescriptor, ModelDescriptor } from '../../types/provider';
 	import { toProviderDescriptor } from '../../utils/provider-runtime';
+	import BuiltinToolSelector from '../component/agent/BuiltinToolSelector.svelte';
 
 	let {
 		agentManager,
@@ -30,11 +31,12 @@
 
 	type EditableAgent = {
 		id?: string;
-		name: string;
+		name:string;
 		instructions: string;
 		providerId: string;
 		modelId: string;
 		settings: Partial<ModelSettings>;
+		tools: ToolConfig[];
 	};
 
 	let form = $state<EditableAgent | null>(null);
@@ -88,6 +90,7 @@
 			providerId: agent.modelConfig.provider,
 			modelId: agent.modelConfig.model,
 			settings: { ...agent.modelConfig.settings },
+			tools: [...agent.tools],
 		};
 	}
 
@@ -113,6 +116,7 @@
 				toolChoice: 'auto',
 				parallelToolCalls: true,
 			},
+			tools: [],
 		};
 	}
 
@@ -126,16 +130,20 @@
 				parallelToolCalls: true,
 			};
 
+			const commonPayload = {
+				name: form.name.trim(),
+				instructions: form.instructions.trim(),
+				modelConfig: {
+					provider: form.providerId,
+					model: form.modelId,
+					settings,
+				},
+				tools: form.tools,
+			};
+
 			if (isCreating) {
 				const payload: AgentConfigInput = {
-					name: form.name.trim(),
-					instructions: form.instructions.trim(),
-					modelConfig: {
-						provider: form.providerId,
-						model: form.modelId,
-						settings,
-					},
-					tools: [],
+					...commonPayload,
 					inputGuardrails: [],
 					outputGuardrails: [],
 					mcpServers: [],
@@ -146,15 +154,7 @@
 				loadAgentIntoForm(created);
 				isCreating = false;
 			} else if (form.id) {
-				await agentManager.updateAgent(form.id, {
-					name: form.name.trim(),
-					instructions: form.instructions.trim(),
-					modelConfig: {
-						provider: form.providerId,
-						model: form.modelId,
-						settings,
-					},
-				});
+				await agentManager.updateAgent(form.id, commonPayload);
 				refreshAgents();
 			}
 		} catch (e) {
@@ -203,9 +203,18 @@
 		form.modelId = firstModel;
 	}
 
-	function handleModelChange(id: string) {
+	function handleModelChange(id:string) {
 		if (!form) return;
 		form.modelId = id;
+	}
+
+	function handleToolChange(tool: FunctionToolConfig, enabled: boolean) {
+		if (!form) return;
+		if (enabled) {
+			form.tools = [...form.tools, tool];
+		} else {
+			form.tools = form.tools.filter((t) => t.name !== tool.name);
+		}
 	}
 
 	// 当 provider 或 providers 列变化时，如果当前 modelId 为空或不再存在，则回填第一个模型
@@ -362,6 +371,10 @@
 						))}
 				/>
 
+				<BuiltinToolSelector
+					selectedTools={form.tools.filter(t => t.type === 'function') as FunctionToolConfig[]}
+					{handleToolChange}
+				/>
 			</div>
 
 			<div class="actions">
