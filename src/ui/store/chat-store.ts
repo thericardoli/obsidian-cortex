@@ -16,7 +16,7 @@ import type {
 	AssistantMessageItem,
 	ISession,
 } from '../../types/session';
-import { parseModelKey } from '../../utils/model-key';
+import { buildModelKey, parseModelKey } from '../../utils/model-key';
 import { composeRunInput, buildAgentInputFromState } from './chat/input-builder';
 import { extractDelta } from './chat/stream-parser';
 import { recomputeDerived } from './chat/state-derivations';
@@ -320,6 +320,12 @@ export function createChatStore(opts: {
 		changeAgent(agentId: string) {
 			const next = agentManager.listAgents().find((a) => a.id === agentId) ?? null;
 			state.selectedAgent = next;
+			if (next) {
+				state.selectedModelKey = buildModelKey(
+					next.modelConfig.provider,
+					next.modelConfig.model
+				);
+			}
 			recompute();
 			notify();
 			// Recreate agent instance on next tick
