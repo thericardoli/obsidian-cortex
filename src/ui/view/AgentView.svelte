@@ -7,6 +7,7 @@
 	import type { ProviderDescriptor, ModelDescriptor } from '../../types/provider';
 	import { toProviderDescriptor } from '../../utils/provider-runtime';
 	import { createLogger } from '../../utils/logger';
+	import BuiltinToolsSelector from '../component/tool/BuiltinToolsSelector.svelte';
 
 	const logger = createLogger('ui');
 
@@ -373,6 +374,10 @@
 					>{isCreating ? 'Create' : 'Save'}</button
 				>
 			</div>
+
+			{#if selectedAgent}
+				<BuiltinToolsSelector {agentManager} agent={selectedAgent} />
+			{/if}
 		{:else}
 			<div class="empty-editor">Select an agent or create a new one.</div>
 		{/if}

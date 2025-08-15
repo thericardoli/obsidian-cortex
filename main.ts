@@ -11,6 +11,7 @@ import { ProviderService } from './src/services/provider-service';
 import { SessionService } from './src/services/session-service';
 import { SimpleEventBus, type EventBus } from './src/services/event-bus';
 import { createLogger } from './src/utils/logger';
+import { registerAllBuiltinFunctionExecutors } from './src/tool/builtin';
 
 const logger = createLogger('main');
 
@@ -68,6 +69,11 @@ export default class CortexPlugin extends Plugin {
             // Initialize agent + session services with persistence
             this.agentManager = new AgentManager(this.providerManager, this.persistenceManager, this.eventBus);
             this.sessionService = new SessionService(this.persistenceManager);
+
+            // Register builtin function tool executors (requires Obsidian app context -> this.app)
+            registerAllBuiltinFunctionExecutors((name, exec) => {
+                this.agentManager.registerFunctionToolExecutor(name, exec);
+            }, this.app);
             
             // Load existing agents from database (only if persistence is available)
             if (this.persistenceManager) {
