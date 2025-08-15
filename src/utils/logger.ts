@@ -1,5 +1,5 @@
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-export type LogScope = 'persistence' | 'providers' | 'ui' | 'session' | 'agent' | 'main';
+export type LogScope = 'persistence' | 'providers' | 'ui' | 'session' | 'agent' | 'main' | 'tool';
 
 export interface Logger {
 	debug(message: string, ...args: unknown[]): void;
