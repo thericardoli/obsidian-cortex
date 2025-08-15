@@ -49,13 +49,6 @@ export class SessionManager extends EventEmitter {
 			repo: sessionRepo,
 		});
 
-		// 监听 session 事件（如果支持）
-		if ('on' in session && typeof session.on === 'function') {
-			session.on('error', (error: Error) => {
-				this.emit('sessionError', { sessionId, error });
-			});
-		}
-
 		this.sessions.set(sessionId, session);
 		this.emit('sessionCreated', { sessionId });
 
@@ -123,13 +116,6 @@ export class SessionManager extends EventEmitter {
 			repo: sessionRepo,
 		});
 
-		// 监听 session 事件（如果支持）
-		if ('on' in session && typeof session.on === 'function') {
-			session.on('error', (error: Error) => {
-				this.emit('sessionError', { sessionId, error });
-			});
-		}
-
 		// 将session添加到内存缓存
 		this.sessions.set(sessionId, session);
 		this.emit('sessionLoaded', { sessionId });
@@ -141,7 +127,7 @@ export class SessionManager extends EventEmitter {
 	 * 获取所有Session列表（包括数据库中的）
 	 */
 	public async getAllSessions(
-		limit = 20
+		limit: number
 	): Promise<Array<{ id: string; name?: string; createdAt?: string; updatedAt?: string }>> {
 		if (!this.persistenceManager) {
 			// 如果没有持久化管理器，只返回内存中的sessions
@@ -223,7 +209,7 @@ export class SessionManager extends EventEmitter {
 	/**
 	 * 获取所有 Session ID
 	 */
-	public getSessionIds(): string[] {
+	public getAllSessionIds(): string[] {
 		return Array.from(this.sessions.keys());
 	}
 
@@ -238,7 +224,7 @@ export class SessionManager extends EventEmitter {
 	 * 清空所有 Sessions
 	 */
 	public async clearAllSessions(): Promise<void> {
-		const sessionIds = this.getSessionIds();
+		const sessionIds = this.getAllSessionIds();
 
 		for (const sessionId of sessionIds) {
 			try {
@@ -278,5 +264,3 @@ export class SessionManager extends EventEmitter {
 		this.removeAllListeners();
 	}
 }
-
-// NOTE: globalSessionManager 已被废弃，不再导出。请通过 SessionService 获取会话能力。

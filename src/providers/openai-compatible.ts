@@ -3,11 +3,13 @@ import type { Model } from '@openai/agents-core';
 import { OpenAIProvider } from '@openai/agents-openai';
 
 import type { ProviderConfig, IProvider } from '../types';
+import { createLogger } from '../utils/logger';
 
 export class OpenAICompatibleProvider implements IProvider {
 	private _config: ProviderConfig;
 	private _openaiCompatibleProvider: OpenAIProvider | null = null;
 	private _initialized = false;
+	private logger = createLogger('providers');
 
 	constructor(config: ProviderConfig) {
 		this._config = config;
@@ -56,7 +58,7 @@ export class OpenAICompatibleProvider implements IProvider {
 			const modelsPage = await customOpenAIClient.models.list();
 			return modelsPage.data.map((model) => model.id);
 		} catch (error) {
-			console.error('Failed to fetch available models:', error);
+			this.logger.error('Failed to fetch available models', error);
 			throw new Error('Failed to fetch available models from OpenAI Compatible provider');
 		}
 	}

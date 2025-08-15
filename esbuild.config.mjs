@@ -19,6 +19,10 @@ const context = await esbuild.context({
 	},
 	entryPoints: ["main.ts"],
 	bundle: true,
+	define: {
+		// Build-time injected default log level: dev => debug, prod => error
+		__CORTEX_DEFAULT_LOG_LEVEL__: JSON.stringify(prod ? 'error' : 'debug'),
+	},
 	external: [
 		"obsidian",
 		"electron",

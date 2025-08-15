@@ -10,9 +10,12 @@ export interface EventBus {
 	emit<K extends keyof EventMap>(evt: K, payload?: EventMap[K]): void;
 }
 
+import { createLogger } from '../utils/logger';
+
 export class SimpleEventBus implements EventBus {
 	// Store as unknown to avoid any; cast at call sites per event key
 	private listeners = new Map<keyof EventMap, Set<unknown>>();
+	private logger = createLogger('main');
 
 	on<K extends keyof EventMap>(evt: K, fn: (p: EventMap[K]) => void): () => void {
 		const existing = this.listeners.get(evt) as Set<(p: EventMap[K]) => void> | undefined;
@@ -31,7 +34,7 @@ export class SimpleEventBus implements EventBus {
 			try {
 				fn(payload as EventMap[K]);
 			} catch (e) {
-				console.warn(`EventBus handler error for ${String(evt)}`, e);
+				this.logger.warn(`EventBus handler error for ${String(evt)}`, e);
 			}
 		}
 	}

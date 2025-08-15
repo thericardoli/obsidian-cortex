@@ -28,7 +28,7 @@ export class SessionService implements SessionServiceApi {
 		return this.manager.getSession(id);
 	}
 
-	async list(limit = 20) {
+	async list(limit: number) {
 		const rows = await this.manager.getAllSessions(limit);
 		return rows.map((r) => ({ id: r.id, name: r.name }));
 	}

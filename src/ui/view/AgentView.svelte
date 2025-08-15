@@ -6,6 +6,9 @@
 	import type { AgentConfig, AgentConfigInput, ModelSettings } from '../../types';
 	import type { ProviderDescriptor, ModelDescriptor } from '../../types/provider';
 	import { toProviderDescriptor } from '../../utils/provider-runtime';
+	import { createLogger } from '../../utils/logger';
+
+	const logger = createLogger('ui');
 
 	let {
 		agentManager,
@@ -110,8 +113,6 @@
 			modelId: firstModel?.modelId || '',
 			settings: {
 				temperature: 0.7,
-				toolChoice: 'auto',
-				parallelToolCalls: true,
 			},
 		};
 	}
@@ -122,8 +123,6 @@
 		try {
 			const settings = {
 				...sanitizeSettings(form.settings),
-				toolChoice: 'auto' as const,
-				parallelToolCalls: true,
 			};
 
 			if (isCreating) {
@@ -158,7 +157,7 @@
 				refreshAgents();
 			}
 		} catch (e) {
-			console.error('Failed to save agent', e);
+			logger.error('Failed to save agent', e);
 		} finally {
 			isLoading = false;
 		}
@@ -180,7 +179,7 @@
 				form = null;
 			}
 		} catch (e) {
-			console.error('Failed to delete agent', e);
+			logger.error('Failed to delete agent', e);
 		} finally {
 			isLoading = false;
 		}
@@ -361,7 +360,6 @@
 							(e.target as HTMLInputElement).value
 						))}
 				/>
-
 			</div>
 
 			<div class="actions">

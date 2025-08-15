@@ -11,6 +11,9 @@
 	import type { SessionService } from '../../services/session-service';
 	import type { EventBus } from '../../services/event-bus';
 	import { createChatStore, type ChatState } from '../store/chat-store';
+	import { createLogger } from '../../utils/logger';
+
+	const logger = createLogger('ui');
 
 	// Props
 	let {
@@ -55,7 +58,7 @@
 		try {
 			mdComponent = new Component();
 		} catch (e) {
-			console.warn('Failed to init markdown component:', e);
+			logger.warn('Failed to init markdown component', e);
 		}
 		chatStore = createChatStore({
 			agentManager,
@@ -92,7 +95,7 @@
 		const sourcePath = app.workspace.getActiveFile()?.path ?? '';
 		if (!mdComponent) mdComponent = new Component();
 		void MarkdownRenderer.render(app, md ?? '', el, sourcePath, mdComponent).catch((e) => {
-			console.warn('MarkdownRenderer failed:', e);
+			logger.warn('MarkdownRenderer failed', e);
 		});
 	}
 

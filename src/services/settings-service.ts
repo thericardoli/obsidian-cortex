@@ -6,6 +6,8 @@ import {
 	type ProviderSettingsEntry,
 } from '../types/settings';
 import { cloneDefaultProviders } from '../config/provider-defaults';
+import { createLogger } from '../utils/logger';
+const logger = createLogger('main');
 
 export interface SettingsServiceApi {
 	load(): Promise<PluginSettings>;
@@ -26,7 +28,7 @@ export class SettingsService implements SettingsServiceApi {
 			// Ensure default seeding for providers and activeProviderId
 			return this.seedDefaults(parsed);
 		} catch (e) {
-			console.warn('Invalid plugin settings after migration, using defaults:', e);
+			logger.warn('Invalid plugin settings after migration, using defaults', e);
 			return this.seedDefaults(DEFAULT_SETTINGS);
 		}
 	}

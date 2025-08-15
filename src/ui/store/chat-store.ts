@@ -22,6 +22,9 @@ import { extractDelta } from './chat/stream-parser';
 import { recomputeDerived } from './chat/state-derivations';
 import { mapSessionItemsToChatMessages } from './chat/session-adapter';
 import { extractTextFromResult } from './chat/result-extractor';
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('ui');
 
 export interface ChatMessage {
 	id: string;
@@ -146,7 +149,7 @@ export function createChatStore(opts: {
 			const rows = await sessionService.list(50);
 			state.sessionList = rows.map((r) => ({ id: r.id, name: r.name }));
 		} catch (e) {
-			console.warn('Failed to load sessions:', e);
+			logger.warn('Failed to load sessions', e);
 			state.sessionList = [];
 		}
 	}
@@ -377,7 +380,7 @@ export function createChatStore(opts: {
 					state.messages = [];
 				}
 			} catch (e) {
-				console.warn('Failed to switch session:', e);
+				logger.warn('Failed to switch session', e);
 			}
 			await refreshSessionList();
 			notify();
@@ -393,7 +396,7 @@ export function createChatStore(opts: {
 					await createSessionInternal(); // sets currentSessionId
 				}
 			} catch (e) {
-				console.warn('Failed to delete session:', e);
+				logger.warn('Failed to delete session', e);
 			}
 			await refreshSessionList();
 			recompute();
@@ -414,20 +417,15 @@ export function createChatStore(opts: {
 		},
 	};
 
-	// Initialize async without blocking subscribe
-	void init();
+	// 初始化
+	init();
 
-	const store: ChatStore = {
-		subscribe(runSub) {
-			subscribers.add(runSub);
-			// Push current state immediately
-			runSub(state);
-			return () => {
-				subscribers.delete(runSub);
-			};
+	return {
+		subscribe: (fn) => {
+			fn(state);
+			subscribers.add(fn);
+			return () => subscribers.delete(fn);
 		},
 		actions,
 	};
-
-	return store;
 }

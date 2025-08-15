@@ -56,7 +56,7 @@ export class chatSession extends EventEmitter implements ISession {
 	}
 
 	/**
-	 * 获取对话历史项目（超快速度 - 直接从内存）
+	 * 获取对话历史项目
 	 */
 	async getItems(limit?: number): Promise<AgentItem[]> {
 		await this.ensureLoaded();
@@ -68,7 +68,7 @@ export class chatSession extends EventEmitter implements ISession {
 	}
 
 	/**
-	 * 添加新的对话项目（简单直接 - 直接加入内存）
+	 * 添加新的对话项目
 	 */
 	async addItems(items: AgentItem[]): Promise<void> {
 		if (!Array.isArray(items) || items.length === 0) {
@@ -111,7 +111,9 @@ export class chatSession extends EventEmitter implements ISession {
 	 */
 	async saveSessionToDatabase(): Promise<void> {
 		if (!this.repo) {
-			console.warn('No repository available for saving. Data will only be kept in memory.');
+			this.logger.warn(
+				'No repository available for saving. Data will only be kept in memory.'
+			);
 			return;
 		}
 
@@ -123,7 +125,7 @@ export class chatSession extends EventEmitter implements ISession {
 			if (this.memoryCache.length > 0) {
 				await this.repo.addItems(this.sessionId, this.memoryCache);
 			}
-			this.logger.info(`✅ 已保存 ${this.memoryCache.length} 条聊天记录到数据库`);
+			this.logger.info(`已保存 ${this.memoryCache.length} 条聊天记录到数据库`);
 		} catch (error) {
 			this.emit('error', new Error(`Failed to save session to database: ${error}`));
 			throw error;

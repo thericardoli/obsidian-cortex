@@ -5,6 +5,9 @@ import {
 	codeInterpreterTool,
 	imageGenerationTool,
 } from '@openai/agents-openai';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('agent');
 
 export type HostedToolName = 'web_search' | 'file_search' | 'code_interpreter' | 'image_generation';
 
@@ -37,7 +40,7 @@ export function createHostedTool(
 			const ids = (providerData as Partial<FileSearchProviderData> | undefined)
 				?.vectorStoreIds;
 			if (!isStringArray(ids)) {
-				console.warn('file_search tool requires providerData.vectorStoreIds: string[]');
+				logger.warn('file_search tool requires providerData.vectorStoreIds: string[]');
 				return null;
 			}
 			return fileSearchTool(ids, providerData ?? {});
@@ -45,7 +48,7 @@ export function createHostedTool(
 		default: {
 			// Exhaustiveness check (should be unreachable if all HostedToolName variants are handled above)
 			const _never: never = name as never;
-			console.warn('Unknown hosted tool:', _never);
+			logger.warn('Unknown hosted tool', _never);
 			return null;
 		}
 	}

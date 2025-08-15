@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { copyToClipboard } from '../../utils/clipboard';
 	import { onDestroy } from 'svelte';
+	import { createLogger } from '../../../utils/logger';
+
+	const logger = createLogger('ui');
 
 	let {
 		content,
@@ -59,7 +62,7 @@
 			try {
 				renderMarkdown(host, md);
 			} catch (e) {
-				console.warn('MarkdownRenderer failed:', e);
+				logger.warn('MarkdownRenderer failed', e);
 			}
 			// Normalize code-copy buttons' icons after render
 			queueMicrotask(() => {
@@ -81,7 +84,7 @@
 						el.setAttribute('title', '复制代码');
 						el.setAttribute('aria-label', '复制代码');
 					} catch (e) {
-						console.warn('Failed to set icon for code copy button', e);
+						logger.warn('Failed to set icon for code copy button', e);
 					}
 				});
 			});

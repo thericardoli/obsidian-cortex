@@ -2,9 +2,11 @@ import type { Model } from '@openai/agents-core';
 import type { ProviderConfig, IProvider } from '../types';
 import { OpenAICompatibleProvider } from './openai-compatible';
 import { OpenAIProvider_Custom } from './openai';
+import { createLogger } from '../utils/logger';
 
 export class ProviderManager {
 	private providers: Map<string, IProvider> = new Map();
+	private logger = createLogger('providers');
 
 	constructor() {}
 
@@ -81,7 +83,7 @@ export class ProviderManager {
 				// Add the provider; initialize only when enabled flag is true
 				await this.addProvider(cfg);
 			} catch (err) {
-				console.error(`Failed to add provider '${cfg.name}'`, err);
+				this.logger.error(`Failed to add provider '${cfg.name}'`, err);
 			}
 		}
 	}

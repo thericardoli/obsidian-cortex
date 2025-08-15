@@ -2,6 +2,9 @@ import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
 import type CortexPlugin from '../../../main';
 import type { CreateProviderInput, ProviderModelEntry } from '../../types';
 import { CreateProviderInputSchema } from '../../types';
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('ui');
 
 export class CortexSettingTab extends PluginSettingTab {
 	plugin: CortexPlugin;
@@ -119,7 +122,7 @@ export class CortexSettingTab extends PluginSettingTab {
 						new Notice('Provider added successfully!');
 						this.display();
 					} catch (err) {
-						console.error('Error adding provider:', err);
+						logger.error('Error adding provider', err);
 						new Notice(
 							err instanceof Error
 								? `Error: ${err.message}`

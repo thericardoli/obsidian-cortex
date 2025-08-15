@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { AgentConfig } from '../../../types';
+	import { createLogger } from '../../../utils/logger';
+
+	const logger = createLogger('ui');
 
 	type ModelGroup = {
 		providerId: string;
@@ -73,7 +76,7 @@
 	});
 
 	function handleSend() {
-		console.log('handleSend called:', {
+		logger.debug('handleSend called', {
 			canSendMessage,
 			inputText,
 			canSend,
