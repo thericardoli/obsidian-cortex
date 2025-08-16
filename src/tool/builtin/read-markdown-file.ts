@@ -1,26 +1,22 @@
 import { z } from 'zod';
 import { TFile, type App } from 'obsidian';
 import { createLogger } from '../../utils/logger';
+import { buildJsonParametersFromZod } from '../utils/zod-to-json';
 
 const logger = createLogger('tool');
 
 export const ReadMarkdownFileArgsSchema = z.object({
-	path: z.string().min(1).describe('要读取的 markdown 相对路径，例如 notes/today.md'),
+	path: z
+		.string()
+		.min(1)
+		.describe('Relative path of the markdown file to read, e.g. notes/today.md'),
 });
-export type ReadMarkdownFileArgs = z.infer<typeof ReadMarkdownFileArgsSchema>;
 
-export const readMarkdownFileParameters = {
-	type: 'object',
-	properties: {
-		path: { type: 'string', description: 'Markdown 文件相对路径' },
-	},
-	required: ['path'],
-	additionalProperties: false,
-};
+const readMarkdownFileParameters = buildJsonParametersFromZod(ReadMarkdownFileArgsSchema);
 
 export const readMarkdownFileToolMeta = {
 	name: 'read_markdown_file',
-	description: '读取指定 Markdown 文件内容',
+	description: 'Read the content of a Markdown file',
 	schema: ReadMarkdownFileArgsSchema,
 	parameters: readMarkdownFileParameters,
 };

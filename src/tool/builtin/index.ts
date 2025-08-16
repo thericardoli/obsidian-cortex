@@ -4,10 +4,6 @@ import {
 	createMarkdownFileToolMeta,
 } from './create-markdown-file';
 import { registerReadMarkdownFileExecutor, readMarkdownFileToolMeta } from './read-markdown-file';
-import {
-	registerAppendMarkdownFileExecutor,
-	appendMarkdownFileToolMeta,
-} from './append-markdown-file';
 import type { FunctionToolConfig } from '../../types/tool';
 import { registerRequestUrlToolExecutor, requestUrlToolMeta } from './request-url';
 
@@ -29,11 +25,6 @@ export const builtinFunctionTools: BuiltinFunctionToolMeta[] = [
 		parameters: readMarkdownFileToolMeta.parameters,
 	},
 	{
-		name: appendMarkdownFileToolMeta.name,
-		description: appendMarkdownFileToolMeta.description,
-		parameters: appendMarkdownFileToolMeta.parameters,
-	},
-	{
 		name: requestUrlToolMeta.name,
 		description: requestUrlToolMeta.description,
 		parameters: requestUrlToolMeta.parameters,
@@ -50,7 +41,6 @@ export function registerAllBuiltinFunctionExecutors(
 ): void {
 	registerCreateMarkdownFileExecutor(register, app);
 	registerReadMarkdownFileExecutor(register, app);
-	registerAppendMarkdownFileExecutor(register, app);
 	registerRequestUrlToolExecutor(register);
 }
 

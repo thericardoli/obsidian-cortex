@@ -50,11 +50,21 @@ export class ScopedLogger implements Logger {
 	}
 }
 
-// Build-time injected constant (see esbuild.config.mjs). In dev -> 'debug', prod -> 'warn'.
-// Declared here so TypeScript is aware; esbuild will replace occurrences.
-declare const __CORTEX_DEFAULT_LOG_LEVEL__: LogLevel | undefined;
-
 export function createLogger(scope: LogScope, minLevel?: LogLevel): Logger {
-	const effective: LogLevel = minLevel ?? (__CORTEX_DEFAULT_LOG_LEVEL__ || 'info');
+	let injected: LogLevel | undefined;
+	try {
+		const g = globalThis as Record<string, unknown>;
+		const val = g.__CORTEX_DEFAULT_LOG_LEVEL__;
+		if (typeof val === 'string' && ['debug', 'info', 'warn', 'error'].includes(val)) {
+			injected = val as LogLevel;
+		}
+	} catch {
+		/* noop */
+	}
+	const envLevelRaw = typeof process !== 'undefined' ? process.env?.CORTEX_LOG_LEVEL : undefined;
+	const envLevel = (envLevelRaw && ['debug', 'info', 'warn', 'error'].includes(envLevelRaw)
+		? envLevelRaw
+		: undefined) as LogLevel | undefined;
+	const effective: LogLevel = minLevel ?? injected ?? envLevel ?? 'info';
 	return new ScopedLogger(scope, effective);
 }

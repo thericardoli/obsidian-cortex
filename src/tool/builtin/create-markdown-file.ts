@@ -1,33 +1,24 @@
 import { z } from 'zod';
 import { TFile, type App, type TAbstractFile } from 'obsidian';
 import { createLogger } from '../../utils/logger';
+import { buildJsonParametersFromZod } from '../utils/zod-to-json';
 
 const logger = createLogger('tool');
 
 export const CreateMarkdownFileArgsSchema = z.object({
-	path: z.string().min(1).describe('相对于库根目录的路径，包含文件名，例如 "folder/new-note.md"'),
-	content: z.string().default('').describe('初始写入内容'),
-	overwrite: z.boolean().default(false).describe('若文件已存在是否覆盖'),
+	path: z
+		.string()
+		.min(1)
+		.describe('Path relative to vault root including filename, e.g. "folder/new-note.md"'),
+	content: z.string().default('').describe('Initial file content'),
+	overwrite: z.boolean().default(false).describe('Overwrite if file already exists'),
 });
-export type CreateMarkdownFileArgs = z.infer<typeof CreateMarkdownFileArgsSchema>;
 
-export const createMarkdownFileParameters = {
-	type: 'object',
-	properties: {
-		path: {
-			type: 'string',
-			description: '相对于库根目录的路径，包含文件名，例如 folder/new-note.md',
-		},
-		content: { type: 'string', description: '初始写入内容' },
-		overwrite: { type: 'boolean', description: '若文件已存在是否覆盖', default: false },
-	},
-	required: ['path'],
-	additionalProperties: false,
-};
+const createMarkdownFileParameters = buildJsonParametersFromZod(CreateMarkdownFileArgsSchema);
 
 export const createMarkdownFileToolMeta = {
 	name: 'create_markdown_file',
-	description: '在当前 Obsidian 笔记库中创建一个新的 Markdown 文件',
+	description: 'Create a new Markdown file in the current Obsidian vault',
 	schema: CreateMarkdownFileArgsSchema,
 	parameters: createMarkdownFileParameters,
 };

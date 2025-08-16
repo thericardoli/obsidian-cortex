@@ -1,61 +1,44 @@
 import { z } from 'zod';
 import { requestUrl, type RequestUrlParam } from 'obsidian';
 import { createLogger } from '../../utils/logger';
+import { buildJsonParametersFromZod } from '../utils/zod-to-json';
 
 const logger = createLogger('tool');
 
-// Mirror essential fields from RequestUrlParam for schema (keep optional minimal surface)
 export const RequestUrlToolArgsSchema = z
 	.object({
-		url: z.string().url().describe('目标 URL'),
-		method: z.string().optional().describe('HTTP 方法, 默认 GET'),
-		headers: z.record(z.string()).optional().describe('请求头'),
+		url: z.string().url().describe('Target URL'),
+		method: z.string().optional().describe('HTTP method, default GET'),
+		headers: z.record(z.string()).optional().describe('Request headers'),
 		body: z
 			.union([z.string(), z.instanceof(ArrayBuffer)])
 			.optional()
-			.describe('请求体 (string 或 ArrayBuffer)'),
-		contentType: z.string().optional().describe('Content-Type (会同时写入 headers)'),
-		throwOnError: z.boolean().default(true).describe('是否在状态码>=400时抛错'),
-		// 控制响应返回内容量
-		includeBodyText: z.boolean().default(true).describe('是否返回 text'),
-		includeJson: z.boolean().default(false).describe('尝试解析 JSON'),
-		includeHeaders: z.boolean().default(false).describe('是否返回响应头'),
-		includeArrayBuffer: z.boolean().default(false).describe('是否返回 ArrayBuffer(长度受限)'),
+			.describe('Request body (string or ArrayBuffer)'),
+		contentType: z.string().optional().describe('Content-Type (also written into headers)'),
+		throwOnError: z.boolean().default(true).describe('Throw when status code >= 400'),
+		// Control which response parts are included
+		includeBodyText: z.boolean().default(true).describe('Include response text'),
+		includeJson: z.boolean().default(false).describe('Attempt to parse JSON'),
+		includeHeaders: z.boolean().default(false).describe('Include response headers'),
+		includeArrayBuffer: z
+			.boolean()
+			.default(false)
+			.describe('Include ArrayBuffer (length limited)'),
 		arrayBufferMaxBytes: z
 			.number()
 			.int()
 			.positive()
 			.max(2_000_000)
 			.default(200_000)
-			.describe('ArrayBuffer 截断大小上限'),
+			.describe('Max bytes to keep for ArrayBuffer (truncate afterwards)'),
 	})
 	.strict();
-export type RequestUrlToolArgs = z.infer<typeof RequestUrlToolArgsSchema>;
 
-export const requestUrlToolParameters = {
-	type: 'object',
-	properties: {
-		url: { type: 'string', description: '目标 URL' },
-		method: { type: 'string' },
-		headers: { type: 'object', additionalProperties: { type: 'string' } },
-		body: {
-			anyOf: [{ type: 'string' }, { type: 'string', description: 'Base64 for ArrayBuffer' }],
-		},
-		contentType: { type: 'string' },
-		throwOnError: { type: 'boolean', default: true },
-		includeBodyText: { type: 'boolean', default: true },
-		includeJson: { type: 'boolean', default: false },
-		includeHeaders: { type: 'boolean', default: false },
-		includeArrayBuffer: { type: 'boolean', default: false },
-		arrayBufferMaxBytes: { type: 'number', default: 200000 },
-	},
-	required: ['url'],
-	additionalProperties: false,
-};
+const requestUrlToolParameters = buildJsonParametersFromZod(RequestUrlToolArgsSchema);
 
 export const requestUrlToolMeta = {
 	name: 'request_url',
-	description: '执行一个跨平台的 HTTP(S) 请求 (Obsidian requestUrl 封装)',
+	description: 'Perform a cross-platform HTTP(S) request (wrapper around Obsidian requestUrl)',
 	schema: RequestUrlToolArgsSchema,
 	parameters: requestUrlToolParameters,
 };
@@ -92,7 +75,6 @@ export function registerRequestUrlToolExecutor(
 			if (args.includeBodyText) base.text = resp.text?.slice(0, 200_000);
 			if (args.includeJson) {
 				try {
-					// resp.json is any; safe-guard with structured cloning attempt
 					base.json = resp.json;
 				} catch (e) {
 					base.jsonError = e instanceof Error ? e.message : String(e);
