@@ -63,7 +63,6 @@ async function buildSingle(
 				parameters: toolConfig.parameters || {},
 				strict: toolConfig.strict ?? true,
 				needsApproval: toolConfig.needsApproval ?? false,
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				execute: async (args: unknown, runContext?: unknown) => executor(args, runContext),
 			});
 		}
