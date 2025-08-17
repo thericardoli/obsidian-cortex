@@ -1,5 +1,4 @@
-import type { ISession } from '../types/session';
-import type { AgentInputItem } from '@openai/agents';
+import type { ISession, AgentInputItem } from '../types/session';
 import { EventEmitter } from 'events';
 import type { SessionRepository } from '../persistence/repositories/session-repository';
 import { createLogger, type Logger } from '../utils/logger';

@@ -3,6 +3,7 @@ import type { Agent } from '@openai/agents';
 import type { AgentInputItem } from '@openai/agents';
 import type { RunStreamEvent } from '@openai/agents-core';
 import type { Readable } from 'svelte/store';
+import { writable } from 'svelte/store';
 import type { App, WorkspaceLeaf } from 'obsidian';
 
 import type { AgentManager } from '../agent/agent-manager';
@@ -16,7 +17,7 @@ import type {
 	ISession,
 } from '../types/session';
 import { buildModelKey, parseModelKey } from '../utils/model-key';
-import { composeRunInput, buildAgentInputFromState } from './chat/input-builder';
+import { composeRunInput } from './chat/input-builder';
 import { extractDelta } from './chat/stream-parser';
 import { recomputeDerived } from './chat/state-derivations';
 import { mapAgentInputItemsToChatMessages } from './chat/session-adapter';
@@ -97,10 +98,11 @@ export function createChatStore(opts: {
 
 	let currentAgentInstance: Agent | null = null;
 	let disposed = false;
-	let streamRenderInterval: number | null = null; // For smooth streaming
 
-	const subscribers = new Set<(s: ChatState) => void>();
-	const notify = () => subscribers.forEach((fn) => fn(state));
+	// Svelte store (replace manual subscriber set)
+	const { subscribe, set } = writable<ChatState>(state);
+	const flush = () => set({ ...state });
+	const notify = flush; // alias for readability
 
 	function recompute() {
 		recomputeDerived({
@@ -111,14 +113,21 @@ export function createChatStore(opts: {
 		});
 	}
 
+	function commit(mutator?: () => void) {
+		if (mutator) mutator();
+		recompute();
+		notify();
+	}
+
 	async function createAgentInstance(): Promise<void> {
 		if (!state.selectedAgent) {
 			currentAgentInstance = null;
 			return;
 		}
 		try {
-			state.isLoading = true;
-			notify();
+			commit(() => {
+				state.isLoading = true;
+			});
 			const parsed = parseModelKey(state.selectedModelKey);
 			if (parsed) {
 				currentAgentInstance = await agentManager.createAgentInstanceWithModel(
@@ -132,9 +141,9 @@ export function createChatStore(opts: {
 				);
 			}
 		} finally {
-			state.isLoading = false;
-			recompute();
-			notify();
+			commit(() => {
+				state.isLoading = false;
+			});
 		}
 	}
 
@@ -162,29 +171,14 @@ export function createChatStore(opts: {
 	}
 
 	// Subscriptions to external events
-	const offAgents = eventBus.on('agentsChanged', () => {
-		recompute();
-		notify();
-	});
-	const offProv = eventBus.on('providersUpdated', () => {
-		recompute();
-		notify();
-	});
-	const offModels = eventBus.on('modelsUpdated', () => {
-		recompute();
-		notify();
-	});
+	const offAgents = eventBus.on('agentsChanged', () => commit());
+	const offProv = eventBus.on('providersUpdated', () => commit());
+	const offModels = eventBus.on('modelsUpdated', () => commit());
 
 	// Public actions
 	const actions: ChatActions = {
 		async sendMessage(text: string) {
 			if (!state.canSend || !currentAgentInstance || !state.selectedAgent) return;
-
-			// Stop any previous rendering interval (legacy – now we push on each delta)
-			if (streamRenderInterval) {
-				clearInterval(streamRenderInterval);
-				streamRenderInterval = null;
-			}
 
 			const userMessage: ChatMessage = {
 				id: crypto.randomUUID(),
@@ -192,10 +186,10 @@ export function createChatStore(opts: {
 				content: text,
 				timestamp: Date.now(),
 			};
-			state.messages = [...state.messages, userMessage];
-			state.isLoading = true;
-			recompute();
-			notify();
+			commit(() => {
+				state.messages = [...state.messages, userMessage];
+				state.isLoading = true;
+			});
 
 			const assistant: ChatMessage = {
 				id: crypto.randomUUID(),
@@ -212,17 +206,15 @@ export function createChatStore(opts: {
 				let maybeSession: ISession | null = null;
 				try {
 					// 1. 加载会话
-					maybeSession = await (async () => {
-						try {
-							return await opts.sessionService.get(state.currentSessionId);
-						} catch {
-							return null;
-						}
-					})();
+					try {
+						maybeSession = await opts.sessionService.get(state.currentSessionId);
+					} catch {
+						maybeSession = null;
+					}
 
 					// 2. 先写入用户消息到会话
 					if (maybeSession) {
-						const userItem: AgentInputItem= {
+						const userItem: AgentInputItem = {
 							role: 'user',
 							type: 'message',
 							content: [{ type: 'input_text', text }],
@@ -231,18 +223,18 @@ export function createChatStore(opts: {
 					}
 
 					// 3. 构造输入
-					let inputForRun: AgentInputItem[];
-					try {
-						const history = maybeSession
-							? await maybeSession.getItems()
-							: null;
-						inputForRun = composeRunInput({
-							sessionHistory: history,
-							fallbackState: state.messages,
-						});
-					} catch {
-						inputForRun = buildAgentInputFromState(state.messages);
+					let sessionHistory: AgentInputItem[] | null = null;
+					if (maybeSession) {
+						try {
+							sessionHistory = await maybeSession.getItems();
+						} catch {
+							sessionHistory = null;
+						}
 					}
+					const inputForRun = composeRunInput({
+						sessionHistory,
+						fallbackState: state.messages,
+					});
 
 					// 4. 运行流式请求
 					type RunStream = AsyncIterable<RunStreamEvent> & { finalOutput?: string };
@@ -256,30 +248,37 @@ export function createChatStore(opts: {
 					for await (const ev of stream) {
 						const delta = extractDelta(ev);
 						if (delta) {
-							state.messages[lastIndex].content += delta;
-							notify();
+							// 保持不可变更新以触发订阅
+							const last = state.messages[lastIndex];
+							state.messages = state.messages.map((m, i) =>
+								i === lastIndex ? { ...last, content: last.content + delta } : m
+							);
+							flush();
 						}
 					}
 
 					// 6. 补全最终内容（若未取到 delta）
-					const lastMsg = state.messages[lastIndex];
-					if (!lastMsg.content || lastMsg.content.length === 0) {
+					let finalTextComputed = state.messages[lastIndex].content;
+					if (!finalTextComputed || finalTextComputed.length === 0) {
 						try {
 							const fallbackOutput = stream.finalOutput;
 							if (typeof fallbackOutput === 'string' && fallbackOutput.length > 0) {
-								lastMsg.content = fallbackOutput;
+								finalTextComputed = fallbackOutput;
 							} else {
-								lastMsg.content = extractTextFromResult(stream);
+								finalTextComputed = extractTextFromResult(stream);
 							}
 						} catch {
-							lastMsg.content = 'No response content available';
+							finalTextComputed = 'No response content available';
 						}
 					}
-					lastMsg.isStreaming = false;
+					// 更新最后一条消息的最终内容与状态
+					state.messages = state.messages.map((m, i) =>
+						i === lastIndex ? { ...m, content: finalTextComputed, isStreaming: false } : m
+					);
 
 					// 7. 落库 assistant 消息
 					if (maybeSession) {
-						const finalText = lastMsg.content ?? '';
+						const finalText = finalTextComputed ?? '';
 						const assistantItem: AssistantMessageItem = {
 							role: 'assistant',
 							type: 'message',
@@ -289,13 +288,11 @@ export function createChatStore(opts: {
 						maybeSession.addItems([assistantItem]);
 					}
 
-					state.isLoading = false;
-					recompute();
-					notify();
+					commit(() => {
+						state.isLoading = false;
+					});
 				} catch (error) {
-					// 清理 interval（防御性）
-					if (streamRenderInterval) clearInterval(streamRenderInterval);
-
+					// 移除空的占位 assistant 消息
 					const last = state.messages[state.messages.length - 1];
 					if (last?.role === 'assistant' && last?.content === '') {
 						state.messages = state.messages.slice(0, -1);
@@ -311,9 +308,9 @@ export function createChatStore(opts: {
 						},
 					];
 
-					state.isLoading = false;
-					recompute();
-					notify();
+					commit(() => {
+						state.isLoading = false;
+					});
 				}
 			};
 
@@ -321,22 +318,22 @@ export function createChatStore(opts: {
 		},
 		changeAgent(agentId: string) {
 			const next = agentManager.listAgents().find((a) => a.id === agentId) ?? null;
-			state.selectedAgent = next;
-			if (next) {
-				state.selectedModelKey = buildModelKey(
-					next.modelConfig.provider,
-					next.modelConfig.model
-				);
-			}
-			recompute();
-			notify();
+			commit(() => {
+				state.selectedAgent = next;
+				if (next) {
+					state.selectedModelKey = buildModelKey(
+						next.modelConfig.provider,
+						next.modelConfig.model
+					);
+				}
+			});
 			// Recreate agent instance on next tick
 			void createAgentInstance();
 		},
 		changeModel(key: string) {
-			state.selectedModelKey = key;
-			recompute();
-			notify();
+			commit(() => {
+				state.selectedModelKey = key;
+			});
 			void createAgentInstance();
 		},
 		async createSession() {
@@ -357,8 +354,7 @@ export function createChatStore(opts: {
 				const rest = state.sessionList.filter((s) => s.id !== state.currentSessionId);
 				state.sessionList = [{ id: state.currentSessionId }, ...rest];
 			}
-			recompute();
-			notify();
+			commit();
 		},
 		async selectSession(id: string) {
 			if (!id || id === state.currentSessionId) return;
@@ -398,8 +394,7 @@ export function createChatStore(opts: {
 				logger.warn('Failed to delete session', e);
 			}
 			await refreshSessionList();
-			recompute();
-			notify();
+			commit();
 		},
 		async dispose() {
 			if (disposed) return;
@@ -420,11 +415,7 @@ export function createChatStore(opts: {
 	init();
 
 	return {
-		subscribe: (fn) => {
-			fn(state);
-			subscribers.add(fn);
-			return () => subscribers.delete(fn);
-		},
+		subscribe,
 		actions,
 	};
 }
