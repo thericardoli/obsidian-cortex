@@ -1,4 +1,4 @@
-import type { AgentInputItem } from '../../../types/session';
+import type { AgentInputItem } from '@openai/agents';
 import type { ChatMessage } from '../chat-store';
 
 // 将当前聊天消息（本地状态）转换为 AgentInputItem 数组（回退策略）

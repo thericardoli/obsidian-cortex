@@ -1,5 +1,5 @@
 import type { DatabaseManager } from '../database-manager';
-import type { AgentItem } from '../../types/session';
+import type { AgentInputItem} from '../../types/session';
 import { serializeItems, deserializeItems } from '../mappers/session-mapper';
 
 export class SessionRepository {
@@ -13,7 +13,7 @@ export class SessionRepository {
 		`;
 	}
 
-	async getItems(sessionId: string, limit?: number): Promise<AgentItem[]> {
+	async getItems(sessionId: string, limit?: number): Promise<AgentInputItem[]> {
 		const db = this.dbm.getDatabase();
 		const { rows } = await db.sql`SELECT items FROM sessions WHERE id=${sessionId}`;
 		if (!rows[0]) return [];
@@ -22,7 +22,7 @@ export class SessionRepository {
 		return typeof limit === 'number' ? all.slice(-limit) : all;
 	}
 
-	async addItems(sessionId: string, items: AgentItem[]): Promise<void> {
+	async addItems(sessionId: string, items: AgentInputItem[]): Promise<void> {
 		const db = this.dbm.getDatabase();
 		const current = await this.getItems(sessionId);
 		const next = [...current, ...items];
@@ -34,7 +34,7 @@ export class SessionRepository {
 		`;
 	}
 
-	async popItem(sessionId: string): Promise<AgentItem | null> {
+	async popItem(sessionId: string): Promise<AgentInputItem| null> {
 		const db = this.dbm.getDatabase();
 		const current = await this.getItems(sessionId);
 		if (current.length === 0) return null;

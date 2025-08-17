@@ -10,7 +10,7 @@
 	import PromptBar from '../component/input/PromptBar.svelte';
 	import type { SessionService } from '../../services/session-service';
 	import type { EventBus } from '../../services/event-bus';
-	import { createChatStore, type ChatState } from '../store/chat-store';
+	import { createChatStore, type ChatState } from '../../store/chat-store';
 	import { createLogger } from '../../utils/logger';
 
 	const logger = createLogger('ui');

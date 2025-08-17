@@ -139,7 +139,6 @@
 			{/if}
 			<button
 				class="copy-icon-btn copy-code-button"
-				title="复制"
 				onclick={handleCopy}
 				aria-label="复制AI回复"
 				class:copied

@@ -1,12 +1,12 @@
-import type { AgentItem } from '../../types/session';
+import type { AgentInputItem} from '../../types/session';
 
-export function serializeItems(items: AgentItem[]): string {
+export function serializeItems(items: AgentInputItem[]): string {
 	return JSON.stringify(items);
 }
 
-export function deserializeItems(serialized: string | unknown[]): AgentItem[] {
+export function deserializeItems(serialized: string | unknown[]): AgentInputItem[] {
 	if (Array.isArray(serialized)) {
-		return serialized as AgentItem[];
+		return serialized as AgentInputItem[];
 	}
 	if (typeof serialized === 'string') {
 		try {

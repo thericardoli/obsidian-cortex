@@ -1,9 +1,9 @@
-import type { PluginSettings } from '../../../types';
-import type { ProviderManager } from '../../../providers/provider-manager';
-import type { AgentConfig } from '../../../types/agent';
+import type { PluginSettings } from '../../types';
+import type { ProviderManager } from '../../providers/provider-manager';
+import type { AgentConfig } from '../../types/agent';
 import type { ChatState, ModelGroup, ModelGroupItem } from '../chat-store';
-import { toProviderDescriptor, isRuntimeEnabled } from '../../../utils/provider-runtime';
-import { buildModelKey } from '../../../utils/model-key';
+import { toProviderDescriptor, isRuntimeEnabled } from '../../utils/provider-runtime';
+import { buildModelKey } from '../../utils/model-key';
 
 export interface DerivationInput {
 	state: ChatState;

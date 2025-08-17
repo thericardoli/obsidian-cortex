@@ -59,8 +59,7 @@
 	<!-- 新建会话按钮 -->
 	<button
 		class="secondary header-icon-button"
-		title={isLoading ? '正在生成中，稍后新建' : '新建会话'}
-		aria-label="新建会话"
+		aria-label="New Conversation"
 		onclick={async () => {
 			if (isLoading) return;
 			showHistory = false;
@@ -79,8 +78,7 @@
 	<div class="history-wrapper">
 		<button
 			class="secondary header-icon-button"
-			title="历史会话"
-			aria-label="历史会话"
+			aria-label="Conversation History"
 			onclick={toggleHistory}
 			disabled={isLoading}
 		>
@@ -89,7 +87,7 @@
 		{#if showHistory}
 			<div class="history-dropdown" role="listbox">
 				{#if sessions.length === 0}
-					<div class="history-empty">暂无会话</div>
+					<div class="history-empty">Empty History</div>
 				{:else}
 					{#each sessions as s}
 						<div
@@ -103,7 +101,7 @@
 							</button>
 							<button
 								class="delete-btn"
-								aria-label="删除会话"
+								aria-label="Delete Session"
 								onclick={async (e) => {
 									e.stopPropagation();
 									await onDeleteSession?.(s.id);
@@ -121,7 +119,6 @@
 	<button
 		class="secondary agents-button"
 		onclick={onOpenAgentManager}
-		title="Manage Agents"
 		aria-label="Manage Agents"
 		disabled={isLoading}
 	>

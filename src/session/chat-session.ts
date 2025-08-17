@@ -1,14 +1,5 @@
-import type {
-	ISession,
-	AgentItem,
-	ToAgentInputHistoryOptions,
-	AgentInputItem,
-	UserMessageItem,
-	AssistantMessageItem,
-	FunctionCallItem,
-	FunctionCallResultItem,
-	SystemMessageItem,
-} from '../types/session';
+import type { ISession } from '../types/session';
+import type { AgentInputItem } from '@openai/agents';
 import { EventEmitter } from 'events';
 import type { SessionRepository } from '../persistence/repositories/session-repository';
 import { createLogger, type Logger } from '../utils/logger';
@@ -19,7 +10,7 @@ import { createLogger, type Logger } from '../utils/logger';
  */
 export class chatSession extends EventEmitter implements ISession {
 	readonly sessionId: string;
-	private memoryCache: AgentItem[] = [];
+	private memoryCache: AgentInputItem[] = [];
 	private repo?: SessionRepository;
 	private isLoaded = false;
 	private logger: Logger;
@@ -58,7 +49,7 @@ export class chatSession extends EventEmitter implements ISession {
 	/**
 	 * 获取对话历史项目
 	 */
-	async getItems(limit?: number): Promise<AgentItem[]> {
+	async getItems(limit?: number): Promise<AgentInputItem[]> {
 		await this.ensureLoaded();
 
 		if (limit && limit > 0) {
@@ -70,7 +61,7 @@ export class chatSession extends EventEmitter implements ISession {
 	/**
 	 * 添加新的对话项目
 	 */
-	async addItems(items: AgentItem[]): Promise<void> {
+	async addItems(items: AgentInputItem[]): Promise<void> {
 		if (!Array.isArray(items) || items.length === 0) {
 			return;
 		}
@@ -89,7 +80,7 @@ export class chatSession extends EventEmitter implements ISession {
 		}
 	}
 
-	async popItem(): Promise<AgentItem | null> {
+	async popItem(): Promise<AgentInputItem| null> {
 		await this.ensureLoaded();
 
 		const item = this.memoryCache.pop() ?? null;
@@ -128,7 +119,7 @@ export class chatSession extends EventEmitter implements ISession {
 			this.logger.info(`已保存 ${this.memoryCache.length} 条聊天记录到数据库`);
 		} catch (error) {
 			this.emit('error', new Error(`Failed to save session to database: ${error}`));
-			throw error;
+			this.logger.error(`Failed to save session to database: ${error}`);
 		}
 	}
 
@@ -145,125 +136,4 @@ export class chatSession extends EventEmitter implements ISession {
 		await this.saveSessionToDatabase();
 	}
 
-	async toAgentInputHistory(options?: ToAgentInputHistoryOptions): Promise<AgentInputItem[]> {
-		const opts = {
-			includeHostedToolCalls: true,
-			includeReasoning: false,
-			includeUnknown: false,
-			...(options || {}),
-		};
-
-		const items = await this.getItems();
-		const mapped = items
-			.map((item) => {
-				if (isMessageItem(item)) {
-					// 统一包装 content 结构
-					if (isUserMessage(item)) {
-						const textParts = Array.isArray(item.content)
-							? item.content
-							: [{ type: 'input_text', text: String(item.content ?? '') }];
-						return {
-							role: 'user' as const,
-							content: textParts,
-							type: 'message' as const,
-						};
-					}
-					if (isAssistantMessage(item)) {
-						const outParts = Array.isArray(item.content)
-							? item.content
-							: [{ type: 'output_text', text: String(item.content ?? '') }];
-						return {
-							role: 'assistant' as const,
-							content: outParts,
-							status: item.status,
-							type: 'message' as const,
-						};
-					}
-					if (isSystemMessage(item)) {
-						const sysParts = [{ type: 'input_text', text: String(item.content ?? '') }];
-						return {
-							role: 'system' as const,
-							content: sysParts,
-							type: 'message' as const,
-						};
-					}
-					return undefined;
-				}
-				if (isFunctionCall(item)) {
-					return {
-						type: 'function_call' as const,
-						callId: item.callId,
-						name: item.name,
-						arguments: item.arguments,
-						status: item.status ?? 'in_progress',
-					};
-				}
-				if (isFunctionResult(item)) {
-					return {
-						type: 'function_call_result' as const,
-						callId: item.callId,
-						name: item.name,
-						output: item.output,
-						status: item.status ?? 'completed',
-					};
-				}
-				if (
-					opts.includeHostedToolCalls &&
-					hasType(item) &&
-					item.type === 'hosted_tool_call'
-				) {
-					const obj = item as {
-						type: 'hosted_tool_call';
-						name: string;
-						arguments?: string;
-						output?: string;
-						status?: string;
-					};
-					return {
-						type: 'hosted_tool_call',
-						name: obj.name,
-						arguments: obj.arguments,
-						output: obj.output,
-						status: obj.status,
-					};
-				}
-				if (opts.includeReasoning && hasType(item) && item.type === 'reasoning')
-					return item;
-				if (opts.includeUnknown && hasType(item) && item.type === 'unknown') return item;
-				return undefined;
-			})
-			.filter((x): x is Exclude<typeof x, undefined> => x !== undefined);
-		return mapped as unknown as AgentInputItem[];
-	}
-}
-
-/**
- * 类型守卫与类型判断
- */
-function hasType(x: AgentItem): x is AgentItem & { type: string } {
-	return typeof (x as { type?: unknown }).type === 'string';
-}
-function hasRole(x: AgentItem): x is UserMessageItem | AssistantMessageItem | SystemMessageItem {
-	const r = (x as { role?: unknown }).role;
-	return r === 'user' || r === 'assistant' || r === 'system';
-}
-function isMessageItem(
-	item: AgentItem
-): item is UserMessageItem | AssistantMessageItem | SystemMessageItem {
-	return (!hasType(item) || item.type === 'message') && hasRole(item);
-}
-function isSystemMessage(item: AgentItem): item is SystemMessageItem {
-	return isMessageItem(item) && item.role === 'system';
-}
-function isUserMessage(item: AgentItem): item is UserMessageItem {
-	return isMessageItem(item) && item.role === 'user';
-}
-function isAssistantMessage(item: AgentItem): item is AssistantMessageItem {
-	return isMessageItem(item) && item.role === 'assistant';
-}
-function isFunctionCall(item: AgentItem): item is FunctionCallItem {
-	return hasType(item) && item.type === 'function_call';
-}
-function isFunctionResult(item: AgentItem): item is FunctionCallResultItem {
-	return hasType(item) && item.type === 'function_call_result';
 }

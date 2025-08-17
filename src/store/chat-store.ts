@@ -1,28 +1,27 @@
 import { run } from '@openai/agents';
 import type { Agent } from '@openai/agents';
+import type { AgentInputItem } from '@openai/agents';
 import type { RunStreamEvent } from '@openai/agents-core';
 import type { Readable } from 'svelte/store';
 import type { App, WorkspaceLeaf } from 'obsidian';
 
-import type { AgentManager } from '../../agent/agent-manager';
-import type { ProviderManager } from '../../providers/provider-manager';
-import type { PluginSettings } from '../../types';
-import type { AgentConfig } from '../../types/agent';
-import type { SessionServiceApi } from '../../services/session-service';
-import type { EventBus } from '../../services/event-bus';
+import type { AgentManager } from '../agent/agent-manager';
+import type { ProviderManager } from '../providers/provider-manager';
+import type { PluginSettings } from '../types';
+import type { AgentConfig } from '../types/agent';
+import type { SessionServiceApi } from '../services/session-service';
+import type { EventBus } from '../services/event-bus';
 import type {
-	AgentInputItem,
-	AgentItem,
 	AssistantMessageItem,
 	ISession,
-} from '../../types/session';
-import { buildModelKey, parseModelKey } from '../../utils/model-key';
+} from '../types/session';
+import { buildModelKey, parseModelKey } from '../utils/model-key';
 import { composeRunInput, buildAgentInputFromState } from './chat/input-builder';
 import { extractDelta } from './chat/stream-parser';
 import { recomputeDerived } from './chat/state-derivations';
-import { mapSessionItemsToChatMessages } from './chat/session-adapter';
+import { mapAgentInputItemsToChatMessages } from './chat/session-adapter';
 import { extractTextFromResult } from './chat/result-extractor';
-import { createLogger } from '../../utils/logger';
+import { createLogger } from '../utils/logger';
 
 const logger = createLogger('ui');
 
@@ -223,7 +222,7 @@ export function createChatStore(opts: {
 
 					// 2. 先写入用户消息到会话
 					if (maybeSession) {
-						const userItem: AgentItem = {
+						const userItem: AgentInputItem= {
 							role: 'user',
 							type: 'message',
 							content: [{ type: 'input_text', text }],
@@ -235,7 +234,7 @@ export function createChatStore(opts: {
 					let inputForRun: AgentInputItem[];
 					try {
 						const history = maybeSession
-							? await maybeSession.toAgentInputHistory()
+							? await maybeSession.getItems()
 							: null;
 						inputForRun = composeRunInput({
 							sessionHistory: history,
@@ -374,7 +373,7 @@ export function createChatStore(opts: {
 				if (target) {
 					state.currentSessionId = id;
 					const items = await target.getItems();
-					state.messages = mapSessionItemsToChatMessages(items);
+					state.messages = mapAgentInputItemsToChatMessages(items);
 				} else {
 					await createSessionInternal();
 					state.messages = [];
