@@ -1,6 +1,8 @@
 import { DatabaseManager, type DatabaseOptions } from './database-manager';
 import { AgentRepository } from './repositories/agent-repository';
 import { SessionRepository } from './repositories/session-repository';
+import type { IAgentRepository, ISessionRepository } from './repositories/contracts';
+import { InMemoryAgentRepository, InMemorySessionRepository } from './repositories/contracts';
 
 export interface PersistenceManagerOptions extends DatabaseOptions {
 	/** 是否在初始化时立即连接数据库 */
@@ -9,53 +11,60 @@ export interface PersistenceManagerOptions extends DatabaseOptions {
 
 export class PersistenceManager {
 	private dbManager: DatabaseManager;
-	private agentRepository: AgentRepository | null = null;
-	private sessionRepository: SessionRepository | null = null;
-	private initialized = false;
+	private agentRepository: IAgentRepository;
+	private sessionRepository: ISessionRepository;
+	private persistent = false;
 
 	constructor(private options: PersistenceManagerOptions = {}) {
 		this.dbManager = new DatabaseManager(options);
-	}
-
-	async initialize(): Promise<void> {
-		if (this.initialized) return;
-
-		await this.dbManager.initialize();
-		this.agentRepository = new AgentRepository(this.dbManager);
-		this.sessionRepository = new SessionRepository(this.dbManager);
-		this.initialized = true;
-	}
-
-	getAgentRepository(): AgentRepository {
-		if (!this.agentRepository) {
-			throw new Error('PersistenceManager not initialized. Call initialize() first.');
-		}
-		return this.agentRepository;
-	}
-
-	getSessionRepository(): SessionRepository {
-		if (!this.sessionRepository) {
-			throw new Error('PersistenceManager not initialized. Call initialize() first.');
-		}
-		return this.sessionRepository;
+		// 默认使用内存实现，避免调用方判空
+		this.agentRepository = new InMemoryAgentRepository();
+		this.sessionRepository = new InMemorySessionRepository();
 	}
 
 	/**
-	 * 创建一个新的 session 记录
+	 * 初始化数据库；失败则保持内存模式
 	 */
-	async createSessionRecord(sessionId: string, name?: string): Promise<void> {
-		const repo = this.getSessionRepository();
-		await repo.create(sessionId, name);
+	async initialize(): Promise<void> {
+		if (this.persistent) return; // 已经是持久化模式
+
+		try {
+			await this.dbManager.initialize();
+			this.agentRepository = new AgentRepository(this.dbManager);
+			this.sessionRepository = new SessionRepository(this.dbManager);
+			this.persistent = true;
+		} catch (err) {
+			// 降级：保持内存实现
+			console.warn('[Persistence] 初始化失败，已降级为内存模式:', err);
+			this.persistent = false;
+		}
 	}
 
-	isInitialized(): boolean {
-		return this.initialized;
+	getAgentRepository(): IAgentRepository {
+		return this.agentRepository;
+	}
+
+	getSessionRepository(): ISessionRepository {
+		return this.sessionRepository;
+	}
+
+	async createSessionRecord(sessionId: string, name?: string): Promise<void> {
+		await this.sessionRepository.create(sessionId, name);
+	}
+
+	isPersistent(): boolean {
+		return this.persistent;
 	}
 
 	async dispose(): Promise<void> {
-		await this.dbManager.close();
-		this.agentRepository = null;
-		this.sessionRepository = null;
-		this.initialized = false;
+		try {
+			await this.dbManager.close();
+		} catch {
+			/* ignore */
+		}
+		// 回退为新的内存仓库，以防后续仍被调用
+		this.agentRepository = new InMemoryAgentRepository();
+		this.sessionRepository = new InMemorySessionRepository();
+		this.persistent = false;
 	}
 }

@@ -1,6 +1,6 @@
 import type { ISession, AgentInputItem } from '../types/session';
 import { EventEmitter } from 'events';
-import type { SessionRepository } from '../persistence/repositories/session-repository';
+import type { ISessionRepository } from '../persistence/repositories/contracts';
 import { createLogger, type Logger } from '../utils/logger';
 
 /**
@@ -10,11 +10,11 @@ import { createLogger, type Logger } from '../utils/logger';
 export class chatSession extends EventEmitter implements ISession {
 	readonly sessionId: string;
 	private memoryCache: AgentInputItem[] = [];
-	private repo?: SessionRepository;
+	private repo?: ISessionRepository;
 	private isLoaded = false;
 	private logger: Logger;
 
-	constructor(options: { sessionId: string; repo?: SessionRepository }) {
+	constructor(options: { sessionId: string; repo?: ISessionRepository }) {
 		super();
 		this.sessionId = options.sessionId;
 		this.repo = options.repo;
@@ -79,7 +79,7 @@ export class chatSession extends EventEmitter implements ISession {
 		}
 	}
 
-	async popItem(): Promise<AgentInputItem| null> {
+	async popItem(): Promise<AgentInputItem | null> {
 		await this.ensureLoaded();
 
 		const item = this.memoryCache.pop() ?? null;
@@ -134,5 +134,4 @@ export class chatSession extends EventEmitter implements ISession {
 	async forceFullSave(): Promise<void> {
 		await this.saveSessionToDatabase();
 	}
-
 }

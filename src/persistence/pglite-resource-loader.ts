@@ -46,14 +46,14 @@ export class PGliteResourceLoader {
 			// 创建文件系统包 Blob
 			const fsBundle = new Blob([fsBytes]);
 
-			this.logger.info('✅ PGlite assets loaded from bundled binaries', {
+			this.logger.info('PGlite assets loaded from bundled binaries', {
 				wasm: wasmBytes.byteLength,
 				data: fsBytes.byteLength,
 			});
 
 			return { wasmModule, fsBundle };
 		} catch (error) {
-			this.logger.error('❌ Failed to import PGlite binaries from bundle:', error);
+			this.logger.error('Failed to import PGlite binaries from bundle:', error);
 			return null;
 		}
 	}

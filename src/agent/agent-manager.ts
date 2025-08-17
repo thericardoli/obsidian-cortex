@@ -12,18 +12,18 @@ import type { EventBus } from '../services/event-bus';
 
 export class AgentManager {
 	private _providerManager: ProviderManager;
-	private _persistenceManager: PersistenceManager | null = null;
+	private _persistenceManager: PersistenceManager; // 必需依赖（内存或持久化模式）
 	private _agentCache: Map<string, AgentConfig> = new Map();
 	private logger: Logger;
 	private eventBus?: EventBus;
 
 	constructor(
 		providerManager: ProviderManager,
-		persistenceManager?: PersistenceManager | null,
+		persistenceManager: PersistenceManager,
 		eventBus?: EventBus
 	) {
 		this._providerManager = providerManager;
-		this._persistenceManager = persistenceManager || null;
+		this._persistenceManager = persistenceManager;
 		this.logger = createLogger('agent');
 		this.eventBus = eventBus;
 	}
@@ -44,11 +44,6 @@ export class AgentManager {
 	 * 从数据库加载所有 agents 到缓存
 	 */
 	async loadAgentsFromDatabase(): Promise<void> {
-		if (!this._persistenceManager) {
-			this.logger.warn('PersistenceManager not available, skipping agent loading');
-			return;
-		}
-
 		try {
 			const agentRepository = this._persistenceManager.getAgentRepository();
 			const agents = await agentRepository.list();
@@ -80,22 +75,15 @@ export class AgentManager {
 		this._agentCache.set(agent.id, agent);
 
 		// 保存到数据库
-		if (this._persistenceManager) {
-			try {
-				const agentRepository = this._persistenceManager.getAgentRepository();
-				await agentRepository.upsert(agent);
-				// Notify after successful persistence
-				this._notifyAgentsChanged();
-			} catch (error) {
-				// 如果数据库保存失败，从缓存中移除
-				this._agentCache.delete(agent.id);
-				this.logger.error('Failed to save agent to database', error);
-				throw error;
-			}
-		} else {
-			// In-memory mode still updates UI
-			this._notifyAgentsChanged();
+		try {
+			const agentRepository = this._persistenceManager.getAgentRepository();
+			await agentRepository.upsert(agent);
+		} catch (error) {
+			this._agentCache.delete(agent.id);
+			this.logger.error('Failed to save agent to repository', error);
+			throw error;
 		}
+		this._notifyAgentsChanged();
 
 		return agent;
 	}
@@ -141,16 +129,12 @@ export class AgentManager {
 		agentConfig.updatedAt = Date.now();
 
 		// 保存到数据库
-		if (this._persistenceManager) {
-			try {
-				const agentRepository = this._persistenceManager.getAgentRepository();
-				await agentRepository.upsert(agentConfig);
-			} catch (error) {
-				// 如果数据库保存失败，回滚内存中的更改
-				agentConfig.tools.pop();
-				this.logger.error('Failed to save agent to database', error);
-				throw error;
-			}
+		try {
+			await this._persistenceManager.getAgentRepository().upsert(agentConfig);
+		} catch (error) {
+			agentConfig.tools.pop();
+			this.logger.error('Failed to save agent to repository', error);
+			throw error;
 		}
 	}
 
@@ -171,16 +155,12 @@ export class AgentManager {
 		agentConfig.updatedAt = Date.now();
 
 		// 保存到数据库
-		if (this._persistenceManager) {
-			try {
-				const agentRepository = this._persistenceManager.getAgentRepository();
-				await agentRepository.upsert(agentConfig);
-			} catch (error) {
-				// 如果数据库保存失败，回滚内存中的更改
-				agentConfig.tools.splice(toolIndex, 0, removedTool);
-				this.logger.error('Failed to save agent to database', error);
-				throw error;
-			}
+		try {
+			await this._persistenceManager.getAgentRepository().upsert(agentConfig);
+		} catch (error) {
+			agentConfig.tools.splice(toolIndex, 0, removedTool);
+			this.logger.error('Failed to save agent to repository', error);
+			throw error;
 		}
 	}
 
@@ -226,20 +206,14 @@ export class AgentManager {
 		this._agentCache.set(id, updatedSnapshot);
 
 		// 保存到数据库
-		if (this._persistenceManager) {
-			try {
-				const agentRepository = this._persistenceManager.getAgentRepository();
-				await agentRepository.upsert(agentConfig);
-				this._notifyAgentsChanged();
-			} catch (error) {
-				// 如果数据库保存失败，回滚内存中的更改
-				this._agentCache.set(id, originalConfig);
-				this.logger.error('Failed to update agent in database', error);
-				throw error;
-			}
-		} else {
-			this._notifyAgentsChanged();
+		try {
+			await this._persistenceManager.getAgentRepository().upsert(agentConfig);
+		} catch (error) {
+			this._agentCache.set(id, originalConfig);
+			this.logger.error('Failed to update agent in repository', error);
+			throw error;
 		}
+		this._notifyAgentsChanged();
 	}
 
 	async deleteAgent(id: string): Promise<void> {
@@ -252,20 +226,14 @@ export class AgentManager {
 		this._agentCache.delete(id);
 
 		// 从数据库删除
-		if (this._persistenceManager) {
-			try {
-				const agentRepository = this._persistenceManager.getAgentRepository();
-				await agentRepository.remove(id);
-				this._notifyAgentsChanged();
-			} catch (error) {
-				// 如果数据库删除失败，恢复内存中的数据
-				this._agentCache.set(id, agentToDelete);
-				this.logger.error('Failed to delete agent from database', error);
-				throw error;
-			}
-		} else {
-			this._notifyAgentsChanged();
+		try {
+			await this._persistenceManager.getAgentRepository().remove(id);
+		} catch (error) {
+			this._agentCache.set(id, agentToDelete);
+			this.logger.error('Failed to delete agent from repository', error);
+			throw error;
 		}
+		this._notifyAgentsChanged();
 	}
 
 	async createAgentInstance(id: string): Promise<Agent | null> {

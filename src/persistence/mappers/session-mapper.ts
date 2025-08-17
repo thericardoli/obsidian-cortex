@@ -1,4 +1,4 @@
-import type { AgentInputItem} from '../../types/session';
+import type { AgentInputItem } from '../../types/session';
 
 export function serializeItems(items: AgentInputItem[]): string {
 	return JSON.stringify(items);

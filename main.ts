@@ -22,7 +22,7 @@ export default class CortexPlugin extends Plugin {
     private sessionService: SessionService;
     public eventBus: EventBus;
     private settingsService: SettingsService;
-    private persistenceManager: PersistenceManager | null = null;
+    private persistenceManager: PersistenceManager;
     public settings: PluginSettings;
 
     async onload() {
@@ -40,30 +40,24 @@ export default class CortexPlugin extends Plugin {
             this.providerManager = new ProviderManager();
             this.providerService = new ProviderService(this.providerManager);
             
-            // Initialize persistence manager with PGlite resource loading
+            // Initialize persistence manager (load resources first to maximize success rate)
             try {
                 logger.info('Loading PGlite resources...');
                 const pgliteResources = await PGliteResourceLoader.loadResources();
-                
                 if (pgliteResources) {
-                    logger.info('PGlite resources loaded successfully');
-                    
                     this.persistenceManager = new PersistenceManager({
                         wasmModule: pgliteResources.wasmModule,
-                        fsBundle: pgliteResources.fsBundle
-                        // 不需要 pluginBasePath，因为我们使用 IndexedDB 存储
+                        fsBundle: pgliteResources.fsBundle,
                     });
-                    
-                    await this.persistenceManager.initialize();
-                    logger.info('PersistenceManager initialized successfully');
                 } else {
-                    logger.warn('Failed to load PGlite resources, continuing without persistence');
-                    this.persistenceManager = null;
+                    logger.warn('PGlite resources unavailable, using memory mode (existing IDB data will NOT load)');
+                    this.persistenceManager = new PersistenceManager();
                 }
+                await this.persistenceManager.initialize();
+                logger.info('PersistenceManager initialized (persistent=' + this.persistenceManager.isPersistent() + ')');
             } catch (error) {
-                logger.error('Failed to initialize PersistenceManager', error);
-                // 如果数据库初始化失败，继续使用内存模式
-                this.persistenceManager = null;
+                logger.error('Failed to initialize persistence (memory mode fallback)', error);
+                this.persistenceManager = new PersistenceManager();
             }
             
             // Initialize agent + session services with persistence
@@ -76,12 +70,10 @@ export default class CortexPlugin extends Plugin {
             }, this.app);
             
             // Load existing agents from database (only if persistence is available)
-            if (this.persistenceManager) {
-                try {
-                    await this.agentManager.loadAgentsFromDatabase();
-                } catch (error) {
-                    logger.error('Failed to load agents from database', error);
-                }
+            try {
+                await this.agentManager.loadAgentsFromDatabase();
+            } catch (error) {
+                logger.error('Failed to load agents (repository)', error);
             }
 
             // Initialize providers from settings via service
@@ -144,12 +136,10 @@ export default class CortexPlugin extends Plugin {
         logger.info('Unloading Cortex Plugin');
         
         // Clean up persistence manager
-        if (this.persistenceManager) {
-            try {
-                await this.persistenceManager.dispose();
-            } catch (error) {
-                logger.error('Error disposing persistence manager', error);
-            }
+        try {
+            await this.persistenceManager.dispose();
+        } catch (error) {
+            logger.error('Error disposing persistence manager', error);
         }
     }
 

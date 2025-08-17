@@ -2,7 +2,8 @@ import type { AgentInputItem } from '@openai/agents';
 import type { UserMessageItem, AssistantMessageItem } from '../../types/session';
 import type { ChatMessage } from '../chat-store';
 
-const isUser = (x: AgentInputItem): x is UserMessageItem => (x as { role?: unknown }).role === 'user';
+const isUser = (x: AgentInputItem): x is UserMessageItem =>
+	(x as { role?: unknown }).role === 'user';
 const isAssistant = (x: AgentInputItem): x is AssistantMessageItem =>
 	(x as { role?: unknown }).role === 'assistant';
 

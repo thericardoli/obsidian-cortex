@@ -1,5 +1,5 @@
 import type { DatabaseManager } from '../database-manager';
-import type { AgentInputItem} from '../../types/session';
+import type { AgentInputItem } from '../../types/session';
 import { serializeItems, deserializeItems } from '../mappers/session-mapper';
 
 export class SessionRepository {
@@ -34,7 +34,7 @@ export class SessionRepository {
 		`;
 	}
 
-	async popItem(sessionId: string): Promise<AgentInputItem| null> {
+	async popItem(sessionId: string): Promise<AgentInputItem | null> {
 		const db = this.dbm.getDatabase();
 		const current = await this.getItems(sessionId);
 		if (current.length === 0) return null;

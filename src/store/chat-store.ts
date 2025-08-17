@@ -12,10 +12,7 @@ import type { PluginSettings } from '../types';
 import type { AgentConfig } from '../types/agent';
 import type { SessionServiceApi } from '../services/session-service';
 import type { EventBus } from '../services/event-bus';
-import type {
-	AssistantMessageItem,
-	ISession,
-} from '../types/session';
+import type { AssistantMessageItem, ISession } from '../types/session';
 import { buildModelKey, parseModelKey } from '../utils/model-key';
 import { composeRunInput } from './chat/input-builder';
 import { extractDelta } from './chat/stream-parser';
@@ -273,7 +270,9 @@ export function createChatStore(opts: {
 					}
 					// 更新最后一条消息的最终内容与状态
 					state.messages = state.messages.map((m, i) =>
-						i === lastIndex ? { ...m, content: finalTextComputed, isStreaming: false } : m
+						i === lastIndex
+							? { ...m, content: finalTextComputed, isStreaming: false }
+							: m
 					);
 
 					// 7. 落库 assistant 消息

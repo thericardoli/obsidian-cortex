@@ -51,7 +51,7 @@ export interface ISession {
 	 * 移除并返回最近的一个项目（用于撤销操作）
 	 * @returns 被移除的项目，如果没有项目则返回 null
 	 */
-	popItem(): Promise<AgentInputItem| null>;
+	popItem(): Promise<AgentInputItem | null>;
 
 	/**
 	 * 清空当前 session 的所有项目
@@ -62,7 +62,6 @@ export interface ISession {
 	 * 释放资源（关闭数据库连接等）
 	 */
 	dispose(): Promise<void>;
-
 }
 
 /**
@@ -79,5 +78,4 @@ export interface SessionEvents {
 	error: (error: Error) => void;
 }
 
-export type { AgentInputItem } from '@openai/agents'; 
-
+export type { AgentInputItem } from '@openai/agents';

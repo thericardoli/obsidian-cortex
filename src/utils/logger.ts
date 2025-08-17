@@ -62,9 +62,11 @@ export function createLogger(scope: LogScope, minLevel?: LogLevel): Logger {
 		/* noop */
 	}
 	const envLevelRaw = typeof process !== 'undefined' ? process.env?.CORTEX_LOG_LEVEL : undefined;
-	const envLevel = (envLevelRaw && ['debug', 'info', 'warn', 'error'].includes(envLevelRaw)
-		? envLevelRaw
-		: undefined) as LogLevel | undefined;
+	const envLevel = (
+		envLevelRaw && ['debug', 'info', 'warn', 'error'].includes(envLevelRaw)
+			? envLevelRaw
+			: undefined
+	) as LogLevel | undefined;
 	const effective: LogLevel = minLevel ?? injected ?? envLevel ?? 'info';
 	return new ScopedLogger(scope, effective);
 }
