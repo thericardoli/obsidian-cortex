@@ -1,5 +1,5 @@
-import { SessionManager } from '../session/session-manager';
-import type { PersistenceManager } from '../persistence/persistence-manager';
+import { SessionManager } from './session-manager';
+import type { ISessionRepository } from '../persistence/repositories/contracts';
 
 export interface SessionServiceApi {
 	createNew(): Promise<import('../types/session').ISession>;
@@ -11,32 +11,25 @@ export interface SessionServiceApi {
 
 export class SessionService implements SessionServiceApi {
 	private manager: SessionManager;
-
-	constructor(persistence?: PersistenceManager | null) {
-		this.manager = new SessionManager({}, persistence || undefined);
+	constructor(repository?: ISessionRepository | null) {
+		this.manager = new SessionManager({}, repository || undefined);
 	}
-
-	setPersistence(persistence: PersistenceManager) {
-		this.manager.setPersistenceManager(persistence);
+	setRepository(repository: ISessionRepository) {
+		this.manager.setRepository(repository);
 	}
-
 	async createNew() {
 		return this.manager.createNewSession();
 	}
-
 	async get(id: string) {
 		return this.manager.getSession(id);
 	}
-
 	async list(limit: number) {
 		const rows = await this.manager.getAllSessions(limit);
 		return rows.map((r) => ({ id: r.id, name: r.name }));
 	}
-
 	async delete(id: string) {
 		return this.manager.deleteSession(id);
 	}
-
 	async disposeAll() {
 		await this.manager.dispose();
 	}

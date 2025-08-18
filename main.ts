@@ -6,10 +6,11 @@ import { ChatViewLeaf, VIEW_TYPE_CHAT } from './src/ui/view/ChatViewLeaf';
 import { AgentViewLeaf, VIEW_TYPE_AGENT } from './src/ui/view/AgentViewLeaf';
 import { CortexSettingTab } from './src/ui/settings/CortexSettingTab';
 import type { PluginSettings, CreateProviderInput } from './src/types';
-import { SettingsService } from './src/services/settings-service';
-import { ProviderService } from './src/services/provider-service';
-import { SessionService } from './src/services/session-service';
-import { SimpleEventBus, type EventBus } from './src/services/event-bus';
+import { SettingsService } from './src/settings/settings-service';
+import { ProviderService } from './src/providers/provider-service';
+import { SessionService } from './src/session/session-service';
+import { AgentService } from './src/agent/agent-service';
+import { SimpleEventBus, type EventBus } from './src/utils/event-bus';
 import { createLogger } from './src/utils/logger';
 import { registerAllBuiltinFunctionExecutors } from './src/tool/builtin';
 
@@ -19,6 +20,7 @@ export default class CortexPlugin extends Plugin {
     private agentManager: AgentManager;
     private providerManager: ProviderManager;
     private providerService: ProviderService;
+    private agentService: AgentService;
     private sessionService: SessionService;
     public eventBus: EventBus;
     private settingsService: SettingsService;
@@ -60,9 +62,13 @@ export default class CortexPlugin extends Plugin {
                 this.persistenceManager = new PersistenceManager();
             }
             
-            // Initialize agent + session services with persistence
-            this.agentManager = new AgentManager(this.providerManager, this.persistenceManager, this.eventBus);
-            this.sessionService = new SessionService(this.persistenceManager);
+            // Initialize agent + session services with repositories (Milestone 1 decoupling)
+            this.agentManager = new AgentManager(
+                this.persistenceManager.getAgentRepository(),
+                this.eventBus
+            );
+            this.agentService = new AgentService(this.agentManager, this.providerManager); // 运行态装配独立
+            this.sessionService = new SessionService(this.persistenceManager.getSessionRepository());
 
             // Register builtin function tool executors (requires Obsidian app context -> this.app)
             registerAllBuiltinFunctionExecutors((name, exec) => {
@@ -82,7 +88,7 @@ export default class CortexPlugin extends Plugin {
             // Register the chat view
             this.registerView(
                 VIEW_TYPE_CHAT,
-                (leaf) => new ChatViewLeaf(leaf, this.agentManager, this.providerManager, () => this.settings, this.sessionService, this.eventBus)
+                (leaf) => new ChatViewLeaf(leaf, this.agentManager, this.providerManager, this.agentService, () => this.settings, this.sessionService, this.eventBus)
             );
 
             // Register the agent management view

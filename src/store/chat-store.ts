@@ -4,14 +4,15 @@ import type { AgentInputItem } from '@openai/agents';
 import type { RunStreamEvent } from '@openai/agents-core';
 import type { Readable } from 'svelte/store';
 import { writable } from 'svelte/store';
-import type { App, WorkspaceLeaf } from 'obsidian';
+// Removed App / WorkspaceLeaf dependencies (milestone 1.3)
 
 import type { AgentManager } from '../agent/agent-manager';
+import type { AgentService } from '../agent/agent-service';
 import type { ProviderManager } from '../providers/provider-manager';
 import type { PluginSettings } from '../types';
 import type { AgentConfig } from '../types/agent';
-import type { SessionServiceApi } from '../services/session-service';
-import type { EventBus } from '../services/event-bus';
+import type { SessionServiceApi } from '../session/session-service';
+import type { EventBus } from '../utils/event-bus';
 import type { AssistantMessageItem, ISession } from '../types/session';
 import { buildModelKey, parseModelKey } from '../utils/model-key';
 import { composeRunInput } from './chat/input-builder';
@@ -72,14 +73,14 @@ export interface ChatStore extends Readable<ChatState> {
 
 export function createChatStore(opts: {
 	agentManager: AgentManager;
+	agentService: AgentService;
 	providerManager: ProviderManager;
 	getSettings: () => PluginSettings;
-	app: App;
 	sessionService: SessionServiceApi;
 	eventBus: EventBus;
-	workspaceLeaf: WorkspaceLeaf;
 }): ChatStore {
-	const { agentManager, providerManager, getSettings, sessionService, eventBus } = opts;
+	const { agentManager, agentService, providerManager, getSettings, sessionService, eventBus } =
+		opts;
 
 	const state: ChatState = {
 		messages: [],
@@ -127,15 +128,13 @@ export function createChatStore(opts: {
 			});
 			const parsed = parseModelKey(state.selectedModelKey);
 			if (parsed) {
-				currentAgentInstance = await agentManager.createAgentInstanceWithModel(
+				currentAgentInstance = await agentService.createWithModelOverride(
 					state.selectedAgent.id,
 					parsed.providerId,
 					parsed.modelId
 				);
 			} else {
-				currentAgentInstance = await agentManager.createAgentInstance(
-					state.selectedAgent.id
-				);
+				currentAgentInstance = await agentService.create(state.selectedAgent.id);
 			}
 		} finally {
 			commit(() => {

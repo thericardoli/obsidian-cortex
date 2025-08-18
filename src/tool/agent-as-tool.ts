@@ -2,15 +2,17 @@ import type { Tool } from '@openai/agents';
 import type { Agent } from '@openai/agents';
 import type { AgentAsToolConfig } from '../types/tool';
 import type { AgentManager } from '../agent/agent-manager';
+import type { AgentService } from '../agent/agent-service';
 import { createLogger } from '../utils/logger';
 
 const logger = createLogger('agent');
 
 export async function buildAgentAsTool(
 	manager: AgentManager,
+	runtime: AgentService,
 	cfg: AgentAsToolConfig
 ): Promise<Tool | null> {
-	const targetAgent: Agent | null = await manager.createAgentInstance(cfg.targetAgentId);
+	const targetAgent: Agent | null = await runtime.create(cfg.targetAgentId);
 	if (!targetAgent) {
 		logger.warn(`Target agent ${cfg.targetAgentId} not found`);
 		return null;

@@ -1,17 +1,6 @@
 import type { AgentConfig } from '../../types/agent';
 import type { AgentInputItem } from '../../types/session';
 
-/** 通用持久化错误类型（可扩展 transient / fatal 标志） */
-export class PersistenceError extends Error {
-	constructor(
-		message: string,
-		public cause?: unknown
-	) {
-		super(message);
-		this.name = 'PersistenceError';
-	}
-}
-
 export interface IAgentRepository {
 	upsert(agent: AgentConfig): Promise<void>;
 	get(id: string): Promise<AgentConfig | null>;

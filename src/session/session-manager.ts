@@ -1,6 +1,6 @@
 import type { ISession, SessionOptions } from '../types/session';
 import { EventEmitter } from 'events';
-import type { PersistenceManager } from '../persistence/persistence-manager';
+import type { ISessionRepository } from '../persistence/repositories/contracts';
 import { createLogger } from '../utils/logger';
 
 /**
@@ -11,22 +11,22 @@ import { createLogger } from '../utils/logger';
 export class SessionManager extends EventEmitter {
 	private sessions: Map<string, ISession> = new Map();
 	private defaultOptions: Partial<SessionOptions> = {};
-	private persistenceManager?: PersistenceManager; // TODO: 后续可改为必需依赖
+	private repository?: ISessionRepository; // 延迟注入以兼容初始化顺序
 	private logger = createLogger('session');
 
-	constructor(defaultOptions?: Partial<SessionOptions>, persistenceManager?: PersistenceManager) {
+	constructor(defaultOptions?: Partial<SessionOptions>, repository?: ISessionRepository) {
 		super();
 		if (defaultOptions) {
 			this.defaultOptions = { ...this.defaultOptions, ...defaultOptions };
 		}
-		this.persistenceManager = persistenceManager;
+		this.repository = repository;
 	}
 
 	/**
 	 * 设置 PersistenceManager（用于后续设置）
 	 */
-	public setPersistenceManager(persistenceManager: PersistenceManager): void {
-		this.persistenceManager = persistenceManager;
+	public setRepository(repository: ISessionRepository): void {
+		this.repository = repository;
 	}
 
 	/**
@@ -39,7 +39,7 @@ export class SessionManager extends EventEmitter {
 
 		const { chatSession } = await import('./chat-session');
 
-		const sessionRepo = this.persistenceManager?.getSessionRepository();
+		const sessionRepo = this.repository;
 
 		const session = new chatSession({
 			sessionId,
@@ -71,7 +71,7 @@ export class SessionManager extends EventEmitter {
 
 		// 如果内存中没有，尝试从数据库加载
 		try {
-			const sessionRepo = this.persistenceManager?.getSessionRepository();
+			const sessionRepo = this.repository;
 			if (sessionRepo && (await sessionRepo.exists(sessionId))) {
 				const sessionInfo = await sessionRepo.getSessionInfo(sessionId);
 				if (sessionInfo) {
@@ -99,7 +99,7 @@ export class SessionManager extends EventEmitter {
 	private async loadExistingSession(sessionId: string): Promise<ISession> {
 		const { chatSession } = await import('./chat-session');
 
-		const sessionRepo = this.persistenceManager?.getSessionRepository();
+		const sessionRepo = this.repository;
 
 		const session = new chatSession({
 			sessionId,
@@ -119,7 +119,7 @@ export class SessionManager extends EventEmitter {
 	public async getAllSessions(
 		limit: number
 	): Promise<Array<{ id: string; name?: string; createdAt?: string; updatedAt?: string }>> {
-		const sessionRepo = this.persistenceManager?.getSessionRepository();
+		const sessionRepo = this.repository;
 		if (!sessionRepo) {
 			return Array.from(this.sessions.entries())
 				.map(([id]) => ({ id }))
@@ -152,7 +152,7 @@ export class SessionManager extends EventEmitter {
 		}
 
 		// 检查数据库中是否已存在
-		const sessionRepo = this.persistenceManager?.getSessionRepository();
+		const sessionRepo = this.repository;
 		if (sessionRepo && (await sessionRepo.exists(newSessionId))) {
 			throw new Error(`Session with id ${newSessionId} already exists in repository`);
 		}
@@ -165,7 +165,7 @@ export class SessionManager extends EventEmitter {
 	 */
 	public async deleteSession(sessionId: string): Promise<boolean> {
 		const session = this.sessions.get(sessionId);
-		if (!session && !this.persistenceManager) return false; // 兼容行为保持
+		if (!session && !this.repository) return false; // 兼容行为保持
 
 		try {
 			// Dispose (saves & clears) only if in memory
@@ -175,7 +175,7 @@ export class SessionManager extends EventEmitter {
 			}
 			// Remove persistent record
 			try {
-				await this.persistenceManager?.getSessionRepository().remove(sessionId);
+				await this.repository?.remove(sessionId);
 			} catch (e) {
 				this.emit('sessionError', { sessionId, error: e });
 				throw e;

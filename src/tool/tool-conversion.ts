@@ -5,6 +5,7 @@ import { functionToolRegistry } from './function-registry';
 import { createHostedTool } from './hosted-registry';
 import { buildAgentAsTool } from './agent-as-tool';
 import type { AgentManager } from '../agent/agent-manager';
+import type { AgentService } from '../agent/agent-service';
 import { createLogger } from '../utils/logger';
 
 export interface ToolDiagnostic {
@@ -15,7 +16,7 @@ export interface ToolDiagnostic {
 
 export async function buildTools(
 	agentConfig: AgentConfig,
-	ctx: { agentManager: AgentManager }
+	ctx: { agentManager: AgentManager; agentService: AgentService }
 ): Promise<{ tools: Tool[]; diagnostics: ToolDiagnostic[] }> {
 	const diagnostics: ToolDiagnostic[] = [];
 	const tools: Tool[] = [];
@@ -24,7 +25,7 @@ export async function buildTools(
 	for (const toolConfig of agentConfig.tools) {
 		if (!toolConfig.enabled) continue;
 		try {
-			const built = await buildSingle(toolConfig, ctx.agentManager);
+			const built = await buildSingle(toolConfig, ctx.agentManager, ctx.agentService);
 			if (built) tools.push(built);
 		} catch (e) {
 			diagnostics.push({
@@ -48,7 +49,8 @@ export async function buildTools(
 
 async function buildSingle(
 	toolConfig: ToolConfig,
-	agentManager: AgentManager
+	agentManager: AgentManager,
+	agentService: AgentService
 ): Promise<Tool | null> {
 	switch (toolConfig.type) {
 		case 'function': {
@@ -74,7 +76,11 @@ async function buildSingle(
 			return hosted ?? null;
 		}
 		case 'agent': {
-			const agentTool = await buildAgentAsTool(agentManager, toolConfig as AgentAsToolConfig);
+			const agentTool = await buildAgentAsTool(
+				agentManager,
+				agentService,
+				toolConfig as AgentAsToolConfig
+			);
 			return agentTool ?? null;
 		}
 	}

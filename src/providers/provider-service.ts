@@ -1,5 +1,5 @@
 import type { Model } from '@openai/agents-core';
-import type { ProviderManager } from '../providers/provider-manager';
+import type { ProviderManager } from './provider-manager';
 import type { PluginSettings } from '../types/settings';
 import { isRuntimeEnabled } from '../utils/provider-runtime';
 

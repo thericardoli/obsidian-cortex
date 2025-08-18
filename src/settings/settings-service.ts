@@ -12,31 +12,27 @@ const logger = createLogger('main');
 export interface SettingsServiceApi {
 	load(): Promise<PluginSettings>;
 	save(s: PluginSettings): Promise<void>;
-	migrate(raw: unknown): PluginSettings; // validates + normalizes
-	seedDefaults(s: PluginSettings): PluginSettings; // cloneDefaultProviders when empty
+	migrate(raw: unknown): PluginSettings;
+	seedDefaults(s: PluginSettings): PluginSettings;
 }
 
 export class SettingsService implements SettingsServiceApi {
 	constructor(private plugin: Plugin) {}
-
 	async load(): Promise<PluginSettings> {
 		const data = await this.plugin.loadData();
 		const merged = Object.assign({}, DEFAULT_SETTINGS, data);
 		const migrated = this.migrate(merged as unknown);
 		try {
 			const parsed = PluginSettingsSchema.parse(migrated);
-			// Ensure default seeding for providers and activeProviderId
 			return this.seedDefaults(parsed);
 		} catch (e) {
 			logger.warn('Invalid plugin settings after migration, using defaults', e);
 			return this.seedDefaults(DEFAULT_SETTINGS);
 		}
 	}
-
-	async save(s: PluginSettings): Promise<void> {
+	async save(s: PluginSettings) {
 		await this.plugin.saveData(s);
 	}
-
 	seedDefaults(s: PluginSettings): PluginSettings {
 		const next: PluginSettings = { ...s };
 		if (!next.providers || next.providers.length === 0) {
@@ -47,24 +43,20 @@ export class SettingsService implements SettingsServiceApi {
 		}
 		return next;
 	}
-
 	migrate(raw: unknown): PluginSettings {
 		const isRecord = (v: unknown): v is Record<string, unknown> =>
 			typeof v === 'object' && v !== null;
 		const toStringOr = (v: unknown, fallback: string): string =>
 			typeof v === 'string' ? v : fallback;
-		// Accept true boolean, string 'true', or numeric 1 as truthy; avoid any casts.
 		const toBool = (v: unknown): boolean => v === true || v === 'true' || v === 1;
-		// Normalize user-entered baseUrl: add https:// if missing, ensure valid URL; return undefined if invalid
 		const normalizeBaseUrl = (v: unknown): string | undefined => {
 			if (typeof v !== 'string') return undefined;
 			let url = v.trim();
 			if (!url) return undefined;
 			if (!/^https?:\/\//i.test(url)) {
-				url = 'https://' + url; // assume https if protocol omitted
+				url = 'https://' + url;
 			}
 			try {
-				// Validate
 				new URL(url);
 				return url;
 			} catch {
@@ -87,10 +79,7 @@ export class SettingsService implements SettingsServiceApi {
 								!!m && m.displayName !== '' && m.modelId !== ''
 						)
 				: [];
-
 		const r = isRecord(raw) ? raw : {};
-
-		// If already in new shape, normalize models for each provider
 		const rProviders = Array.isArray(r.providers) ? (r.providers as unknown[]) : undefined;
 		if (rProviders) {
 			const providers: ProviderSettingsEntry[] = rProviders
@@ -108,17 +97,13 @@ export class SettingsService implements SettingsServiceApi {
 					models: toModels(p.models),
 				}))
 				.filter((p) => p.id !== '' && p.name !== '');
-
 			return {
 				providers,
 				activeProviderId:
 					typeof r.activeProviderId === 'string' ? r.activeProviderId : undefined,
 			} as PluginSettings;
 		}
-
-		// Old shape migration
 		const providers: ProviderSettingsEntry[] = [];
-
 		if (isRecord(r.openai)) {
 			const openai = r.openai as Record<string, unknown>;
 			providers.push({
@@ -131,7 +116,6 @@ export class SettingsService implements SettingsServiceApi {
 				models: toModels(openai.models),
 			});
 		}
-
 		if (isRecord(r.ollama)) {
 			const ollama = r.ollama as Record<string, unknown>;
 			providers.push({
@@ -147,8 +131,6 @@ export class SettingsService implements SettingsServiceApi {
 				models: toModels(ollama.models),
 			});
 		}
-
-		// Old custom providers (without models)
 		const legacyProviders = Array.isArray(r.providers) ? (r.providers as unknown[]) : [];
 		for (const p of legacyProviders) {
 			if (!isRecord(p)) continue;
@@ -164,7 +146,6 @@ export class SettingsService implements SettingsServiceApi {
 				models: toModels(p.models),
 			});
 		}
-
 		return {
 			providers,
 			activeProviderId:

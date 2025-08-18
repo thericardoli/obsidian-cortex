@@ -2,14 +2,15 @@
 	import { onMount } from 'svelte';
 	import type { AgentManager } from '../../agent/agent-manager';
 	import type { ProviderManager } from '../../providers/provider-manager';
+	import type { AgentService } from '../../agent/agent-service';
 	import { MarkdownRenderer, Component, setIcon as setObsidianIcon } from 'obsidian';
 	import type { WorkspaceLeaf, App } from 'obsidian';
 	import type { AgentConfig } from '../../types';
 	import ChatPanel from '../component/layout/ChatPanel.svelte';
 	import ChatHeader from '../component/layout/ChatHeader.svelte';
 	import PromptBar from '../component/input/PromptBar.svelte';
-	import type { SessionService } from '../../services/session-service';
-	import type { EventBus } from '../../services/event-bus';
+	import type { SessionService } from '../../session/session-service';
+	import type { EventBus } from '../../utils/event-bus';
 	import { createChatStore, type ChatState } from '../../store/chat-store';
 	import { createLogger } from '../../utils/logger';
 
@@ -18,6 +19,7 @@
 	// Props
 	let {
 		agentManager,
+		agentService,
 		providerManager,
 		getSettings,
 		workspaceLeaf,
@@ -26,10 +28,11 @@
 		eventBus,
 	}: {
 		agentManager: AgentManager;
+		agentService: AgentService;
 		providerManager: ProviderManager;
 		getSettings: () => import('../../types').PluginSettings;
-		workspaceLeaf: WorkspaceLeaf;
-		app: App;
+		workspaceLeaf: WorkspaceLeaf; // retained for potential future UI needs
+		app: App; // retained for markdown rendering
 		sessionService: SessionService;
 		eventBus: EventBus;
 	} = $props();
@@ -62,12 +65,11 @@
 		}
 		chatStore = createChatStore({
 			agentManager,
+			agentService,
 			providerManager,
 			getSettings,
-			app,
 			sessionService,
 			eventBus,
-			workspaceLeaf,
 		});
 		const unsubscribe = chatStore.subscribe((s) => {
 			messages = s.messages;

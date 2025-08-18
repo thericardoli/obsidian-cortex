@@ -8,8 +8,9 @@ import ChatView from './ChatView.svelte';
 import type { AgentManager } from '../../agent/agent-manager';
 import type { ProviderManager } from '../../providers/provider-manager';
 import type { PluginSettings } from '../../types';
-import type { SessionService } from '../../services/session-service';
-import type { EventBus } from '../../services/event-bus';
+import type { SessionService } from '../../session/session-service';
+import type { AgentService } from '../../agent/agent-service';
+import type { EventBus } from '../../utils/event-bus';
 import { createLogger, type Logger } from '../../utils/logger';
 
 export const VIEW_TYPE_CHAT = 'cortex-side-chat-view';
@@ -18,6 +19,7 @@ export class ChatViewLeaf extends ItemView {
 	private chatViewComponent: ReturnType<typeof import('svelte').mount> | null = null;
 	private agentManager: AgentManager;
 	private providerManager: ProviderManager;
+	private agentService: AgentService;
 	private getSettings: () => PluginSettings;
 	private sessionService: SessionService;
 	private eventBus: EventBus;
@@ -27,6 +29,7 @@ export class ChatViewLeaf extends ItemView {
 		leaf: WorkspaceLeaf,
 		agentManager: AgentManager,
 		providerManager: ProviderManager,
+		agentService: AgentService,
 		getSettings: () => PluginSettings,
 		sessionService: SessionService,
 		eventBus: EventBus
@@ -34,6 +37,7 @@ export class ChatViewLeaf extends ItemView {
 		super(leaf);
 		this.agentManager = agentManager;
 		this.providerManager = providerManager;
+		this.agentService = agentService;
 		this.getSettings = getSettings;
 		this.sessionService = sessionService;
 		this.eventBus = eventBus;
@@ -68,6 +72,7 @@ export class ChatViewLeaf extends ItemView {
 			target: this.contentEl,
 			props: {
 				agentManager: this.agentManager,
+				agentService: this.agentService,
 				providerManager: this.providerManager,
 				getSettings: this.getSettings,
 				sessionService: this.sessionService,

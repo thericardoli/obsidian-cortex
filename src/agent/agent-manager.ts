@@ -1,38 +1,25 @@
-import { Agent } from '@openai/agents';
-
-import type { AgentConfig, AgentConfigInput, UpdateAgentConfigInput } from '../types/agent';
 import { AgentConfigInputSchema, UpdateAgentConfigInputSchema } from '../types/agent';
+import type { AgentConfig, AgentConfigInput, UpdateAgentConfigInput } from '../types/agent';
 import type { ToolConfig } from '../types/tool';
-import { ProviderManager } from '../providers';
-import type { PersistenceManager } from '../persistence/persistence-manager';
 import { functionToolRegistry, type ToolExecutor } from '../tool/function-registry';
-import { buildTools } from '../tool/tool-conversion';
 import { createLogger, type Logger } from '../utils/logger';
-import type { EventBus } from '../services/event-bus';
+import type { EventBus } from '../utils/event-bus';
+import type { IAgentRepository } from '../persistence/repositories/contracts';
 
 export class AgentManager {
-	private _providerManager: ProviderManager;
-	private _persistenceManager: PersistenceManager; // 必需依赖（内存或持久化模式）
+	private _repository: IAgentRepository; // 通过端口注入的仓库
 	private _agentCache: Map<string, AgentConfig> = new Map();
 	private logger: Logger;
 	private eventBus?: EventBus;
 
-	constructor(
-		providerManager: ProviderManager,
-		persistenceManager: PersistenceManager,
-		eventBus?: EventBus
-	) {
-		this._providerManager = providerManager;
-		this._persistenceManager = persistenceManager;
+	constructor(repository: IAgentRepository, eventBus?: EventBus) {
+		this._repository = repository;
 		this.logger = createLogger('agent');
 		this.eventBus = eventBus;
 	}
 
-	/**
-	 * 设置持久化管理器
-	 */
-	setPersistenceManager(persistenceManager: PersistenceManager): void {
-		this._persistenceManager = persistenceManager;
+	setRepository(repository: IAgentRepository): void {
+		this._repository = repository;
 	}
 
 	// Emit via EventBus (unified event system)
@@ -45,8 +32,7 @@ export class AgentManager {
 	 */
 	async loadAgentsFromDatabase(): Promise<void> {
 		try {
-			const agentRepository = this._persistenceManager.getAgentRepository();
-			const agents = await agentRepository.list();
+			const agents = await this._repository.list();
 
 			// 清空缓存并重新加载
 			this._agentCache.clear();
@@ -76,8 +62,7 @@ export class AgentManager {
 
 		// 保存到数据库
 		try {
-			const agentRepository = this._persistenceManager.getAgentRepository();
-			await agentRepository.upsert(agent);
+			await this._repository.upsert(agent);
 		} catch (error) {
 			this._agentCache.delete(agent.id);
 			this.logger.error('Failed to save agent to repository', error);
@@ -130,7 +115,7 @@ export class AgentManager {
 
 		// 保存到数据库
 		try {
-			await this._persistenceManager.getAgentRepository().upsert(agentConfig);
+			await this._repository.upsert(agentConfig);
 		} catch (error) {
 			agentConfig.tools.pop();
 			this.logger.error('Failed to save agent to repository', error);
@@ -156,7 +141,7 @@ export class AgentManager {
 
 		// 保存到数据库
 		try {
-			await this._persistenceManager.getAgentRepository().upsert(agentConfig);
+			await this._repository.upsert(agentConfig);
 		} catch (error) {
 			agentConfig.tools.splice(toolIndex, 0, removedTool);
 			this.logger.error('Failed to save agent to repository', error);
@@ -207,7 +192,7 @@ export class AgentManager {
 
 		// 保存到数据库
 		try {
-			await this._persistenceManager.getAgentRepository().upsert(agentConfig);
+			await this._repository.upsert(agentConfig);
 		} catch (error) {
 			this._agentCache.set(id, originalConfig);
 			this.logger.error('Failed to update agent in repository', error);
@@ -227,7 +212,7 @@ export class AgentManager {
 
 		// 从数据库删除
 		try {
-			await this._persistenceManager.getAgentRepository().remove(id);
+			await this._repository.remove(id);
 		} catch (error) {
 			this._agentCache.set(id, agentToDelete);
 			this.logger.error('Failed to delete agent from repository', error);
@@ -235,70 +220,4 @@ export class AgentManager {
 		}
 		this._notifyAgentsChanged();
 	}
-
-	async createAgentInstance(id: string): Promise<Agent | null> {
-		const agentConfig = this._agentCache.get(id);
-		if (!agentConfig) {
-			return null;
-		}
-
-		// 通过 ProviderManager 获取 Model 实例
-		const model = await this._providerManager.getModel(
-			agentConfig.modelConfig.provider,
-			agentConfig.modelConfig.model
-		);
-
-		// 将 ToolConfig[] 转换为 SDK Tool[]
-		const { tools } = await buildTools(agentConfig, { agentManager: this });
-
-		const agentConfiguration = {
-			name: agentConfig.name,
-			instructions: agentConfig.instructions,
-			model: model, // 现在是 Model 实例而不是字符串
-			modelSettings: {
-				...agentConfig.modelConfig.settings,
-				// 透传工具相关设置
-				toolChoice: agentConfig.modelConfig.settings?.toolChoice ?? 'auto',
-				parallelToolUse: agentConfig.modelConfig.settings?.parallelToolCalls ?? false,
-			},
-			tools: tools, // 移除 as never[] 类型断言
-		};
-
-		const agent = new Agent(agentConfiguration);
-		return agent;
-	}
-
-	/**
-	 * Create an Agent instance but override the model by providerId + modelId
-	 */
-	async createAgentInstanceWithModel(
-		id: string,
-		providerId: string,
-		modelId: string
-	): Promise<Agent | null> {
-		const agentConfig = this._agentCache.get(id);
-		if (!agentConfig) return null;
-
-		const model = await this._providerManager.getModel(providerId, modelId);
-		const { tools } = await buildTools(agentConfig, { agentManager: this });
-
-		const agentConfiguration = {
-			name: agentConfig.name,
-			instructions: agentConfig.instructions,
-			model: model,
-			modelSettings: {
-				...agentConfig.modelConfig.settings,
-				toolChoice: agentConfig.modelConfig.settings?.toolChoice ?? 'auto',
-				parallelToolUse: agentConfig.modelConfig.settings?.parallelToolCalls ?? false,
-			},
-			tools: tools,
-		};
-
-		return new Agent(agentConfiguration);
-	}
-
-	/**
-	 * 将 ToolConfig[] 转换为 SDK 可用的 Tool[]
-	 */
-	// convertToolsToSDKTools 已迁移到 buildTools (tool/tool-conversion.ts)
 }
