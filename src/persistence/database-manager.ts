@@ -12,8 +12,6 @@ export interface DatabaseOptions {
 	fsBundle?: Blob | File;
 }
 
-const CURRENT_SCHEMA_VERSION = 1;
-
 export class DatabaseManager {
 	private db: PGlite | null = null;
 	private initialized = false;
@@ -63,27 +61,8 @@ export class DatabaseManager {
 
 	private async runMigrations(): Promise<void> {
 		if (!this.db) throw new Error('Database not initialized');
-
-		// 迁移表
-		await this.db.exec(`
-			CREATE TABLE IF NOT EXISTS migrations (
-				version INTEGER PRIMARY KEY,
-				name TEXT NOT NULL,
-				executed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-			);
-		`);
-
-		const { rows } = await this.db.sql`SELECT MAX(version) as v FROM migrations`;
-		const current = ((rows?.[0] as Record<string, unknown>)?.v ?? 0) as number;
-
-		if (current < 1) {
-			// 执行 V0 schema
-			await this.db.exec(SCHEMA_SQL);
-			await this.db.sql`
-				INSERT INTO migrations (version, name)
-				VALUES (${CURRENT_SCHEMA_VERSION}, ${'V0 schema (agents, sessions)'})
-			`;
-		}
+		// 直接创建当前所需表结构（无迁移与历史列）
+		await this.db.exec(SCHEMA_SQL);
 	}
 
 	getDatabase(): PGlite {
@@ -104,7 +83,6 @@ export class DatabaseManager {
 	}
 }
 
-// 两表 Schema（无参数，适合 exec）
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS agents (
 	id                UUID PRIMARY KEY,
@@ -131,7 +109,6 @@ CREATE INDEX IF NOT EXISTS idx_agents_updated
 CREATE TABLE IF NOT EXISTS sessions (
 	id            UUID PRIMARY KEY,
 	name          TEXT,
-	items         JSONB NOT NULL DEFAULT '[]',  -- AgentItem[]
 	metadata      JSONB NOT NULL DEFAULT '{}',
 	created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -139,4 +116,15 @@ CREATE TABLE IF NOT EXISTS sessions (
 
 CREATE INDEX IF NOT EXISTS idx_sessions_updated
 	ON sessions(updated_at DESC);
+ 
+CREATE TABLE IF NOT EXISTS session_items (
+	session_id   UUID NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+	idx          BIGINT NOT NULL,
+	item         JSONB NOT NULL,
+	created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	PRIMARY KEY (session_id, idx)
+);
+
+CREATE INDEX IF NOT EXISTS idx_session_items_session_idx
+	ON session_items(session_id, idx);
 `;

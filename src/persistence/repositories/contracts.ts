@@ -13,6 +13,7 @@ export interface ISessionRepository {
 	create(sessionId: string, name?: string): Promise<void>;
 	getItems(sessionId: string, limit?: number): Promise<AgentInputItem[]>;
 	addItems(sessionId: string, items: AgentInputItem[]): Promise<void>;
+	appendItems(sessionId: string, items: AgentInputItem[]): Promise<void>;
 	popItem(sessionId: string): Promise<AgentInputItem | null>;
 	clear(sessionId: string): Promise<void>;
 	remove(sessionId: string): Promise<void>;
@@ -78,6 +79,9 @@ export class InMemorySessionRepository implements ISessionRepository {
 		rec.items.push(...items);
 		rec.updated_at = Date.now();
 		return Promise.resolve();
+	}
+	appendItems(sessionId: string, items: AgentInputItem[]): Promise<void> {
+		return this.addItems(sessionId, items);
 	}
 	popItem(sessionId: string): Promise<AgentInputItem | null> {
 		const rec = this.sessions.get(sessionId);

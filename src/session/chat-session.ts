@@ -1,6 +1,6 @@
-import type { ISession, AgentInputItem } from '../types/session';
 import { EventEmitter } from 'events';
 import type { ISessionRepository } from '../persistence/repositories/contracts';
+import type { AgentInputItem, ISession } from '../types/session';
 import { createLogger, type Logger } from '../utils/logger';
 
 /**
@@ -13,6 +13,12 @@ export class chatSession extends EventEmitter implements ISession {
 	private repo?: ISessionRepository;
 	private isLoaded = false;
 	private logger: Logger;
+	// autosave
+	private buffer: AgentInputItem[] = [];
+	private autoSaveIntervalMs = 3000;
+	private autoSaveMaxBuffer = 20;
+	private autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+	private flushing = false;
 
 	constructor(options: { sessionId: string; repo?: ISessionRepository }) {
 		super();
@@ -68,11 +74,10 @@ export class chatSession extends EventEmitter implements ISession {
 		await this.ensureLoaded();
 
 		try {
-			// 简单策略：直接添加到内存，不做复杂的限制和异步保存
 			this.memoryCache.push(...items);
-
-			// 立即触发事件
+			this.buffer.push(...items);
 			this.emit('itemAdded', items);
+			this.scheduleAutoSave();
 		} catch (error) {
 			this.emit('error', new Error(`Failed to add items: ${error}`));
 			throw error;
@@ -93,6 +98,7 @@ export class chatSession extends EventEmitter implements ISession {
 		await this.ensureLoaded();
 
 		this.memoryCache = [];
+		this.buffer = [];
 		this.emit('sessionCleared');
 	}
 
@@ -110,12 +116,8 @@ export class chatSession extends EventEmitter implements ISession {
 		await this.ensureLoaded();
 
 		try {
-			// 清空数据库中的数据并保存当前完整会话
-			await this.repo.clear(this.sessionId);
-			if (this.memoryCache.length > 0) {
-				await this.repo.addItems(this.sessionId, this.memoryCache);
-			}
-			this.logger.info(`已保存 ${this.memoryCache.length} 条聊天记录到数据库`);
+			await this.flush();
+			this.logger.info(`会话 ${this.sessionId} 已保存（flush 缓存）`);
 		} catch (error) {
 			this.emit('error', new Error(`Failed to save session to database: ${error}`));
 			this.logger.error(`Failed to save session to database: ${error}`);
@@ -133,5 +135,37 @@ export class chatSession extends EventEmitter implements ISession {
 	 */
 	async forceFullSave(): Promise<void> {
 		await this.saveSessionToDatabase();
+	}
+
+	// 计划自动保存
+	private scheduleAutoSave() {
+		if (this.buffer.length >= this.autoSaveMaxBuffer) {
+			void this.flush();
+			return;
+		}
+		if (this.autoSaveTimer) return;
+		this.autoSaveTimer = setTimeout(() => {
+			this.autoSaveTimer = null;
+			void this.flush();
+		}, this.autoSaveIntervalMs);
+	}
+
+	// 将缓冲附加到仓储
+	public async flush(): Promise<void> {
+		if (!this.repo) return;
+		if (this.flushing) return;
+		if (this.buffer.length === 0) return;
+		this.flushing = true;
+		const toWrite = this.buffer.splice(0, this.buffer.length);
+		try {
+			await this.repo.appendItems(this.sessionId, toWrite);
+			this.emit('autosaveFlushed', { count: toWrite.length });
+		} catch (err) {
+			this.buffer.unshift(...toWrite);
+			this.emit('autosaveError', err instanceof Error ? err : new Error(String(err)));
+			setTimeout(() => this.scheduleAutoSave(), Math.min(this.autoSaveIntervalMs * 2, 15000));
+		} finally {
+			this.flushing = false;
+		}
 	}
 }

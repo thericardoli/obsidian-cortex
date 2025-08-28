@@ -36,3 +36,5 @@ examples/
 # Crush
 .crush
 CRUSH.md
+
+docs/
