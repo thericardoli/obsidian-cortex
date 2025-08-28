@@ -1,10 +1,10 @@
 import type { App } from 'obsidian';
+import type { FunctionToolConfig, ToolParameters } from '../../types/tool';
 import {
-	registerCreateMarkdownFileExecutor,
 	createMarkdownFileToolMeta,
+	registerCreateMarkdownFileExecutor,
 } from './create-markdown-file';
-import { registerReadMarkdownFileExecutor, readMarkdownFileToolMeta } from './read-markdown-file';
-import type { FunctionToolConfig } from '../../types/tool';
+import { readMarkdownFileToolMeta, registerReadMarkdownFileExecutor } from './read-markdown-file';
 import { registerRequestUrlToolExecutor, requestUrlToolMeta } from './request-url';
 
 export interface BuiltinFunctionToolMeta {
@@ -33,10 +33,7 @@ export const builtinFunctionTools: BuiltinFunctionToolMeta[] = [
 
 // Registration helper
 export function registerAllBuiltinFunctionExecutors(
-	register: (
-		name: string,
-		exec: (args: unknown, ctx?: unknown) => Promise<unknown> | unknown
-	) => void,
+	register: (name: string, exec: (args: unknown, ctx?: unknown) => unknown) => void,
 	app: App
 ): void {
 	registerCreateMarkdownFileExecutor(register, app);
@@ -51,7 +48,7 @@ export function toFunctionToolConfig(meta: BuiltinFunctionToolMeta): FunctionToo
 		name: meta.name,
 		enabled: true,
 		description: meta.description,
-		parameters: meta.parameters as Record<string, unknown>,
+		parameters: meta.parameters as ToolParameters,
 		strict: true,
 		needsApproval: false,
 		executor: meta.name,

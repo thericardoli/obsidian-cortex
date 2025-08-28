@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { TFile, type App, type TAbstractFile } from 'obsidian';
+import { TFile, type App } from 'obsidian';
 import { createLogger } from '../../utils/logger';
 import { buildJsonParametersFromZod } from '../utils/zod-to-json';
 
@@ -24,17 +24,14 @@ export const createMarkdownFileToolMeta = {
 };
 
 export function registerCreateMarkdownFileExecutor(
-	register: (
-		name: string,
-		exec: (args: unknown, ctx?: unknown) => Promise<unknown> | unknown
-	) => void,
+	register: (name: string, exec: (args: unknown, ctx?: unknown) => unknown) => void,
 	app: App
 ): void {
 	register(createMarkdownFileToolMeta.name, async (raw: unknown) => {
 		const parsed = CreateMarkdownFileArgsSchema.parse(raw);
 		const normalized = parsed.path.endsWith('.md') ? parsed.path : parsed.path + '.md';
 		try {
-			const existing = app.vault.getAbstractFileByPath(normalized) as TAbstractFile | null;
+			const existing = app.vault.getAbstractFileByPath(normalized);
 			if (existing && !parsed.overwrite) {
 				return { ok: false, error: 'File already exists' };
 			}

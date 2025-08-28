@@ -1,18 +1,18 @@
 <script lang="ts">
+	import type { App } from 'obsidian';
+	import { Component, MarkdownRenderer, setIcon as setObsidianIcon } from 'obsidian';
 	import { onMount } from 'svelte';
 	import type { AgentManager } from '../../agent/agent-manager';
-	import type { ProviderManager } from '../../providers/provider-manager';
 	import type { AgentService } from '../../agent/agent-service';
-	import { MarkdownRenderer, Component, setIcon as setObsidianIcon } from 'obsidian';
-	import type { WorkspaceLeaf, App } from 'obsidian';
-	import type { AgentConfig } from '../../types';
-	import ChatPanel from '../component/layout/ChatPanel.svelte';
-	import ChatHeader from '../component/layout/ChatHeader.svelte';
-	import PromptBar from '../component/input/PromptBar.svelte';
+	import type { ProviderManager } from '../../providers/provider-manager';
 	import type { SessionService } from '../../session/session-service';
-	import type { EventBus } from '../../utils/event-bus';
 	import { createChatStore, type ChatState } from '../../store/chat-store';
+	import type { AgentConfig } from '../../types';
+	import type { EventBus } from '../../utils/event-bus';
 	import { createLogger } from '../../utils/logger';
+	import PromptBar from '../component/input/PromptBar.svelte';
+	import ChatHeader from '../component/layout/ChatHeader.svelte';
+	import ChatPanel from '../component/layout/ChatPanel.svelte';
 
 	const logger = createLogger('ui');
 
@@ -22,7 +22,6 @@
 		agentService,
 		providerManager,
 		getSettings,
-		workspaceLeaf,
 		app,
 		sessionService,
 		eventBus,
@@ -31,7 +30,6 @@
 		agentService: AgentService;
 		providerManager: ProviderManager;
 		getSettings: () => import('../../types').PluginSettings;
-		workspaceLeaf: WorkspaceLeaf; // retained for potential future UI needs
 		app: App; // retained for markdown rendering
 		sessionService: SessionService;
 		eventBus: EventBus;
@@ -85,9 +83,7 @@
 		return () => {
 			void chatStore?.actions.dispose();
 			unsubscribe();
-			try {
-				mdComponent?.unload?.();
-			} catch {}
+			mdComponent?.unload?.();
 		};
 	});
 
@@ -112,6 +108,7 @@
 	$effect(() => {
 		if (!chatContainer) return;
 		const _len = messages.length; // dependency trigger
+		void _len;
 		requestAnimationFrame(() => {
 			if (
 				chatContainer &&
@@ -125,9 +122,7 @@
 
 	async function handleSendMessage(text: string) {
 		await chatStore?.actions.sendMessage(text);
-		try {
-			focusInput?.();
-		} catch {}
+		focusInput?.();
 	}
 
 	function handleModelChange(key: string) {
@@ -139,7 +134,7 @@
 
 	function handleOpenAgentView() {
 		const workspace = app.workspace;
-		workspace.getLeaf(true).setViewState({ type: 'cortex-agent-view', active: true });
+		void workspace.getLeaf(true).setViewState({ type: 'cortex-agent-view', active: true });
 	}
 </script>
 

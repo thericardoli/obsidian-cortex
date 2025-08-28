@@ -47,7 +47,7 @@ export function createHostedTool(
 		}
 		default: {
 			// Exhaustiveness check (should be unreachable if all HostedToolName variants are handled above)
-			const _never: never = name as never;
+			const _never: never = name;
 			logger.warn('Unknown hosted tool', _never);
 			return null;
 		}

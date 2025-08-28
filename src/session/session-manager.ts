@@ -79,8 +79,9 @@ export class SessionManager extends EventEmitter {
 				}
 			}
 		} catch (error) {
-			this.emit('sessionError', { sessionId, error });
-			this.logger.error(`Failed to load session ${sessionId} from repository`, error);
+			const err = error instanceof Error ? error : new Error(String(error));
+			this.emit('sessionError', { sessionId, error: err });
+			this.logger.error(`Failed to load session ${sessionId} from repository`, err);
 		}
 
 		return null;
@@ -134,8 +135,9 @@ export class SessionManager extends EventEmitter {
 				updatedAt: row.updated_at as string | undefined,
 			}));
 		} catch (error) {
-			this.emit('sessionError', { error });
-			this.logger.error('Failed to list sessions', error);
+			const err = error instanceof Error ? error : new Error(String(error));
+			this.emit('sessionError', { error: err });
+			this.logger.error('Failed to list sessions', err);
 			return [];
 		}
 	}
@@ -177,14 +179,16 @@ export class SessionManager extends EventEmitter {
 			try {
 				await this.repository?.remove(sessionId);
 			} catch (e) {
-				this.emit('sessionError', { sessionId, error: e });
-				throw e;
+				const err = e instanceof Error ? e : new Error(String(e));
+				this.emit('sessionError', { sessionId, error: err });
+				throw err;
 			}
 			this.emit('sessionDeleted', { sessionId });
 			return true;
 		} catch (error) {
-			this.emit('sessionError', { sessionId, error });
-			throw error;
+			const err = error instanceof Error ? error : new Error(String(error));
+			this.emit('sessionError', { sessionId, error: err });
+			throw err;
 		}
 	}
 

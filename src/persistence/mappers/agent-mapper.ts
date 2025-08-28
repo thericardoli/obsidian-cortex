@@ -29,17 +29,19 @@ export function deserializeModelSettings(
 	serialized: string | Record<string, unknown>
 ): Record<string, unknown> {
 	if (typeof serialized === 'object' && serialized !== null) {
-		return serialized as Record<string, unknown>;
+		return serialized;
 	}
 	if (typeof serialized === 'string') {
 		try {
-			const parsed = JSON.parse(serialized);
-			return typeof parsed === 'object' && parsed !== null ? parsed : {};
+			const parsed: unknown = JSON.parse(serialized);
+			return typeof parsed === 'object' && parsed !== null
+				? (parsed as Record<string, unknown>)
+				: ({} as Record<string, unknown>);
 		} catch {
-			return {};
+			return {} as Record<string, unknown>;
 		}
 	}
-	return {};
+	return {} as Record<string, unknown>;
 }
 
 export function serializeTools(tools: unknown[]): string {
@@ -52,7 +54,7 @@ export function deserializeTools(serialized: string | unknown[]): unknown[] {
 	}
 	if (typeof serialized === 'string') {
 		try {
-			const parsed = JSON.parse(serialized);
+			const parsed: unknown = JSON.parse(serialized);
 			return Array.isArray(parsed) ? parsed : [];
 		} catch {
 			return [];

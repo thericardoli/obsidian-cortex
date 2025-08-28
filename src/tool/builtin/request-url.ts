@@ -44,10 +44,7 @@ export const requestUrlToolMeta = {
 };
 
 export function registerRequestUrlToolExecutor(
-	register: (
-		name: string,
-		exec: (args: unknown, ctx?: unknown) => Promise<unknown> | unknown
-	) => void
+	register: (name: string, exec: (args: unknown, ctx?: unknown) => unknown) => void
 ): void {
 	register(requestUrlToolMeta.name, async (raw: unknown) => {
 		const args = RequestUrlToolArgsSchema.parse(raw);

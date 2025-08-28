@@ -22,10 +22,7 @@ export const readMarkdownFileToolMeta = {
 };
 
 export function registerReadMarkdownFileExecutor(
-	register: (
-		name: string,
-		exec: (args: unknown, ctx?: unknown) => Promise<unknown> | unknown
-	) => void,
+	register: (name: string, exec: (args: unknown, ctx?: unknown) => unknown) => void,
 	app: App
 ): void {
 	register(readMarkdownFileToolMeta.name, async (raw: unknown) => {

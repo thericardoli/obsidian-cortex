@@ -22,7 +22,7 @@ export function extractDelta(ev: RunStreamEvent): string | null {
 				t === 'output_text.delta' ||
 				t === 'output_text_delta'
 			)
-				return d.event.delta as string;
+				return d.event.delta;
 		}
 	}
 	return null;

@@ -24,20 +24,22 @@ export interface ISessionRepository {
 // 内存实现 - Agent
 export class InMemoryAgentRepository implements IAgentRepository {
 	private store = new Map<string, AgentConfig>();
-	async upsert(agent: AgentConfig): Promise<void> {
+	upsert(agent: AgentConfig): Promise<void> {
 		this.store.set(agent.id, { ...agent });
+		return Promise.resolve();
 	}
-	async get(id: string): Promise<AgentConfig | null> {
-		return this.store.get(id) ?? null;
+	get(id: string): Promise<AgentConfig | null> {
+		return Promise.resolve(this.store.get(id) ?? null);
 	}
-	async list(): Promise<AgentConfig[]> {
-		return Array.from(this.store.values()).map((a) => ({ ...a }));
+	list(): Promise<AgentConfig[]> {
+		return Promise.resolve(Array.from(this.store.values()).map((a) => ({ ...a })));
 	}
-	async remove(id: string): Promise<void> {
+	remove(id: string): Promise<void> {
 		this.store.delete(id);
+		return Promise.resolve();
 	}
-	async exists(id: string): Promise<boolean> {
-		return this.store.has(id);
+	exists(id: string): Promise<boolean> {
+		return Promise.resolve(this.store.has(id));
 	}
 }
 
@@ -51,7 +53,7 @@ interface MemorySessionRecord {
 }
 export class InMemorySessionRepository implements ISessionRepository {
 	private sessions = new Map<string, MemorySessionRecord>();
-	async create(sessionId: string, name?: string): Promise<void> {
+	create(sessionId: string, name?: string): Promise<void> {
 		if (!this.sessions.has(sessionId)) {
 			const now = Date.now();
 			this.sessions.set(sessionId, {
@@ -62,38 +64,42 @@ export class InMemorySessionRepository implements ISessionRepository {
 				updated_at: now,
 			});
 		}
+		return Promise.resolve();
 	}
-	async getItems(sessionId: string, limit?: number) {
+	getItems(sessionId: string, limit?: number): Promise<AgentInputItem[]> {
 		const rec = this.sessions.get(sessionId);
-		if (!rec) return [];
+		if (!rec) return Promise.resolve([]);
 		const all = rec.items;
-		return typeof limit === 'number' ? all.slice(-limit) : [...all];
+		return Promise.resolve(typeof limit === 'number' ? all.slice(-limit) : [...all]);
 	}
-	async addItems(sessionId: string, items: AgentInputItem[]) {
+	addItems(sessionId: string, items: AgentInputItem[]): Promise<void> {
 		const rec = this.sessions.get(sessionId);
-		if (!rec) return;
+		if (!rec) return Promise.resolve();
 		rec.items.push(...items);
 		rec.updated_at = Date.now();
+		return Promise.resolve();
 	}
-	async popItem(sessionId: string) {
+	popItem(sessionId: string): Promise<AgentInputItem | null> {
 		const rec = this.sessions.get(sessionId);
-		if (!rec || rec.items.length === 0) return null;
+		if (!rec || rec.items.length === 0) return Promise.resolve(null);
 		const it = rec.items.pop() as AgentInputItem;
 		rec.updated_at = Date.now();
-		return it;
+		return Promise.resolve(it);
 	}
-	async clear(sessionId: string) {
+	clear(sessionId: string): Promise<void> {
 		const rec = this.sessions.get(sessionId);
 		if (rec) {
 			rec.items = [];
 			rec.updated_at = Date.now();
 		}
+		return Promise.resolve();
 	}
-	async remove(sessionId: string) {
+	remove(sessionId: string): Promise<void> {
 		this.sessions.delete(sessionId);
+		return Promise.resolve();
 	}
-	async list(limit = 20) {
-		return Array.from(this.sessions.values())
+	list(limit = 20): Promise<Record<string, unknown>[]> {
+		const rows = Array.from(this.sessions.values())
 			.sort((a, b) => b.updated_at - a.updated_at)
 			.slice(0, limit)
 			.map((r) => ({
@@ -101,13 +107,14 @@ export class InMemorySessionRepository implements ISessionRepository {
 				name: r.name,
 				created_at: new Date(r.created_at).toISOString(),
 				updated_at: new Date(r.updated_at).toISOString(),
-			}));
+			})) as Record<string, unknown>[];
+		return Promise.resolve(rows);
 	}
-	async exists(sessionId: string) {
-		return this.sessions.has(sessionId);
+	exists(sessionId: string): Promise<boolean> {
+		return Promise.resolve(this.sessions.has(sessionId));
 	}
-	async getSessionInfo(sessionId: string) {
+	getSessionInfo(sessionId: string): Promise<{ id: string; name?: string } | null> {
 		const r = this.sessions.get(sessionId);
-		return r ? { id: r.id, name: r.name } : null;
+		return Promise.resolve(r ? { id: r.id, name: r.name } : null);
 	}
 }

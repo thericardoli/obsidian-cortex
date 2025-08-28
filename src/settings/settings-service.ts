@@ -1,11 +1,11 @@
 import type { Plugin } from 'obsidian';
+import { cloneDefaultProviders } from '../config/provider-defaults';
 import {
-	PluginSettingsSchema,
 	DEFAULT_SETTINGS,
+	PluginSettingsSchema,
 	type PluginSettings,
 	type ProviderSettingsEntry,
 } from '../types/settings';
-import { cloneDefaultProviders } from '../config/provider-defaults';
 import { createLogger } from '../utils/logger';
 const logger = createLogger('main');
 
@@ -19,9 +19,12 @@ export interface SettingsServiceApi {
 export class SettingsService implements SettingsServiceApi {
 	constructor(private plugin: Plugin) {}
 	async load(): Promise<PluginSettings> {
-		const data = await this.plugin.loadData();
-		const merged = Object.assign({}, DEFAULT_SETTINGS, data);
-		const migrated = this.migrate(merged as unknown);
+		const raw: unknown = await this.plugin.loadData();
+		const mergedUnknown: unknown = {
+			...DEFAULT_SETTINGS,
+			...(typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}),
+		};
+		const migrated = this.migrate(mergedUnknown);
 		try {
 			const parsed = PluginSettingsSchema.parse(migrated);
 			return this.seedDefaults(parsed);
@@ -85,17 +88,17 @@ export class SettingsService implements SettingsServiceApi {
 			const providers: ProviderSettingsEntry[] = rProviders
 				.map((p) => (isRecord(p) ? p : null))
 				.filter((p): p is Record<string, unknown> => !!p)
-				.map((p) => ({
-					id: toStringOr(p.id, ''),
-					name: toStringOr(p.name, 'Provider'),
-					providerType: (p.providerType === 'OpenAI' ? 'OpenAI' : 'OpenAICompatible') as
-						| 'OpenAI'
-						| 'OpenAICompatible',
-					apiKey: typeof p.apiKey === 'string' ? p.apiKey : undefined,
-					baseUrl: normalizeBaseUrl(p.baseUrl),
-					enabled: toBool(p.enabled),
-					models: toModels(p.models),
-				}))
+				.map(
+					(p): ProviderSettingsEntry => ({
+						id: toStringOr(p.id, ''),
+						name: toStringOr(p.name, 'Provider'),
+						providerType: p.providerType === 'OpenAI' ? 'OpenAI' : 'OpenAICompatible',
+						apiKey: typeof p.apiKey === 'string' ? p.apiKey : undefined,
+						baseUrl: normalizeBaseUrl(p.baseUrl),
+						enabled: toBool(p.enabled),
+						models: toModels(p.models),
+					})
+				)
 				.filter((p) => p.id !== '' && p.name !== '');
 			return {
 				providers,
@@ -105,7 +108,7 @@ export class SettingsService implements SettingsServiceApi {
 		}
 		const providers: ProviderSettingsEntry[] = [];
 		if (isRecord(r.openai)) {
-			const openai = r.openai as Record<string, unknown>;
+			const openai = r.openai;
 			providers.push({
 				id: 'openai-default',
 				name: 'OpenAI',
@@ -117,7 +120,7 @@ export class SettingsService implements SettingsServiceApi {
 			});
 		}
 		if (isRecord(r.ollama)) {
-			const ollama = r.ollama as Record<string, unknown>;
+			const ollama = r.ollama;
 			providers.push({
 				id: 'ollama-default',
 				name: 'Ollama',
@@ -137,9 +140,7 @@ export class SettingsService implements SettingsServiceApi {
 			providers.push({
 				id: toStringOr(p.id, ''),
 				name: toStringOr(p.name, 'Provider'),
-				providerType: (p.providerType === 'OpenAI' ? 'OpenAI' : 'OpenAICompatible') as
-					| 'OpenAI'
-					| 'OpenAICompatible',
+				providerType: p.providerType === 'OpenAI' ? 'OpenAI' : 'OpenAICompatible',
 				apiKey: typeof p.apiKey === 'string' ? p.apiKey : undefined,
 				baseUrl: normalizeBaseUrl(p.baseUrl),
 				enabled: toBool(p.enabled),

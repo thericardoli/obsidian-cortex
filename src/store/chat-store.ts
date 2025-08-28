@@ -283,7 +283,7 @@ export function createChatStore(opts: {
 							status: 'completed',
 							content: [{ type: 'output_text', text: finalText }],
 						};
-						maybeSession.addItems([assistantItem]);
+						await maybeSession.addItems([assistantItem]);
 					}
 
 					commit(() => {
@@ -312,7 +312,8 @@ export function createChatStore(opts: {
 				}
 			};
 
-			executeStreaming();
+			void executeStreaming();
+			await Promise.resolve();
 		},
 		changeAgent(agentId: string) {
 			const next = agentManager.listAgents().find((a) => a.id === agentId) ?? null;
@@ -410,7 +411,7 @@ export function createChatStore(opts: {
 	};
 
 	// 初始化
-	init();
+	void init();
 
 	return {
 		subscribe,

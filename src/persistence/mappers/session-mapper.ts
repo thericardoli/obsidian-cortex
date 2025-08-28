@@ -1,17 +1,22 @@
 import type { AgentInputItem } from '../../types/session';
 
+function isAgentInputItem(v: unknown): v is AgentInputItem {
+	return typeof v === 'object' && v !== null;
+}
+
 export function serializeItems(items: AgentInputItem[]): string {
 	return JSON.stringify(items);
 }
 
 export function deserializeItems(serialized: string | unknown[]): AgentInputItem[] {
 	if (Array.isArray(serialized)) {
-		return serialized as AgentInputItem[];
+		const arr = [...serialized] as unknown[];
+		return arr.filter(isAgentInputItem);
 	}
 	if (typeof serialized === 'string') {
 		try {
-			const parsed = JSON.parse(serialized);
-			return Array.isArray(parsed) ? parsed : [];
+			const parsed: unknown = JSON.parse(serialized);
+			return Array.isArray(parsed) ? (parsed as unknown[]).filter(isAgentInputItem) : [];
 		} catch {
 			return [];
 		}
@@ -27,15 +32,17 @@ export function deserializeMetadata(
 	serialized: string | Record<string, unknown>
 ): Record<string, unknown> {
 	if (typeof serialized === 'object' && serialized !== null) {
-		return serialized as Record<string, unknown>;
+		return serialized;
 	}
 	if (typeof serialized === 'string') {
 		try {
-			const parsed = JSON.parse(serialized);
-			return typeof parsed === 'object' && parsed !== null ? parsed : {};
+			const parsed: unknown = JSON.parse(serialized);
+			return typeof parsed === 'object' && parsed !== null
+				? (parsed as Record<string, unknown>)
+				: ({} as Record<string, unknown>);
 		} catch {
-			return {};
+			return {} as Record<string, unknown>;
 		}
 	}
-	return {};
+	return {} as Record<string, unknown>;
 }

@@ -41,15 +41,11 @@
 
 	// Expose a tiny API for parent to focus the input
 	function focusInput() {
-		try {
-			textareaElement?.focus();
-		} catch {}
+		textareaElement?.focus();
 	}
 	// Notify parent with focus API and focus on first mount
 	onMount(() => {
-		try {
-			onReady?.({ focusInput });
-		} catch {}
+		onReady?.({ focusInput });
 		queueMicrotask(() => focusInput());
 	});
 	let rootEl: HTMLDivElement;

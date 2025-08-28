@@ -1,11 +1,22 @@
 import { z } from 'zod';
+import type { ZodObject, ZodTypeAny } from 'zod';
+import type {
+	JsonObjectSchema,
+	JsonSchemaDefinitionEntry,
+} from '@openai/agents-core/dist/types/helpers';
 
 // Common tool choice type (aligns with SDK)
 export const ToolChoiceSchema = z.union([z.enum(['auto', 'required', 'none']), z.string()]);
 export type ToolChoice = z.infer<typeof ToolChoiceSchema>;
 
 // Parameters can be JSON schema or any Zod schema value placeholder
+// Runtime validation: allow either JSON object schema-like records or any (we'll narrow in TS types)
 export const ToolParametersSchema = z.union([z.record(z.any()), z.any()]);
+
+// TypeScript type (narrowed vs schema) to avoid `any` leaking into consumers
+export type ToolParameters =
+	| ZodObject<Record<string, ZodTypeAny>>
+	| JsonObjectSchema<Record<string, JsonSchemaDefinitionEntry>>;
 
 // Custom function tool config
 export const FunctionToolConfigSchema = z
@@ -23,7 +34,10 @@ export const FunctionToolConfigSchema = z
 		config: z.record(z.any()).optional(),
 	})
 	.strict();
-export type FunctionToolConfig = z.infer<typeof FunctionToolConfigSchema>;
+// Override the inferred type to replace `parameters?: any` with a safe union
+export type FunctionToolConfig = Omit<z.infer<typeof FunctionToolConfigSchema>, 'parameters'> & {
+	parameters?: ToolParameters;
+};
 
 // Hosted tool config（OpenAI Hosted Tools）
 export const HostedToolConfigSchema = z
@@ -62,4 +76,5 @@ export const ToolConfigSchema = z.discriminatedUnion('type', [
 	HostedToolConfigSchema,
 	AgentAsToolConfigSchema,
 ]);
-export type ToolConfig = z.infer<typeof ToolConfigSchema>;
+// Replace the inferred union to include our FunctionToolConfig override
+export type ToolConfig = FunctionToolConfig | HostedToolConfig | AgentAsToolConfig;

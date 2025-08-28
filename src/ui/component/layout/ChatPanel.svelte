@@ -58,6 +58,7 @@
 	$effect(() => {
 		// When messages count changes, try scrolling if sticky
 		const _len = messages.length;
+		void _len;
 		if (!container) return;
 		queueMicrotask(() => {
 			if (stickToBottom) scrollToBottom('smooth');
@@ -67,6 +68,7 @@
 	$effect(() => {
 		// Also react to loading spinner (often appears while output grows)
 		const _loading = isLoading;
+		void _loading;
 		if (!container) return;
 		queueMicrotask(() => {
 			if (stickToBottom) scrollToBottom('smooth');
@@ -83,11 +85,15 @@
 				if (stickToBottom) scrollToBottom('auto');
 			});
 			ro.observe(target);
-		} catch {}
+		} catch (e) {
+			void e;
+		}
 		return () => {
 			try {
 				ro?.disconnect();
-			} catch {}
+			} catch (e) {
+				void e;
+			}
 		};
 	});
 </script>

@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	let {
 		isLoading = false,
 		onOpenAgentManager,
@@ -43,8 +42,8 @@
 			if (createIconEl) setIcon?.(createIconEl, 'plus');
 			if (historyIconEl) setIcon?.(historyIconEl, 'history');
 			if (agentsIconEl) setIcon?.(agentsIconEl, 'user');
-		} catch (e) {
-			// 忽略渲染图标失败
+		} catch {
+			/* ignore */
 		}
 	});
 </script>
@@ -89,7 +88,7 @@
 				{#if sessions.length === 0}
 					<div class="history-empty">Empty History</div>
 				{:else}
-					{#each sessions as s}
+					{#each sessions as s (s.id)}
 						<div
 							class="history-row {currentSessionId === s.id ? 'active' : ''}"
 							title={s.id}

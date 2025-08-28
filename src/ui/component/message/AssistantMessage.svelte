@@ -95,6 +95,8 @@
 		// content 或 streaming 变化时尝试渲染（流式中会被短路）
 		const _c = content;
 		const _s = streaming;
+		void _c;
+		void _s;
 		scheduleMarkdownRender();
 	});
 

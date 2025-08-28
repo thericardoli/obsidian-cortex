@@ -1,12 +1,19 @@
 import type { Tool } from '@openai/agents';
-import type { AgentConfig } from '../types/agent';
-import type { ToolConfig, AgentAsToolConfig } from '../types/tool';
-import { functionToolRegistry } from './function-registry';
-import { createHostedTool } from './hosted-registry';
-import { buildAgentAsTool } from './agent-as-tool';
+import type {
+	JsonObjectSchema,
+	JsonObjectSchemaNonStrict,
+	JsonObjectSchemaStrict,
+	JsonSchemaDefinitionEntry,
+} from '@openai/agents-core/dist/types/helpers';
+import type { ZodObject, ZodTypeAny } from 'zod';
 import type { AgentManager } from '../agent/agent-manager';
 import type { AgentService } from '../agent/agent-service';
+import type { AgentConfig } from '../types/agent';
+import type { ToolConfig, ToolParameters } from '../types/tool';
 import { createLogger } from '../utils/logger';
+import { buildAgentAsTool } from './agent-as-tool';
+import { functionToolRegistry } from './function-registry';
+import { createHostedTool } from './hosted-registry';
 
 export interface ToolDiagnostic {
 	level: 'warn' | 'error';
@@ -59,14 +66,28 @@ async function buildSingle(
 			if (!executor)
 				throw new Error(`No executor found for function tool: ${toolConfig.name}`);
 			const { tool } = await import('@openai/agents');
-			return tool({
-				name: toolConfig.name,
-				description: toolConfig.description || '',
-				parameters: toolConfig.parameters || {},
-				strict: toolConfig.strict ?? true,
-				needsApproval: toolConfig.needsApproval ?? false,
-				execute: async (args: unknown, runContext?: unknown) => executor(args, runContext),
-			});
+			const isStrict = toolConfig.strict ?? true;
+			if (isStrict) {
+				const params = toStrictParameters(toolConfig.parameters);
+				return tool({
+					name: toolConfig.name,
+					description: toolConfig.description || '',
+					parameters: params,
+					strict: true,
+					needsApproval: toolConfig.needsApproval ?? false,
+					execute: (args: unknown, runContext?: unknown) => executor(args, runContext),
+				});
+			} else {
+				const params = toNonStrictParameters(toolConfig.parameters);
+				return tool({
+					name: toolConfig.name,
+					description: toolConfig.description || '',
+					parameters: params,
+					strict: false,
+					needsApproval: toolConfig.needsApproval ?? false,
+					execute: (args: unknown, runContext?: unknown) => executor(args, runContext),
+				});
+			}
 		}
 		case 'hosted': {
 			const hosted = createHostedTool(
@@ -76,13 +97,85 @@ async function buildSingle(
 			return hosted ?? null;
 		}
 		case 'agent': {
-			const agentTool = await buildAgentAsTool(
-				agentManager,
-				agentService,
-				toolConfig as AgentAsToolConfig
-			);
+			const agentTool = await buildAgentAsTool(agentManager, agentService, toolConfig);
 			return agentTool ?? null;
 		}
 	}
-	return null;
+}
+
+function isZodObject(v: unknown): v is ZodObject<Record<string, ZodTypeAny>> {
+	const o = v as { safeParse?: unknown; _def?: { typeName?: unknown } };
+	return (
+		typeof v === 'object' &&
+		v !== null &&
+		typeof o.safeParse === 'function' &&
+		o._def !== undefined &&
+		o._def.typeName === 'ZodObject'
+	);
+}
+
+function isJsonObjectSchema(
+	v: unknown
+): v is JsonObjectSchema<Record<string, JsonSchemaDefinitionEntry>> {
+	const o = v as {
+		type?: unknown;
+		properties?: unknown;
+		required?: unknown;
+		additionalProperties?: unknown;
+	};
+	return (
+		typeof o === 'object' &&
+		o !== null &&
+		o.type === 'object' &&
+		typeof o.properties === 'object' &&
+		Array.isArray(o.required) &&
+		typeof o.additionalProperties === 'boolean'
+	);
+}
+
+type StrictParams =
+	| ZodObject<Record<string, ZodTypeAny>>
+	| JsonObjectSchemaStrict<Record<string, JsonSchemaDefinitionEntry>>;
+type NonStrictParams =
+	| JsonObjectSchemaNonStrict<Record<string, JsonSchemaDefinitionEntry>>
+	| undefined;
+
+function toStrictParameters(p: ToolParameters | undefined): StrictParams {
+	if (p && isZodObject(p)) return p;
+	if (p && isJsonObjectSchema(p)) {
+		// Force strict additionalProperties=false
+		const strictObj: JsonObjectSchemaStrict<Record<string, JsonSchemaDefinitionEntry>> = {
+			type: 'object',
+			properties: { ...(p.properties || {}) },
+			required: Array.isArray(p.required) ? [...p.required] : [],
+			additionalProperties: false,
+		};
+		return strictObj;
+	}
+	const fallback: JsonObjectSchemaStrict<Record<string, JsonSchemaDefinitionEntry>> = {
+		type: 'object',
+		properties: {},
+		required: [],
+		additionalProperties: false,
+	};
+	return fallback;
+}
+
+function toNonStrictParameters(p: ToolParameters | undefined): NonStrictParams {
+	if (p && isJsonObjectSchema(p)) {
+		const nonStrict: JsonObjectSchemaNonStrict<Record<string, JsonSchemaDefinitionEntry>> = {
+			type: 'object',
+			properties: { ...(p.properties || {}) },
+			required: Array.isArray(p.required) ? [...p.required] : [],
+			additionalProperties: true,
+		};
+		return nonStrict;
+	}
+	// When non-strict and no valid JSON schema provided, allow undefined (SDK permits)
+	return {
+		type: 'object',
+		properties: {},
+		required: [],
+		additionalProperties: true,
+	} as JsonObjectSchemaNonStrict<Record<string, JsonSchemaDefinitionEntry>>;
 }

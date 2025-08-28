@@ -3,7 +3,7 @@ export function extractTextFromResult(result: unknown): string {
 	if (typeof result === 'string') return result;
 	if (result && typeof result === 'object') {
 		const r = result as Record<string, unknown>;
-		if (typeof r.finalOutput === 'string') return r.finalOutput as string;
+		if (typeof r.finalOutput === 'string') return r.finalOutput;
 		const content = r.content;
 		if (typeof content === 'string') return content;
 		if (Array.isArray(content)) {
@@ -14,8 +14,8 @@ export function extractTextFromResult(result: unknown): string {
 				.map((it) => (typeof it.text === 'string' ? it.text : ''));
 			if (texts.length > 0) return texts.join('');
 		}
-		if (typeof r.text === 'string') return r.text as string;
-		if (typeof r.message === 'string') return r.message as string;
+		if (typeof r.text === 'string') return r.text;
+		if (typeof r.message === 'string') return r.message;
 	}
 	return 'No response content available';
 }

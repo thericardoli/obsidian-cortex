@@ -4,14 +4,14 @@
  */
 
 import { ItemView, WorkspaceLeaf } from 'obsidian';
-import ChatView from './ChatView.svelte';
 import type { AgentManager } from '../../agent/agent-manager';
-import type { ProviderManager } from '../../providers/provider-manager';
-import type { PluginSettings } from '../../types';
-import type { SessionService } from '../../session/session-service';
 import type { AgentService } from '../../agent/agent-service';
+import type { ProviderManager } from '../../providers/provider-manager';
+import type { SessionService } from '../../session/session-service';
+import type { PluginSettings } from '../../types';
 import type { EventBus } from '../../utils/event-bus';
 import { createLogger, type Logger } from '../../utils/logger';
+import ChatView from './ChatView.svelte';
 
 export const VIEW_TYPE_CHAT = 'cortex-side-chat-view';
 
@@ -77,7 +77,6 @@ export class ChatViewLeaf extends ItemView {
 				getSettings: this.getSettings,
 				sessionService: this.sessionService,
 				eventBus: this.eventBus,
-				workspaceLeaf: this.leaf,
 				app: this.app,
 			},
 		});
@@ -88,7 +87,7 @@ export class ChatViewLeaf extends ItemView {
 		if (this.chatViewComponent) {
 			// Import unmount function from Svelte 5
 			const { unmount } = await import('svelte');
-			unmount(this.chatViewComponent);
+			void unmount(this.chatViewComponent);
 			this.chatViewComponent = null;
 		}
 	}

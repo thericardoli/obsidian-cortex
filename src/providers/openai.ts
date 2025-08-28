@@ -32,6 +32,7 @@ export class OpenAIProvider_Custom implements IProvider {
 		});
 
 		this._initialized = true;
+		await Promise.resolve();
 	}
 
 	async getModel(modelName: string): Promise<Model> {

@@ -43,10 +43,7 @@ export class AgentViewLeaf extends ItemView {
 			target: this.contentEl,
 			props: {
 				agentManager: this.agentManager,
-				providerManager: this.providerManager,
 				getSettings: this.getSettings,
-				workspaceLeaf: this.leaf,
-				app: this.app,
 			},
 		});
 	}
@@ -54,7 +51,7 @@ export class AgentViewLeaf extends ItemView {
 	async onClose(): Promise<void> {
 		if (this.svelteComponent) {
 			const { unmount } = await import('svelte');
-			unmount(this.svelteComponent);
+			void unmount(this.svelteComponent);
 			this.svelteComponent = null;
 		}
 	}

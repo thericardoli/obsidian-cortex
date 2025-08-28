@@ -1,8 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { App, WorkspaceLeaf } from 'obsidian';
 	import type { AgentManager } from '../../agent/agent-manager';
-	import type { ProviderManager } from '../../providers/provider-manager';
 	import type { AgentConfig, AgentConfigInput, ModelSettings } from '../../types';
 	import type { ProviderDescriptor, ModelDescriptor } from '../../types/provider';
 	import { toProviderDescriptor } from '../../utils/provider-runtime';
@@ -13,17 +11,9 @@
 
 	let {
 		agentManager,
-		providerManager,
 		getSettings,
-		workspaceLeaf,
-		app,
-	}: {
-		agentManager: AgentManager;
-		providerManager: ProviderManager;
-		getSettings: () => import('../../types').PluginSettings;
-		workspaceLeaf: WorkspaceLeaf;
-		app: App;
-	} = $props();
+	}: { agentManager: AgentManager; getSettings: () => import('../../types').PluginSettings } =
+		$props();
 
 	// state
 	let isLoading = $state(false);
@@ -187,7 +177,7 @@
 	}
 
 	function sanitizeSettings(s: Partial<ModelSettings>): ModelSettings {
-		const out: any = {};
+		const out: Partial<ModelSettings> = {};
 		if (s.temperature !== undefined) out.temperature = Number(s.temperature);
 		if (s.maxTokens !== undefined) out.maxTokens = Number(s.maxTokens);
 		if (s.topP !== undefined) out.topP = Number(s.topP);
@@ -253,7 +243,8 @@
 					id="agent-name"
 					type="text"
 					value={form.name}
-					oninput={(e) => form && (form.name = (e.target as HTMLInputElement).value)}
+					oninput={(e: Event) =>
+						form && (form.name = (e.target as HTMLInputElement).value)}
 					placeholder="Agent name"
 				/>
 
@@ -262,7 +253,7 @@
 					id="agent-instructions"
 					rows="6"
 					value={form.instructions}
-					oninput={(e) =>
+					oninput={(e: Event) =>
 						form && (form.instructions = (e.target as HTMLTextAreaElement).value)}
 					placeholder="System instructions for the agent"
 				></textarea>
@@ -271,7 +262,8 @@
 				<select
 					id="agent-provider"
 					bind:value={form.providerId}
-					onchange={(e) => handleProviderChange((e.target as HTMLSelectElement).value)}
+					onchange={(e: Event) =>
+						handleProviderChange((e.target as HTMLSelectElement).value)}
 				>
 					<option value="" disabled>Select provider</option>
 					{#each providers as p (p.id)}
@@ -283,7 +275,8 @@
 				<select
 					id="agent-model"
 					bind:value={form.modelId}
-					onchange={(e) => handleModelChange((e.target as HTMLSelectElement).value)}
+					onchange={(e: Event) =>
+						handleModelChange((e.target as HTMLSelectElement).value)}
 				>
 					<option value="" disabled>Select model</option>
 					{#each currentProviderModels as m (m.modelId)}
@@ -303,7 +296,7 @@
 					max="2"
 					step="0.1"
 					value={form.settings.temperature ?? ''}
-					oninput={(e) =>
+					oninput={(e: Event) =>
 						form &&
 						(form.settings.temperature = Number((e.target as HTMLInputElement).value))}
 				/>
@@ -315,7 +308,7 @@
 					min="1"
 					step="1"
 					value={form.settings.maxTokens ?? ''}
-					oninput={(e) =>
+					oninput={(e: Event) =>
 						form &&
 						(form.settings.maxTokens = Number((e.target as HTMLInputElement).value))}
 				/>
@@ -328,7 +321,7 @@
 					max="1"
 					step="0.05"
 					value={form.settings.topP ?? ''}
-					oninput={(e) =>
+					oninput={(e: Event) =>
 						form && (form.settings.topP = Number((e.target as HTMLInputElement).value))}
 				/>
 
@@ -340,7 +333,7 @@
 					max="2"
 					step="0.1"
 					value={form.settings.frequencyPenalty ?? ''}
-					oninput={(e) =>
+					oninput={(e: Event) =>
 						form &&
 						(form.settings.frequencyPenalty = Number(
 							(e.target as HTMLInputElement).value
@@ -355,7 +348,7 @@
 					max="2"
 					step="0.1"
 					value={form.settings.presencePenalty ?? ''}
-					oninput={(e) =>
+					oninput={(e: Event) =>
 						form &&
 						(form.settings.presencePenalty = Number(
 							(e.target as HTMLInputElement).value

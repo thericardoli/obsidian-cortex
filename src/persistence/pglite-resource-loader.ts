@@ -37,8 +37,8 @@ export class PGliteResourceLoader {
 				);
 			};
 
-			const wasmBytes = toArrayBuffer(wasmBin as ArrayBuffer | Uint8Array);
-			const fsBytes = toArrayBuffer(fsDataBin as ArrayBuffer | Uint8Array);
+			const wasmBytes = toArrayBuffer(wasmBin);
+			const fsBytes = toArrayBuffer(fsDataBin);
 
 			// 编译 WASM 模块
 			const wasmModule = await WebAssembly.compile(wasmBytes);

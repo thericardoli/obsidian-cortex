@@ -11,7 +11,7 @@ export function buildJsonParametersFromZod<T extends z.ZodTypeAny>(schema: T) {
 	});
 	const definitions = (json as { definitions?: Record<string, unknown> }).definitions;
 	const toolArgs = definitions?.ToolArgs as Record<string, unknown> | undefined;
-	const root = (toolArgs || (json as Record<string, unknown>)) as Record<string, unknown>;
+	const root = toolArgs || (json as Record<string, unknown>);
 	const props = root.properties as Record<string, unknown> | undefined;
 	if (props) {
 		const body = props.body as Record<string, unknown> | undefined;

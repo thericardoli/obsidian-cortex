@@ -1,6 +1,6 @@
 // Simple function tool registry to decouple storage from AgentManager
 // Avoids using any by typing executor args/output narrowly as unknown
-export type ToolExecutor = (args: unknown, ctx?: unknown) => unknown | Promise<unknown>;
+export type ToolExecutor = (args: unknown, ctx?: unknown) => unknown;
 
 export class FunctionToolRegistry {
 	private executors: Map<string, ToolExecutor> = new Map();

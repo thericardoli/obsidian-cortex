@@ -36,7 +36,10 @@ export class ProviderManager {
 				provider = new OpenAICompatibleProvider(config);
 				break;
 			default:
-				throw new Error(`Unsupported provider type: ${config.providerType}`);
+				throw new Error(
+					'Unsupported provider type: ' +
+						String((config as unknown as { providerType?: unknown }).providerType)
+				);
 		}
 
 		this.providers.set(config.id, provider);
@@ -68,8 +71,9 @@ export class ProviderManager {
 		return this.getAllProviders().filter((p) => p.isInitialized());
 	}
 
-	async removeProvider(providerId: string): Promise<void> {
+	removeProvider(providerId: string): Promise<void> {
 		this.providers.delete(providerId);
+		return Promise.resolve();
 	}
 
 	/**
