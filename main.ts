@@ -1,18 +1,18 @@
 import { Plugin, WorkspaceLeaf } from 'obsidian';
 import { AgentManager } from './src/agent/agent-manager';
-import { ProviderManager } from './src/providers/provider-manager';
+import { AgentService } from './src/agent/agent-service';
 import { PersistenceManager, PGliteResourceLoader } from './src/persistence';
-import { ChatViewLeaf, VIEW_TYPE_CHAT } from './src/ui/view/ChatViewLeaf';
-import { AgentViewLeaf, VIEW_TYPE_AGENT } from './src/ui/view/AgentViewLeaf';
-import { CortexSettingTab } from './src/ui/settings/CortexSettingTab';
-import type { PluginSettings, CreateProviderInput } from './src/types';
-import { SettingsService } from './src/settings/settings-service';
+import { ProviderManager } from './src/providers/provider-manager';
 import { ProviderService } from './src/providers/provider-service';
 import { SessionService } from './src/session/session-service';
-import { AgentService } from './src/agent/agent-service';
+import { SettingsService } from './src/settings/settings-service';
+import { registerAllBuiltinFunctionExecutors } from './src/tool/builtin';
+import type { CreateProviderInput, PluginSettings } from './src/types';
+import { CortexSettingTab } from './src/ui/settings/CortexSettingTab';
+import { AgentViewLeaf, VIEW_TYPE_AGENT } from './src/ui/view/AgentViewLeaf';
+import { ChatViewLeaf, VIEW_TYPE_CHAT } from './src/ui/view/ChatViewLeaf';
 import { SimpleEventBus, type EventBus } from './src/utils/event-bus';
 import { createLogger } from './src/utils/logger';
-import { registerAllBuiltinFunctionExecutors } from './src/tool/builtin';
 
 const logger = createLogger('main');
 
@@ -128,7 +128,7 @@ export default class CortexPlugin extends Plugin {
 
 			// Add command to open chat view
 			this.addCommand({
-				id: 'open-cortex-chat',
+				id: 'open-chat',
 				name: 'Open Cortex Chat',
 				callback: () => {
 					void this.activateChatView();
@@ -137,7 +137,7 @@ export default class CortexPlugin extends Plugin {
 
 			// Add command to open agent view
 			this.addCommand({
-				id: 'open-cortex-agents',
+				id: 'open-agents',
 				name: 'Open Cortex Agents',
 				callback: () => {
 					void this.activateAgentView();
@@ -165,11 +165,9 @@ export default class CortexPlugin extends Plugin {
 		logger.info('Unloading Cortex Plugin');
 
 		// Clean up persistence manager
-		void this.persistenceManager
-			.dispose()
-			.catch((error) => {
-				logger.error('Error disposing persistence manager', error);
-			});
+		void this.persistenceManager.dispose().catch((error) => {
+			logger.error('Error disposing persistence manager', error);
+		});
 	}
 
 	async activateChatView() {
@@ -190,9 +188,9 @@ export default class CortexPlugin extends Plugin {
 		}
 
 		// Reveal the leaf
-			if (leaf) {
-				void workspace.revealLeaf(leaf);
-			}
+		if (leaf) {
+			void workspace.revealLeaf(leaf);
+		}
 	}
 
 	async activateAgentView() {
@@ -210,9 +208,9 @@ export default class CortexPlugin extends Plugin {
 			}
 		}
 
-			if (leaf) {
-				void workspace.revealLeaf(leaf);
-			}
+		if (leaf) {
+			void workspace.revealLeaf(leaf);
+		}
 	}
 
 	async saveSettings() {

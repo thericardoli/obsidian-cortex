@@ -3,9 +3,8 @@
 	"name": "Cortex",
 	"version": "1.0.0",
 	"minAppVersion": "1.8.10",
-	"description": "A powerful AI assistant for Obsidian",
+	"description": "A powerful AI assistant for Obsidian.",
 	"author": "Ricardo",
 	"authorUrl": "https://github.com/thericardoli",
-	"fundingUrl": "https://obsidian.md/pricing",
 	"isDesktopOnly": true
 }

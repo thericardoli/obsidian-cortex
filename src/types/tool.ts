@@ -1,9 +1,9 @@
-import { z } from 'zod';
-import type { ZodObject, ZodTypeAny } from 'zod';
 import type {
 	JsonObjectSchema,
 	JsonSchemaDefinitionEntry,
 } from '@openai/agents-core/dist/types/helpers';
+import type { ZodObject, ZodTypeAny } from 'zod';
+import { z } from 'zod';
 
 // Common tool choice type (aligns with SDK)
 export const ToolChoiceSchema = z.union([z.enum(['auto', 'required', 'none']), z.string()]);

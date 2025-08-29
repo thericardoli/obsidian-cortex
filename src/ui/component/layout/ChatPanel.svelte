@@ -54,7 +54,7 @@
 		return () => el.removeEventListener('scroll', onScroll);
 	});
 
-	const WINDOW_TAIL = 120; 
+	const WINDOW_TAIL = 120;
 	const FULL_RENDER_THRESHOLD = 60;
 	function getVisibleMessages(): Message[] {
 		const total = messages.length;
@@ -137,7 +137,7 @@
 		flex: 1;
 		overflow-y: auto;
 		padding: 1rem;
-		padding-right: 0.5rem; 
+		padding-right: 0.5rem;
 		background: var(--background-primary);
 		box-sizing: border-box;
 

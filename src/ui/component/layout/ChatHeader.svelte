@@ -4,33 +4,17 @@
 		isLoading = false,
 		onOpenAgentManager,
 		onCreateSession,
-		sessions = [] as Array<{ id: string; name?: string }>,
-		currentSessionId = '',
-		onSelectSession,
-		onDeleteSession,
+		onToggleHistoryView,
+		isHistoryOpen = false,
 		setIcon,
 	}: {
 		isLoading: boolean;
 		onOpenAgentManager: () => void;
 		onCreateSession: () => void | Promise<void>;
-		sessions?: Array<{ id: string; name?: string }>;
-		currentSessionId?: string;
-		onSelectSession: (id: string) => void;
-		onDeleteSession: (id: string) => void | Promise<void>;
+		onToggleHistoryView: () => void;
+		isHistoryOpen?: boolean;
 		setIcon: (el: HTMLElement, name: string) => void;
 	} = $props();
-
-	// 本地 UI 状态：是否展示会话历史下拉
-	let showHistory = $state(false);
-
-	function toggleHistory() {
-		showHistory = !showHistory;
-	}
-
-	function handleSelectSession(id: string) {
-		showHistory = false;
-		onSelectSession?.(id);
-	}
 	let titleIconEl: HTMLElement;
 	let createIconEl: HTMLElement;
 	let historyIconEl: HTMLElement;
@@ -49,27 +33,8 @@
 		}
 	});
 
-	// 监听文档级事件：点击外部或按下 Esc 时关闭历史下拉
 	onMount(() => {
-		const onDocClick = (e: MouseEvent) => {
-			if (!showHistory) return;
-			const target = e.target as Node | null;
-			if (historyWrapperEl && target && !historyWrapperEl.contains(target)) {
-				showHistory = false;
-			}
-		};
-		const onDocKeydown = (e: KeyboardEvent) => {
-			if (!showHistory) return;
-			if (e.key === 'Escape') {
-				showHistory = false;
-			}
-		};
-		document.addEventListener('click', onDocClick, true);
-		document.addEventListener('keydown', onDocKeydown);
-		return () => {
-			document.removeEventListener('click', onDocClick, true);
-			document.removeEventListener('keydown', onDocKeydown);
-		};
+		return () => {};
 	});
 </script>
 
@@ -86,61 +51,24 @@
 		aria-label="New Conversation"
 		onclick={async () => {
 			if (isLoading) return;
-			showHistory = false;
-			try {
-				await onCreateSession?.();
-			} finally {
-				showHistory = false;
-			}
+			await onCreateSession?.();
 		}}
 		disabled={isLoading}
 	>
 		<span class="icon" bind:this={createIconEl} aria-hidden="true"></span>
 	</button>
 
-	<!-- 历史会话按钮及下拉 -->
+	<!-- 历史会话按钮：切换到 HistoryView -->
 	<div class="history-wrapper" bind:this={historyWrapperEl}>
 		<button
-			class="secondary header-icon-button"
+			class="secondary header-icon-button {isHistoryOpen ? 'active' : ''}"
 			aria-label="Conversation History"
-			onclick={toggleHistory}
-			aria-haspopup="listbox"
-			aria-expanded={showHistory}
+			onclick={onToggleHistoryView}
+			aria-pressed={isHistoryOpen}
 			disabled={isLoading}
 		>
 			<span class="icon" bind:this={historyIconEl} aria-hidden="true"></span>
 		</button>
-		{#if showHistory}
-			<div class="history-dropdown" role="listbox">
-				{#if sessions.length === 0}
-					<div class="history-empty">Empty History</div>
-				{:else}
-					{#each sessions as s (s.id)}
-						<div
-							class="history-row {currentSessionId === s.id ? 'active' : ''}"
-							title={s.id}
-						>
-							<button class="history-item" onclick={() => handleSelectSession(s.id)}>
-								<span class="dot {currentSessionId === s.id ? 'dot-active' : ''}"
-								></span>
-								{s.name && s.name.trim() ? s.name : s.id}
-							</button>
-							<button
-								class="delete-btn"
-								aria-label="Delete Session"
-								onclick={async (e) => {
-									e.stopPropagation();
-									await onDeleteSession?.(s.id);
-								}}
-								disabled={isLoading}
-							>
-								✕
-							</button>
-						</div>
-					{/each}
-				{/if}
-			</div>
-		{/if}
 	</div>
 	<button
 		class="secondary agents-button"
@@ -203,76 +131,10 @@
 	.history-wrapper {
 		position: relative;
 	}
-	.history-dropdown {
-		position: absolute;
-		right: 0;
-		top: calc(100% + 6px);
-		min-width: 220px;
-		max-height: 280px;
-		overflow: auto;
-		padding: 0.375rem;
-		border: 1px solid var(--background-modifier-border);
-		border-radius: 0.5rem;
-		background: var(--background-primary);
-		box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
-		z-index: 10;
-	}
-	.history-empty {
-		padding: 0.5rem;
-		opacity: 0.7;
-	}
-	.history-item {
-		width: 100%;
-		text-align: left;
-		padding: 0.4rem 0.5rem;
-		border-radius: 0.375rem;
-		border: none;
-		background: transparent;
-		color: var(--text-normal);
-		display: inline-flex;
-		align-items: center;
-		gap: 0.5rem;
-		cursor: pointer;
-	}
-	.history-item:hover {
+	/* 移除下拉相关样式 */
+
+	.header-icon-button.active {
 		background: var(--background-modifier-hover);
-	}
-	/* 历史行与激活态 */
-	.history-row {
-		display: flex;
-		align-items: center;
-		gap: 0.25rem;
-	}
-	.history-row.active .history-item {
-		font-weight: 600;
-		background: var(--background-modifier-hover);
-	}
-	.delete-btn {
-		border: none;
-		background: transparent;
-		color: var(--text-faint);
-		cursor: pointer;
-		padding: 0.25rem;
-		border-radius: 0.375rem;
-		font-size: 0.7rem;
-		line-height: 1;
-	}
-	.delete-btn:hover {
-		background: var(--background-modifier-hover);
-		color: var(--text-normal);
-	}
-	.delete-btn:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-	.dot {
-		width: 8px;
-		height: 8px;
-		border-radius: 50%;
-		background: var(--background-modifier-border);
-	}
-	.dot-active {
-		background: var(--interactive-accent);
 	}
 	.agents-button {
 		padding: 0.4rem 0.75rem;

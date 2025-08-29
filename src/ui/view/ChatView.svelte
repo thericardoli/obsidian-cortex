@@ -13,6 +13,7 @@
 	import PromptBar from '../component/input/PromptBar.svelte';
 	import ChatHeader from '../component/layout/ChatHeader.svelte';
 	import ChatPanel from '../component/layout/ChatPanel.svelte';
+	import HistoryView from './HistoryView.svelte';
 
 	const logger = createLogger('ui');
 
@@ -54,6 +55,7 @@
 	let availableModelGroups = $state<GroupedModel[]>([]);
 	let canSend = $state(false);
 	let chatStore: ReturnType<typeof createChatStore> | null = null;
+	let showHistoryView = $state(false);
 
 	onMount(() => {
 		try {
@@ -99,9 +101,11 @@
 
 	async function handleCreateSession() {
 		await chatStore?.actions.createSession();
+		showHistoryView = false;
 	}
 	async function handleSelectSession(id: string) {
 		await chatStore?.actions.selectSession(id);
+		showHistoryView = false;
 	}
 
 	async function handleSendMessage(text: string) {
@@ -120,6 +124,10 @@
 		const workspace = app.workspace;
 		void workspace.getLeaf(true).setViewState({ type: 'cortex-agent-view', active: true });
 	}
+
+	function toggleHistoryView() {
+		showHistoryView = !showHistoryView;
+	}
 </script>
 
 <div class="chat-view">
@@ -127,34 +135,44 @@
 		{isLoading}
 		onOpenAgentManager={handleOpenAgentView}
 		onCreateSession={handleCreateSession}
-		sessions={sessionList}
-		{currentSessionId}
-		onSelectSession={handleSelectSession}
-		onDeleteSession={(id: string) => chatStore?.actions.deleteSession(id)}
-		setIcon={(el: HTMLElement, name: string) => setObsidianIcon(el, name)}
-	/>
-	<ChatPanel
-		{messages}
-		{isLoading}
-		bind:container={chatContainer}
-		renderMarkdown={renderObsidianMarkdown}
+		onToggleHistoryView={toggleHistoryView}
+		isHistoryOpen={showHistoryView}
 		setIcon={(el: HTMLElement, name: string) => setObsidianIcon(el, name)}
 	/>
 
-	<PromptBar
-		{availableAgents}
-		{availableModelGroups}
-		{selectedAgent}
-		{selectedModelKey}
-		{canSend}
-		{isLoading}
-		onSendMessage={handleSendMessage}
-		onAgentChange={handleAgentChange}
-		onModelChange={handleModelChange}
-		onReady={(api: { focusInput: () => void }) => {
-			focusInput = api.focusInput;
-		}}
-	/>
+	{#if showHistoryView}
+		<HistoryView
+			{isLoading}
+			sessions={sessionList}
+			{currentSessionId}
+			onSelectSession={handleSelectSession}
+			onDeleteSession={(id: string) => chatStore?.actions.deleteSession(id)}
+			setIcon={(el: HTMLElement, name: string) => setObsidianIcon(el, name)}
+		/>
+	{:else}
+		<ChatPanel
+			{messages}
+			{isLoading}
+			bind:container={chatContainer}
+			renderMarkdown={renderObsidianMarkdown}
+			setIcon={(el: HTMLElement, name: string) => setObsidianIcon(el, name)}
+		/>
+
+		<PromptBar
+			{availableAgents}
+			{availableModelGroups}
+			{selectedAgent}
+			{selectedModelKey}
+			{canSend}
+			{isLoading}
+			onSendMessage={handleSendMessage}
+			onAgentChange={handleAgentChange}
+			onModelChange={handleModelChange}
+			onReady={(api: { focusInput: () => void }) => {
+				focusInput = api.focusInput;
+			}}
+		/>
+	{/if}
 </div>
 
 <style>

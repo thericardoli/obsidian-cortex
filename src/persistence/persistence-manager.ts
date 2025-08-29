@@ -1,8 +1,9 @@
+import { createLogger } from '../utils/logger';
 import { DatabaseManager, type DatabaseOptions } from './database-manager';
 import { AgentRepository } from './repositories/agent-repository';
-import { SessionRepository } from './repositories/session-repository';
 import type { IAgentRepository, ISessionRepository } from './repositories/contracts';
 import { InMemoryAgentRepository, InMemorySessionRepository } from './repositories/contracts';
+import { SessionRepository } from './repositories/session-repository';
 
 export interface PersistenceManagerOptions extends DatabaseOptions {
 	/** 是否在初始化时立即连接数据库 */
@@ -10,6 +11,7 @@ export interface PersistenceManagerOptions extends DatabaseOptions {
 }
 
 export class PersistenceManager {
+	private logger = createLogger('persistence');
 	private dbManager: DatabaseManager;
 	private agentRepository: IAgentRepository;
 	private sessionRepository: ISessionRepository;
@@ -35,7 +37,10 @@ export class PersistenceManager {
 			this.persistent = true;
 		} catch (err) {
 			// 降级：保持内存实现
-			console.warn('[Persistence] 初始化失败，已降级为内存模式:', err);
+			this.logger.warn(
+				'Failed to initialize persistence, falling back to in-memory mode',
+				err
+			);
 			this.persistent = false;
 		}
 	}
