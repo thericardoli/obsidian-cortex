@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	let {
 		isLoading = false,
 		onOpenAgentManager,
@@ -34,6 +35,7 @@
 	let createIconEl: HTMLElement;
 	let historyIconEl: HTMLElement;
 	let agentsIconEl: HTMLElement;
+	let historyWrapperEl: HTMLElement;
 
 	$effect(() => {
 		// 使用传入的 setIcon 渲染 lucide 图标
@@ -45,6 +47,29 @@
 		} catch {
 			/* ignore */
 		}
+	});
+
+	// 监听文档级事件：点击外部或按下 Esc 时关闭历史下拉
+	onMount(() => {
+		const onDocClick = (e: MouseEvent) => {
+			if (!showHistory) return;
+			const target = e.target as Node | null;
+			if (historyWrapperEl && target && !historyWrapperEl.contains(target)) {
+				showHistory = false;
+			}
+		};
+		const onDocKeydown = (e: KeyboardEvent) => {
+			if (!showHistory) return;
+			if (e.key === 'Escape') {
+				showHistory = false;
+			}
+		};
+		document.addEventListener('click', onDocClick, true);
+		document.addEventListener('keydown', onDocKeydown);
+		return () => {
+			document.removeEventListener('click', onDocClick, true);
+			document.removeEventListener('keydown', onDocKeydown);
+		};
 	});
 </script>
 
@@ -74,11 +99,13 @@
 	</button>
 
 	<!-- 历史会话按钮及下拉 -->
-	<div class="history-wrapper">
+	<div class="history-wrapper" bind:this={historyWrapperEl}>
 		<button
 			class="secondary header-icon-button"
 			aria-label="Conversation History"
 			onclick={toggleHistory}
+			aria-haspopup="listbox"
+			aria-expanded={showHistory}
 			disabled={isLoading}
 		>
 			<span class="icon" bind:this={historyIconEl} aria-hidden="true"></span>

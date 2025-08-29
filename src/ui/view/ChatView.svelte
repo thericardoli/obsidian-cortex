@@ -104,22 +104,6 @@
 		await chatStore?.actions.selectSession(id);
 	}
 
-	// Auto-scroll effect
-	$effect(() => {
-		if (!chatContainer) return;
-		const _len = messages.length; // dependency trigger
-		void _len;
-		requestAnimationFrame(() => {
-			if (
-				chatContainer &&
-				chatContainer.scrollTop + chatContainer.clientHeight >=
-					chatContainer.scrollHeight - 100
-			) {
-				chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
-			}
-		});
-	});
-
 	async function handleSendMessage(text: string) {
 		await chatStore?.actions.sendMessage(text);
 		focusInput?.();
@@ -159,7 +143,7 @@
 
 	<PromptBar
 		{availableAgents}
-		modelGroups={availableModelGroups}
+		{availableModelGroups}
 		{selectedAgent}
 		{selectedModelKey}
 		{canSend}

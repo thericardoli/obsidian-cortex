@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { setIcon } from 'obsidian';
 	import { onMount } from 'svelte';
 	import type { AgentConfig } from '../../../types';
 	import { createLogger } from '../../../utils/logger';
@@ -13,7 +14,7 @@
 
 	let {
 		availableAgents = [],
-		modelGroups = [],
+		availableModelGroups: modelGroups = [],
 		selectedAgent = null,
 		selectedModelKey = '',
 		canSend = false,
@@ -24,7 +25,7 @@
 		onReady,
 	}: {
 		availableAgents: AgentConfig[];
-		modelGroups: ModelGroup[];
+		availableModelGroups: ModelGroup[];
 		selectedAgent: AgentConfig | null;
 		selectedModelKey: string;
 		canSend: boolean;
@@ -38,37 +39,40 @@
 	// State
 	let inputText = $state('');
 	let textareaElement: HTMLTextAreaElement;
+	let rootEl: HTMLDivElement;
+	let sendIconEl: HTMLElement;
 
-	// Expose a tiny API for parent to focus the input
 	function focusInput() {
 		textareaElement?.focus();
 	}
-	// Notify parent with focus API and focus on first mount
+
 	onMount(() => {
 		onReady?.({ focusInput });
 		queueMicrotask(() => focusInput());
 	});
-	let rootEl: HTMLDivElement;
 
 	// Derived state
 	const isInputEmpty = $derived(inputText.trim() === '');
 	const canSendMessage = $derived(canSend && !isInputEmpty && !isLoading);
 
-	// Auto-resize textarea based on content
+	// Auto-resize textarea
 	$effect(() => {
 		if (textareaElement && inputText !== undefined) {
-			// Reset height to auto to get accurate scrollHeight
 			textareaElement.style.height = 'auto';
-
-			// Calculate new height based on content
 			const scrollHeight = textareaElement.scrollHeight;
-			const minHeight = 100; // Minimum height in pixels
-			const maxHeight = 160; // Maximum height in pixels (about 6-7 lines)
-
-			// Set height within bounds
+			const minHeight = 100;
+			const maxHeight = 160;
 			const newHeight = Math.max(minHeight, Math.min(scrollHeight, maxHeight));
 			textareaElement.style.height = newHeight + 'px';
 		}
+	});
+
+	// Update send icon (lucide) via Obsidian setIcon
+	$effect(() => {
+		if (!sendIconEl) return;
+		setIcon(sendIconEl, isLoading ? 'loader-2' : 'send');
+		if (isLoading) sendIconEl.classList.add('spinning');
+		else sendIconEl.classList.remove('spinning');
 	});
 
 	function handleSend() {
@@ -85,7 +89,6 @@
 		if (text) {
 			onSendMessage(text);
 			inputText = '';
-			// Keep focus for quick follow-ups
 			queueMicrotask(() => focusInput());
 		}
 	}
@@ -101,9 +104,7 @@
 		const target = event.target as HTMLSelectElement;
 		const agentId = target.value;
 		const agent = availableAgents.find((a) => a.id === agentId);
-		if (agent) {
-			onAgentChange(agent);
-		}
+		if (agent) onAgentChange(agent);
 	}
 
 	function handleModelSelect(event: Event) {
@@ -113,91 +114,64 @@
 </script>
 
 <div class="prompt-bar" bind:this={rootEl}>
-	<div class="controls-row">
-		<div class="selector-group">
-			<label for="agent-select">Agent:</label>
-			<select
-				id="agent-select"
-				value={selectedAgent?.id || ''}
-				onchange={handleAgentSelect}
-				disabled={isLoading}
-			>
-				<option value="" disabled>Select an agent</option>
-				{#each availableAgents as agent (agent.id)}
-					<option value={agent.id}>{agent.name}</option>
-				{/each}
-			</select>
-		</div>
-
-		<div class="selector-group">
-			<label for="model-select">Model:</label>
-			<select
-				id="model-select"
-				value={selectedModelKey}
-				onchange={handleModelSelect}
-				disabled={isLoading}
-			>
-				<option value="" disabled>Select a model</option>
-				{#each modelGroups as group (group.providerId)}
-					<optgroup label={group.providerName}>
-						{#each group.items as item (item.key)}
-							<option value={item.key}>{item.label}</option>
-						{/each}
-					</optgroup>
-				{/each}
-			</select>
-		</div>
-	</div>
-
 	<div class="input-row">
 		<div class="input-container">
-			<textarea
-				bind:this={textareaElement}
-				bind:value={inputText}
-				onkeydown={handleKeydown}
-				placeholder="Type your message... (Enter to send, Shift+Enter for new line)"
-				class="message-input"
-				rows="1"
-			></textarea>
+			<div class="input-box">
+				<textarea
+					bind:this={textareaElement}
+					bind:value={inputText}
+					onkeydown={handleKeydown}
+					placeholder="Type your message... (Enter to send, Shift+Enter for new line)"
+					class="message-input"
+					rows="1"
+				></textarea>
 
-			<button
-				onclick={handleSend}
-				disabled={!canSendMessage}
-				class="send-button"
-				title="Send message"
-			>
-				{#if isLoading}
-					<svg class="loading-icon" viewBox="0 0 24 24" width="16" height="16">
-						<circle
-							cx="12"
-							cy="12"
-							r="10"
-							stroke="currentColor"
-							stroke-width="2"
-							fill="none"
-							opacity="0.3"
-						/>
-						<path
-							d="M12 2 A 10 10 0 0 1 22 12"
-							stroke="currentColor"
-							stroke-width="2"
-							fill="none"
-						>
-							<animateTransform
-								attributeName="transform"
-								type="rotate"
-								values="0 12 12;360 12 12"
-								dur="1s"
-								repeatCount="indefinite"
-							/>
-						</path>
-					</svg>
-				{:else}
-					<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-						<path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-					</svg>
-				{/if}
-			</button>
+				<div class="input-tools">
+					<div class="tools-left">
+						<div class="selector-group compact">
+							<select
+								id="agent-select"
+								aria-label="Agent"
+								value={selectedAgent?.id || ''}
+								onchange={handleAgentSelect}
+								disabled={isLoading}
+							>
+								<option value="" disabled>Select an agent</option>
+								{#each availableAgents as agent (agent.id)}
+									<option value={agent.id}>{agent.name}</option>
+								{/each}
+							</select>
+						</div>
+						<div class="selector-group compact">
+							<select
+								id="model-select"
+								aria-label="Model"
+								value={selectedModelKey}
+								onchange={handleModelSelect}
+								disabled={isLoading}
+							>
+								<option value="" disabled>Select a model</option>
+								{#each modelGroups as group (group.providerId)}
+									<optgroup label={group.providerName}>
+										{#each group.items as item (item.key)}
+											<option value={item.key}>{item.label}</option>
+										{/each}
+									</optgroup>
+								{/each}
+							</select>
+						</div>
+					</div>
+					<button
+						onclick={handleSend}
+						disabled={!canSendMessage}
+						class="send-button"
+						title="Send message"
+						aria-label="Send message"
+					>
+						<span bind:this={sendIconEl} class="icon-slot" aria-hidden="true"></span>
+					</button>
+				</div>
+			</div>
 		</div>
 	</div>
 </div>
@@ -212,13 +186,6 @@
 		border-top: 1px solid var(--background-modifier-border);
 	}
 
-	.controls-row {
-		display: flex;
-		gap: 1rem;
-		align-items: center;
-		flex-wrap: wrap;
-	}
-
 	.selector-group {
 		display: flex;
 		align-items: center;
@@ -227,11 +194,9 @@
 		min-width: 200px;
 	}
 
-	.selector-group label {
-		font-size: 0.875rem;
-		font-weight: 500;
-		color: var(--text-normal);
-		white-space: nowrap;
+	.selector-group.compact {
+		min-width: unset;
+		flex: unset;
 	}
 
 	.selector-group select {
@@ -245,8 +210,6 @@
 		cursor: pointer;
 	}
 
-	/* removed search input */
-
 	.selector-group select:disabled {
 		opacity: 0.6;
 		cursor: not-allowed;
@@ -255,30 +218,62 @@
 	.selector-group select:focus {
 		outline: none;
 		border-color: var(--interactive-accent);
-		box-shadow:
-			0 0 0 2px var(--interactive-accent-rgb),
-			0.2;
+		box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.2);
 	}
 
 	.input-row {
 		display: flex;
 		gap: 0.5rem;
 		align-items: flex-end;
+		flex-wrap: wrap;
 	}
 
 	.input-container {
-		flex: 1;
+		flex: 1 1 400px;
 		position: relative;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.input-box {
+		border: 1px solid var(--background-modifier-border);
+		border-radius: 0.75rem;
+		background: var(--background-primary);
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		padding: 0.5rem;
+		padding-bottom: 3rem; /* reserve space for bottom-right tools */
+		position: relative;
+	}
+	.input-tools {
+		position: absolute;
+		left: 0.5rem;
+		right: 0.5rem;
+		bottom: 0.5rem;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+		flex-wrap: nowrap;
+	}
+
+	.input-tools .tools-left {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		min-width: 0;
 	}
 
 	.message-input {
 		width: 100%;
 		min-height: 40px;
 		max-height: 160px;
-		padding: 0.75rem 3rem 0.75rem 0.75rem; /* Added right padding for button */
-		border: 1px solid var(--background-modifier-border);
-		border-radius: 0.75rem;
-		background: var(--background-primary);
+		padding: 0.5rem;
+		border: none;
+		border-radius: 0.5rem;
+		background: transparent;
 		color: var(--text-normal);
 		font-size: 0.9rem;
 		line-height: 1.4;
@@ -295,9 +290,22 @@
 	}
 
 	.message-input:focus {
-		outline: none;
-		border-color: var(--interactive-accent);
-		box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.2);
+		outline: none !important;
+		box-shadow: none !important;
+		border-color: transparent !important;
+	}
+
+	/* Also ensure no focus ring/highlight from browsers using :focus-visible */
+	.message-input:focus-visible {
+		outline: none !important;
+		box-shadow: none !important;
+		border-color: transparent !important;
+	}
+
+	/* Prevent the container from highlighting when textarea is focused */
+	.input-box:focus-within {
+		border-color: var(--background-modifier-border) !important;
+		box-shadow: none !important;
 	}
 
 	.message-input::placeholder {
@@ -305,9 +313,6 @@
 	}
 
 	.send-button {
-		position: absolute;
-		right: 0.5rem;
-		bottom: 0.5rem;
 		width: 32px;
 		height: 32px;
 		padding: 0;
@@ -321,7 +326,6 @@
 		justify-content: center;
 		transition: all 0.2s ease;
 		flex-shrink: 0;
-		z-index: 1;
 	}
 
 	.send-button:disabled {
@@ -338,20 +342,31 @@
 		transform: scale(0.95);
 	}
 
-	.loading-icon {
+	.send-button .icon-slot {
+		display: inline-flex;
+		width: 16px;
+		height: 16px;
 		color: currentColor;
 	}
 
-	/* Responsive adjustments */
-	@media (max-width: 600px) {
-		.controls-row {
-			flex-direction: column;
-			gap: 0.5rem;
+	@keyframes spin {
+		from {
+			transform: rotate(0deg);
 		}
+		to {
+			transform: rotate(360deg);
+		}
+	}
+	.send-button .icon-slot:global(.spinning) {
+		animation: spin 1s linear infinite;
+	}
 
+	@media (max-width: 600px) {
+		.input-row {
+			align-items: stretch;
+		}
 		.selector-group {
-			width: 100%;
-			min-width: unset;
+			flex: 1;
 		}
 	}
 </style>

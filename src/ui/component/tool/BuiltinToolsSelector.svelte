@@ -1,9 +1,9 @@
 <script lang="ts">
 	import type { AgentManager } from '../../../agent/agent-manager';
-	import type { AgentConfig } from '../../../types/agent';
 	import { builtinFunctionTools, toFunctionToolConfig } from '../../../tool/builtin';
-	import { createLogger } from '../../../utils/logger';
+	import type { AgentConfig } from '../../../types/agent';
 	import type { ToolConfig } from '../../../types/tool';
+	import { createLogger } from '../../../utils/logger';
 
 	const logger = createLogger('ui');
 
@@ -64,7 +64,8 @@
 		margin-top: 1rem;
 		padding: 0.75rem;
 		border: 1px solid var(--background-modifier-border);
-		border-radius: 6px;
+		border-radius: 0.5rem; /* unify with inputs/buttons */
+		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 	}
 	.builtin-tools h4 {
 		margin: 0 0 0.5rem 0;

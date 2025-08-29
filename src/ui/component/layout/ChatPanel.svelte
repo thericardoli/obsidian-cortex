@@ -1,7 +1,7 @@
 <script lang="ts">
-	import UserMessage from '../message/UserMessage.svelte';
-	import AssistantMessage from '../message/AssistantMessage.svelte';
 	import LoadingIndicator from '../feedback/LoadingIndicator.svelte';
+	import AssistantMessage from '../message/AssistantMessage.svelte';
+	import UserMessage from '../message/UserMessage.svelte';
 
 	type Message = {
 		id: string;
@@ -22,12 +22,11 @@
 		isLoading: boolean;
 		container?: HTMLElement;
 		renderMarkdown: (el: HTMLElement, md: string) => void;
-		setIcon?: (el: HTMLElement, name: string) => void;
+		setIcon: (el: HTMLElement, name: string) => void;
 	} = $props();
 
 	// Auto-scroll management (stick to bottom when user hasn't scrolled up)
 	let messagesEl: HTMLElement | null = null;
-	let bottomAnchor: HTMLDivElement | null = null;
 	let stickToBottom = $state(true);
 
 	// 检查是否有正在流式输出的assistant消息
@@ -55,9 +54,18 @@
 		return () => el.removeEventListener('scroll', onScroll);
 	});
 
+	const WINDOW_TAIL = 120; 
+	const FULL_RENDER_THRESHOLD = 60;
+	function getVisibleMessages(): Message[] {
+		const total = messages.length;
+		if (total <= FULL_RENDER_THRESHOLD) return messages;
+		if (!stickToBottom) return messages;
+		return messages.slice(Math.max(0, total - WINDOW_TAIL));
+	}
+
 	$effect(() => {
-		// When messages count changes, try scrolling if sticky
-		const _len = messages.length;
+		// When visible messages change, try scrolling if sticky
+		const _len = getVisibleMessages().length;
 		void _len;
 		if (!container) return;
 		queueMicrotask(() => {
@@ -100,7 +108,7 @@
 
 <div class="chat-panel" bind:this={container}>
 	<div class="messages-container" bind:this={messagesEl}>
-		{#each messages as message (message.id)}
+		{#each getVisibleMessages() as message (message.id)}
 			{#if message.role === 'user'}
 				<UserMessage
 					content={message.content}
@@ -121,8 +129,6 @@
 		{#if isLoading && !hasStreamingAssistant}
 			<LoadingIndicator />
 		{/if}
-		<!-- anchor used for scrollIntoView if needed in future -->
-		<div bind:this={bottomAnchor} style="height:1px;width:100%"></div>
 	</div>
 </div>
 
@@ -131,9 +137,12 @@
 		flex: 1;
 		overflow-y: auto;
 		padding: 1rem;
-		padding-right: 0.5rem; /* 减少右侧内边距为滚动条留出空间 */
+		padding-right: 0.5rem; 
 		background: var(--background-primary);
 		box-sizing: border-box;
+
+		scrollbar-width: auto; /* auto | thin | none */
+		scrollbar-color: var(--background-modifier-border) transparent; /* thumb track */
 	}
 
 	.messages-container {

@@ -2,9 +2,9 @@
 	import { onMount } from 'svelte';
 	import type { AgentManager } from '../../agent/agent-manager';
 	import type { AgentConfig, AgentConfigInput, ModelSettings } from '../../types';
-	import type { ProviderDescriptor, ModelDescriptor } from '../../types/provider';
-	import { toProviderDescriptor } from '../../utils/provider-runtime';
+	import type { ModelDescriptor, ProviderDescriptor } from '../../types/provider';
 	import { createLogger } from '../../utils/logger';
+	import { toProviderDescriptor } from '../../utils/provider-runtime';
 	import BuiltinToolsSelector from '../component/tool/BuiltinToolsSelector.svelte';
 
 	const logger = createLogger('ui');
@@ -441,11 +441,23 @@
 	select,
 	input[type='number'] {
 		width: 100%;
-		padding: 0.5rem;
+		padding: 0.5rem 0.625rem;
 		border: 1px solid var(--background-modifier-border);
-		border-radius: 6px;
+		border-radius: 0.5rem; /* unify with chat */
 		background: var(--background-primary);
 		color: var(--text-normal);
+		box-sizing: border-box;
+		transition:
+			border-color 0.15s ease,
+			box-shadow 0.15s ease;
+	}
+	input[type='text']:focus,
+	textarea:focus,
+	select:focus,
+	input[type='number']:focus {
+		outline: none;
+		border-color: var(--interactive-accent);
+		box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.2);
 	}
 	textarea {
 		resize: vertical;
@@ -460,22 +472,40 @@
 		flex: 1;
 	}
 	button {
-		padding: 0.4rem 0.75rem;
+		padding: 0.45rem 0.8rem;
 		border: 1px solid var(--background-modifier-border);
-		border-radius: 6px;
+		border-radius: 0.5rem; /* unify with header buttons */
 		background: var(--background-secondary);
 		color: var(--text-normal);
 		cursor: pointer;
+		transition:
+			background-color 0.15s ease,
+			transform 0.05s ease,
+			box-shadow 0.15s ease;
+	}
+	button:hover {
+		background: var(--background-modifier-hover);
+	}
+	button:active {
+		transform: translateY(0.5px);
 	}
 	button.primary {
 		background: var(--interactive-accent);
 		color: var(--text-on-accent);
 		border: none;
+		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+	}
+	button.primary:hover {
+		background: var(--interactive-accent-hover);
 	}
 	button.danger {
 		background: #d9534f;
-		color: white;
+		color: #fff;
 		border: none;
+		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+	}
+	button.danger:hover {
+		background: #c64541;
 	}
 	button:disabled {
 		opacity: 0.6;
