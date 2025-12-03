@@ -49,7 +49,9 @@
         "typescript-eslint": "^8"
     },
     "dependencies": {
+        "@openai/agents": "^0.3.4",
         "ai": "^5.0.106",
-        "runed": "^0.37.0"
+        "runed": "^0.37.0",
+        "zod": "3"
     }
 }
