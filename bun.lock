@@ -10,7 +10,7 @@
       },
       "devDependencies": {
         "@internationalized/date": "^3.8.1",
-        "@lucide/svelte": "^0.544.0",
+        "@lucide/svelte": "^0.555.0",
         "@tailwindcss/cli": "^4.1.17",
         "@types/node": "^16.11.6",
         "bits-ui": "^2.11.0",
@@ -147,7 +147,7 @@
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
 
-    "@lucide/svelte": ["@lucide/svelte@0.544.0", "", { "peerDependencies": { "svelte": "^5" } }, "sha512-9f9O6uxng2pLB01sxNySHduJN3HTl5p0HDu4H26VR51vhZfiMzyOMe9Mhof3XAk4l813eTtl+/DYRvGyoRR+yw=="],
+    "@lucide/svelte": ["@lucide/svelte@0.555.0", "", { "peerDependencies": { "svelte": "^5" } }, "sha512-aqTOMjBjf/HNwrhggRdb83T0QslZdpJTyTwr/chtXTGw7u4Hcu4zQb/5uA+csF0KKawKWVnsNI1MdHEHeEXTcQ=="],
 
     "@marijn/find-cluster-break": ["@marijn/find-cluster-break@1.0.2", "", {}, "sha512-l0h88YhZFyKdXIFNfSWpyjStDjGHwZ/U7iobcK1cQQD8sejsONdQtTVU+1wVN1PBw40PiiHB1vA5S7VTfQiP9g=="],
 

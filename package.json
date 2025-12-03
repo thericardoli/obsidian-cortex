@@ -20,7 +20,7 @@
     "license": "MIT",
     "devDependencies": {
         "@internationalized/date": "^3.8.1",
-        "@lucide/svelte": "^0.544.0",
+        "@lucide/svelte": "^0.555.0",
         "@tailwindcss/cli": "^4.1.17",
         "@types/node": "^16.11.6",
         "bits-ui": "^2.11.0",
