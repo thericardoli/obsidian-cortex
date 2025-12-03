@@ -20,10 +20,10 @@
     "license": "MIT",
     "devDependencies": {
         "@internationalized/date": "^3.8.1",
-        "@lucide/svelte": "^0.555.0",
+        "@lucide/svelte": "^0.544.0",
         "@tailwindcss/cli": "^4.1.17",
         "@types/node": "^16.11.6",
-        "bits-ui": "^2.11.0",
+        "bits-ui": "^2.14.1",
         "builtin-modules": "3.3.0",
         "clsx": "^2.1.1",
         "esbuild": "^0.27.0",
@@ -52,6 +52,7 @@
         "@openai/agents": "^0.3.4",
         "ai": "^5.0.106",
         "runed": "^0.37.0",
+        "svelte-streamdown": "^3.0.0",
         "zod": "3"
     }
 }
