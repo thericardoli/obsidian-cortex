@@ -1,11 +1,10 @@
 {
   "compilerOptions": {
-    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "inlineSourceMap": true,
     "inlineSources": true,
     "module": "ESNext",
-    "target": "ES6",
+    "target": "ES2022",
     "allowJs": true,
     "noImplicitAny": true,
     "moduleResolution": "bundler",
@@ -16,9 +15,7 @@
     "skipLibCheck": true,
     "lib": [
       "DOM",
-      "ES5",
-      "ES6",
-      "ES7"
+      "ES2022"
     ],
     "paths": {
       "$lib": ["./src/lib"],
