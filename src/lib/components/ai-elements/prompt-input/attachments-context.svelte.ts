@@ -48,8 +48,8 @@ export class AttachmentsContext {
     };
 
     add = (files: File[] | FileList) => {
-        let incoming = Array.from(files);
-        let accepted = incoming.filter((f) => this.matchesAccept(f));
+        const incoming = Array.from(files);
+        const accepted = incoming.filter((f) => this.matchesAccept(f));
 
         if (accepted.length === 0) {
             this.onError?.({
@@ -59,8 +59,8 @@ export class AttachmentsContext {
             return;
         }
 
-        let withinSize = (f: File) => (this.maxFileSize ? f.size <= this.maxFileSize : true);
-        let sized = accepted.filter(withinSize);
+        const withinSize = (f: File) => (this.maxFileSize ? f.size <= this.maxFileSize : true);
+        const sized = accepted.filter(withinSize);
 
         if (sized.length === 0 && accepted.length > 0) {
             this.onError?.({
@@ -70,11 +70,11 @@ export class AttachmentsContext {
             return;
         }
 
-        let capacity =
+        const capacity =
             typeof this.maxFiles === 'number'
                 ? Math.max(0, this.maxFiles - this.files.length)
                 : undefined;
-        let capped = typeof capacity === 'number' ? sized.slice(0, capacity) : sized;
+        const capped = typeof capacity === 'number' ? sized.slice(0, capacity) : sized;
 
         if (typeof capacity === 'number' && sized.length > capacity) {
             this.onError?.({
@@ -83,8 +83,8 @@ export class AttachmentsContext {
             });
         }
 
-        let next: FileWithId[] = [];
-        for (let file of capped) {
+        const next: FileWithId[] = [];
+        for (const file of capped) {
             next.push({
                 id: crypto.randomUUID(),
                 type: 'file',
@@ -98,7 +98,7 @@ export class AttachmentsContext {
     };
 
     remove = (id: string) => {
-        let found = this.files.find((file) => file.id === id);
+        const found = this.files.find((file) => file.id === id);
         if (found?.url) {
             URL.revokeObjectURL(found.url);
         }
@@ -106,7 +106,7 @@ export class AttachmentsContext {
     };
 
     clear = () => {
-        for (let file of this.files) {
+        for (const file of this.files) {
             if (file.url) {
                 URL.revokeObjectURL(file.url);
             }
@@ -150,7 +150,7 @@ export function setAttachmentsContext(context: AttachmentsContext) {
 }
 
 export function getAttachmentsContext(): AttachmentsContext {
-    let context = getContext<AttachmentsContext>(ATTACHMENTS_CONTEXT_KEY);
+    const context = getContext<AttachmentsContext>(ATTACHMENTS_CONTEXT_KEY);
     if (!context) {
         throw new Error('usePromptInputAttachments must be used within a PromptInput');
     }
@@ -167,7 +167,7 @@ export function getPromptInputProvider(): PromptInputController | null {
 }
 
 export function getPromptInputController(): PromptInputController {
-    let context = getContext<PromptInputController>(PROVIDER_CONTEXT_KEY);
+    const context = getContext<PromptInputController>(PROVIDER_CONTEXT_KEY);
     if (!context) {
         throw new Error('getPromptInputController must be used within a PromptInputProvider');
     }
