@@ -18,7 +18,11 @@
       "ES5",
       "ES6",
       "ES7"
-    ]
+    ],
+    "paths": {
+      "$lib": ["./src/lib"],
+      "$lib/*": ["./src/lib/*"]
+    }
   },
   "include": [
     "**/*.ts",
