@@ -5,8 +5,9 @@
     "type": "module",
     "main": "main.js",
     "scripts": {
-        "dev": "vite build --watch && cp dist/main.js main.js",
-        "build": "vite build --mode production && cp dist/main.js main.js && ([ -f dist/styles.css ] && cp dist/styles.css styles.css || true)",
+        "dev": "vite build --watch",
+        "build": "vite build --mode production",
+        "build:dev": "vite build --mode development",
         "build:check": "tsc -noEmit -skipLibCheck && bun run build",
         "version": "node version-bump.mjs && git add manifest.json versions.json",
         "svelte-check": "svelte-check --tsconfig tsconfig.json",

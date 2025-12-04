@@ -16,7 +16,7 @@ export default defineConfig({
         tailwindcss(),
         svelte({
             compilerOptions: {
-                css: 'injected',
+                css: 'external',
                 runes: true,
             },
         }),
@@ -27,7 +27,7 @@ export default defineConfig({
             formats: ['cjs'],
             fileName: () => 'main.js',
         },
-        outDir: './dist',
+        outDir: './',
         emptyOutDir: false,
         sourcemap: prod ? false : 'inline',
         minify: prod,
@@ -57,7 +57,7 @@ export default defineConfig({
                 banner,
                 // 确保 CSS 文件名
                 assetFileNames: (assetInfo) => {
-                    if (assetInfo.name === 'style.css') {
+                    if (assetInfo.name?.endsWith('.css')) {
                         return 'styles.css';
                     }
                     return assetInfo.name || 'assets/[name][extname]';
