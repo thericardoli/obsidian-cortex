@@ -50,6 +50,7 @@
     },
     "dependencies": {
         "@openai/agents": "^0.3.4",
+        "@openrouter/ai-sdk-provider": "^1.3.0",
         "ai": "^5.0.106",
         "runed": "^0.37.0",
         "svelte-streamdown": "^3.0.0",
