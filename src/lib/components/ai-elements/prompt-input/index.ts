@@ -29,6 +29,8 @@ export { default as PromptInputModelSelectTrigger } from './PromptInputModelSele
 export { default as PromptInputModelSelectContent } from './PromptInputModelSelectContent.svelte';
 export { default as PromptInputModelSelectItem } from './PromptInputModelSelectItem.svelte';
 export { default as PromptInputModelSelectValue } from './PromptInputModelSelectValue.svelte';
+export { default as PromptInputModelSelectGroup } from './PromptInputModelSelectGroup.svelte';
+export { default as PromptInputModelSelectGroupHeading } from './PromptInputModelSelectGroupHeading.svelte';
 
 // Icon components
 export { default as ImageIcon } from './ImageIcon.svelte';
