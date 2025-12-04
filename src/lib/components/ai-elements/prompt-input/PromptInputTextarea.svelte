@@ -50,7 +50,7 @@
 
         let files: File[] = [];
 
-        for (let item of items) {
+        for (let item of Array.from(items)) {
             if (item.kind === 'file') {
                 let file = item.getAsFile();
                 if (file) {
