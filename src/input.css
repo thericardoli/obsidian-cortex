@@ -1,121 +1,233 @@
-@import 'tailwindcss';
+/*
+ * Tailwind CSS v4 - CSS-first Configuration
+ * 完全映射到 Obsidian 原生 CSS 变量
+ */
+
+/* 导入 Tailwind（不含 preflight 以避免与 Obsidian 样式冲突） */
+@layer theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
 
 @import 'tw-animate-css';
 
-@custom-variant dark (&:is(.dark *));
+/* Obsidian 使用 .theme-dark 类来标识暗色主题 */
+@custom-variant dark (&:is(.theme-dark *));
 
-:root {
-    --radius: 0.625rem;
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.129 0.042 264.695);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.129 0.042 264.695);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.129 0.042 264.695);
-    --primary: oklch(0.208 0.042 265.755);
-    --primary-foreground: oklch(0.984 0.003 247.858);
-    --secondary: oklch(0.968 0.007 247.896);
-    --secondary-foreground: oklch(0.208 0.042 265.755);
-    --muted: oklch(0.968 0.007 247.896);
-    --muted-foreground: oklch(0.554 0.046 257.417);
-    --accent: oklch(0.968 0.007 247.896);
-    --accent-foreground: oklch(0.208 0.042 265.755);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.929 0.013 255.508);
-    --input: oklch(0.929 0.013 255.508);
-    --ring: oklch(0.704 0.04 256.788);
-    --chart-1: oklch(0.646 0.222 41.116);
-    --chart-2: oklch(0.6 0.118 184.704);
-    --chart-3: oklch(0.398 0.07 227.392);
-    --chart-4: oklch(0.828 0.189 84.429);
-    --chart-5: oklch(0.769 0.188 70.08);
-    --sidebar: oklch(0.984 0.003 247.858);
-    --sidebar-foreground: oklch(0.129 0.042 264.695);
-    --sidebar-primary: oklch(0.208 0.042 265.755);
-    --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-    --sidebar-accent: oklch(0.968 0.007 247.896);
-    --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
-    --sidebar-border: oklch(0.929 0.013 255.508);
-    --sidebar-ring: oklch(0.704 0.04 256.788);
-}
-
-.dark {
-    --background: oklch(0.129 0.042 264.695);
-    --foreground: oklch(0.984 0.003 247.858);
-    --card: oklch(0.208 0.042 265.755);
-    --card-foreground: oklch(0.984 0.003 247.858);
-    --popover: oklch(0.208 0.042 265.755);
-    --popover-foreground: oklch(0.984 0.003 247.858);
-    --primary: oklch(0.929 0.013 255.508);
-    --primary-foreground: oklch(0.208 0.042 265.755);
-    --secondary: oklch(0.279 0.041 260.031);
-    --secondary-foreground: oklch(0.984 0.003 247.858);
-    --muted: oklch(0.279 0.041 260.031);
-    --muted-foreground: oklch(0.704 0.04 256.788);
-    --accent: oklch(0.279 0.041 260.031);
-    --accent-foreground: oklch(0.984 0.003 247.858);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.551 0.027 264.364);
-    --chart-1: oklch(0.488 0.243 264.376);
-    --chart-2: oklch(0.696 0.17 162.48);
-    --chart-3: oklch(0.769 0.188 70.08);
-    --chart-4: oklch(0.627 0.265 303.9);
-    --chart-5: oklch(0.645 0.246 16.439);
-    --sidebar: oklch(0.208 0.042 265.755);
-    --sidebar-foreground: oklch(0.984 0.003 247.858);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-    --sidebar-accent: oklch(0.279 0.041 260.031);
-    --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.551 0.027 264.364);
+/* 基础变量定义 */
+@layer base {
+    :root {
+        --radius: var(--radius-m, 0.625rem);
+    }
 }
 
 @theme inline {
+    /* ===== 禁用默认颜色系统 ===== */
+    --color-*: initial;
+    
+    /* ===== 圆角系统 ===== */
+    --radius-none: 0;
+    --radius-clickable-icon: var(--clickable-icon-radius);
+    --radius-s: var(--radius-s);
     --radius-sm: calc(var(--radius) - 4px);
+    --radius-m: var(--radius-m);
     --radius-md: calc(var(--radius) - 2px);
+    --radius-l: var(--radius-l);
     --radius-lg: var(--radius);
     --radius-xl: calc(var(--radius) + 4px);
-    --color-background: var(--background);
-    --color-foreground: var(--foreground);
-    --color-card: var(--card);
-    --color-card-foreground: var(--card-foreground);
-    --color-popover: var(--popover);
-    --color-popover-foreground: var(--popover-foreground);
-    --color-primary: var(--primary);
-    --color-primary-foreground: var(--primary-foreground);
-    --color-secondary: var(--secondary);
-    --color-secondary-foreground: var(--secondary-foreground);
-    --color-muted: var(--muted);
-    --color-muted-foreground: var(--muted-foreground);
-    --color-accent: var(--accent);
-    --color-accent-foreground: var(--accent-foreground);
-    --color-destructive: var(--destructive);
-    --color-border: var(--border);
-    --color-input: var(--input);
-    --color-ring: var(--ring);
-    --color-chart-1: var(--chart-1);
-    --color-chart-2: var(--chart-2);
-    --color-chart-3: var(--chart-3);
-    --color-chart-4: var(--chart-4);
-    --color-chart-5: var(--chart-5);
-    --color-sidebar: var(--sidebar);
-    --color-sidebar-foreground: var(--sidebar-foreground);
-    --color-sidebar-primary: var(--sidebar-primary);
-    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-    --color-sidebar-accent: var(--sidebar-accent);
-    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-    --color-sidebar-border: var(--sidebar-border);
-    --color-sidebar-ring: var(--sidebar-ring);
+    --radius-full: 9999px;
+
+    /* ===== 基础色阶 ===== */
+    --color-base-00: var(--color-base-00);
+    --color-base-05: var(--color-base-05);
+    --color-base-10: var(--color-base-10);
+    --color-base-20: var(--color-base-20);
+    --color-base-25: var(--color-base-25);
+    --color-base-30: var(--color-base-30);
+    --color-base-35: var(--color-base-35);
+    --color-base-40: var(--color-base-40);
+    --color-base-50: var(--color-base-50);
+    --color-base-60: var(--color-base-60);
+    --color-base-70: var(--color-base-70);
+    --color-base-100: var(--color-base-100);
+
+    /* ===== 语义颜色 ===== */
+    --color-red: var(--color-red);
+    --color-orange: var(--color-orange);
+    --color-yellow: var(--color-yellow);
+    --color-green: var(--color-green);
+    --color-cyan: var(--color-cyan);
+    --color-blue: var(--color-blue);
+    --color-purple: var(--color-purple);
+    --color-pink: var(--color-pink);
+    --color-gray: var(--color-gray);
+
+    /* ===== 背景色 ===== */
+    --color-background: var(--background-primary);
+    --color-background-primary: var(--background-primary);
+    --color-background-primary-alt: var(--background-primary-alt);
+    --color-background-secondary: var(--background-secondary);
+    --color-background-secondary-alt: var(--background-secondary-alt);
+    --color-background-modifier-hover: var(--background-modifier-hover);
+    --color-background-modifier-active-hover: var(--background-modifier-active-hover);
+    --color-background-modifier-border: var(--background-modifier-border);
+    --color-background-modifier-border-hover: var(--background-modifier-border-hover);
+    --color-background-modifier-border-focus: var(--background-modifier-border-focus);
+    --color-background-modifier-error: var(--background-modifier-error);
+    --color-background-modifier-error-hover: var(--background-modifier-error-hover);
+    --color-background-modifier-success: var(--background-modifier-success);
+    --color-background-modifier-message: var(--background-modifier-message);
+    --color-background-form-field: var(--background-form-field);
+
+    /* ===== 交互色 ===== */
+    --color-interactive-normal: var(--interactive-normal);
+    --color-interactive-hover: var(--interactive-hover);
+    --color-interactive-accent: var(--interactive-accent);
+    --color-interactive-accent-hover: var(--interactive-accent-hover);
+
+    /* ===== 文本色 ===== */
+    --color-foreground: var(--text-normal);
+    --color-text-normal: var(--text-normal);
+    --color-text-muted: var(--text-muted);
+    --color-text-faint: var(--text-faint);
+    --color-text-on-accent: var(--text-on-accent);
+    --color-text-on-accent-inverted: var(--text-on-accent-inverted);
+    --color-text-success: var(--text-success);
+    --color-text-warning: var(--text-warning);
+    --color-text-error: var(--text-error);
+    --color-text-accent: var(--text-accent);
+    --color-text-accent-hover: var(--text-accent-hover);
+    --color-text-selection: var(--text-selection);
+    --color-text-highlight-bg: var(--text-highlight-bg);
+    --color-text-bold: var(--bold-color);
+    --color-text-italic: var(--italic-color);
+
+    /* ===== 图标色 ===== */
+    --color-icon: var(--icon-color);
+    --color-icon-hover: var(--icon-color-hover);
+    --color-icon-active: var(--icon-color-active);
+    --color-icon-focused: var(--icon-color-focused);
+    --color-caret: var(--caret-color);
+
+    /* ===== 透明色 ===== */
+    --color-transparent: transparent;
+    --color-current: currentColor;
+
+    /* ===== shadcn/ui 兼容变量 ===== */
+    --color-card: var(--background-secondary);
+    --color-card-foreground: var(--text-normal);
+    --color-popover: var(--background-primary);
+    --color-popover-foreground: var(--text-normal);
+    --color-primary: var(--interactive-accent);
+    --color-primary-foreground: var(--text-on-accent);
+    --color-secondary: var(--background-secondary);
+    --color-secondary-foreground: var(--text-normal);
+    --color-muted: var(--background-secondary);
+    --color-muted-foreground: var(--text-muted);
+    --color-accent: var(--background-modifier-hover);
+    --color-accent-foreground: var(--text-normal);
+    --color-destructive: var(--background-modifier-error);
+    --color-destructive-foreground: var(--text-on-accent);
+    --color-border: var(--background-modifier-border);
+    --color-input: var(--background-modifier-border);
+    --color-ring: var(--interactive-accent);
+
+    /* ===== 图表色 ===== */
+    --color-chart-1: var(--color-red);
+    --color-chart-2: var(--color-green);
+    --color-chart-3: var(--color-blue);
+    --color-chart-4: var(--color-yellow);
+    --color-chart-5: var(--color-purple);
+
+    /* ===== 侧边栏 ===== */
+    --color-sidebar: var(--background-secondary);
+    --color-sidebar-foreground: var(--text-normal);
+    --color-sidebar-primary: var(--interactive-accent);
+    --color-sidebar-primary-foreground: var(--text-on-accent);
+    --color-sidebar-accent: var(--background-modifier-hover);
+    --color-sidebar-accent-foreground: var(--text-normal);
+    --color-sidebar-border: var(--background-modifier-border);
+    --color-sidebar-ring: var(--interactive-accent);
+
+    /* ===== z-index 层级 ===== */
+    --z-auto: auto;
+    --z-0: 0;
+    --z-10: 10;
+    --z-cover: var(--layer-cover);
+    --z-sidedock: var(--layer-sidedock);
+    --z-status-bar: var(--layer-status-bar);
+    --z-popover: var(--layer-popover);
+    --z-slides: var(--layer-slides);
+    --z-modal: var(--layer-modal);
+    --z-notice: var(--layer-notice);
+    --z-menu: var(--layer-menu);
+    --z-tooltip: var(--layer-tooltip);
+    --z-dragged-item: var(--layer-dragged-item);
+
+    /* ===== 字体大小 ===== */
+    --text-text: var(--font-text-size);
+    --text-smallest: var(--font-smallest);
+    --text-smaller: var(--font-smaller);
+    --text-small: var(--font-small);
+    --text-ui-smaller: var(--font-ui-smaller);
+    --text-ui-small: var(--font-ui-small);
+    --text-ui-medium: var(--font-ui-medium);
+    --text-ui-larger: var(--font-ui-larger);
+    --text-base: 1rem;
+    --text-lg: 1.125rem;
+    --text-xl: 1.25rem;
+    --text-2xl: 1.5rem;
+
+    /* ===== 字重 ===== */
+    --font-weight-thin: var(--font-thin);
+    --font-weight-extralight: var(--font-extralight);
+    --font-weight-light: var(--font-light);
+    --font-weight-normal: var(--font-normal);
+    --font-weight-medium: var(--font-medium);
+    --font-weight-semibold: var(--font-semibold);
+    --font-weight-bold: var(--font-bold);
+    --font-weight-extrabold: var(--font-extrabold);
+    --font-weight-black: var(--font-black);
+
+    /* ===== 行高 ===== */
+    --leading-normal: var(--line-height-normal);
+    --leading-tight: var(--line-height-tight);
+    --leading-none: 1;
+    --leading-relaxed: 1.625;
+
+    /* ===== 边框宽度 ===== */
+    --border-width-default: var(--border-width);
+    --border-width-0: 0;
+    --border-width-1: 1px;
+    --border-width-2: 2px;
+
+    /* ===== 描边宽度 ===== */
+    --stroke-icon: var(--icon-stroke);
+    --stroke-icon-xs: var(--icon-xs-stroke-width);
+    --stroke-icon-s: var(--icon-s-stroke-width);
+    --stroke-icon-m: var(--icon-m-stroke-width);
+    --stroke-icon-l: var(--icon-l-stroke-width);
+    --stroke-icon-xl: var(--icon-xl-stroke-width);
+
+    /* ===== 尺寸 ===== */
+    --size-icon: var(--icon-size);
+    --size-icon-xs: var(--icon-xs);
+    --size-icon-s: var(--icon-s);
+    --size-icon-m: var(--icon-m);
+    --size-icon-l: var(--icon-l);
+    --size-icon-xl: var(--icon-xl);
+    --size-checkbox: var(--checkbox-size);
+
+    /* ===== 透明度 ===== */
+    --opacity-icon: var(--icon-opacity);
+    --opacity-icon-hover: var(--icon-opacity-hover);
+    --opacity-icon-active: var(--icon-opacity-active);
+
+    /* ===== 间距 ===== */
+    --spacing-input-height: var(--input-height);
 }
 
 @layer base {
     * {
         @apply border-border outline-ring/50;
-    }
-    body {
-        @apply bg-background text-foreground;
     }
 }
