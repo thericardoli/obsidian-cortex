@@ -98,7 +98,9 @@ class CustomProviderModal extends Modal {
         contentEl.empty();
         contentEl.addClass('cortex-provider-modal');
 
-        contentEl.createEl('h3', { text: this.provider ? 'Edit Custom Provider' : 'Add Custom Provider' });
+        contentEl.createEl('h3', {
+            text: this.provider ? 'Edit Custom Provider' : 'Add Custom Provider',
+        });
 
         const nameValue = this.provider?.name || '';
         const baseUrlValue = this.provider?.baseUrl || '';

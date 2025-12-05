@@ -27,10 +27,9 @@ export class AttachmentsContext {
         private getMultiple: () => boolean | undefined = () => undefined,
         private getMaxFiles: () => number | undefined = () => undefined,
         private getMaxFileSize: () => number | undefined = () => undefined,
-        private getOnError: () => ((err: {
-            code: 'max_files' | 'max_file_size' | 'accept';
-            message: string;
-        }) => void) | undefined = () => undefined
+        private getOnError: () =>
+            | ((err: { code: 'max_files' | 'max_file_size' | 'accept'; message: string }) => void)
+            | undefined = () => undefined
     ) {}
 
     // Getters to access current prop values

@@ -1,9 +1,5 @@
 import type { ModelConfig } from '../types/model';
-import {
-    BUILTIN_PROVIDERS,
-    BUILTIN_PROVIDER_IDS,
-    type BuiltinProviderId,
-} from '../types/provider';
+import { BUILTIN_PROVIDERS, BUILTIN_PROVIDER_IDS, type BuiltinProviderId } from '../types/provider';
 
 /** Provider 运行时配置（存储于 Settings） */
 export interface ProviderSettings {

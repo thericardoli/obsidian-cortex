@@ -8,18 +8,20 @@
         settings: CortexSettings;
         onSave: () => Promise<void>;
         onRefresh: () => void;
-        onOpenModal: (
-            model: ModelConfig | null,
-            onSaveModel: (model: ModelConfig) => void
-        ) => void;
+        onOpenModal: (model: ModelConfig | null, onSaveModel: (model: ModelConfig) => void) => void;
         onOpenProviderModal: (
             provider: CustomProviderConfig | null,
             onSaveProvider: (provider: CustomProviderConfig) => void
         ) => void;
     }
 
-    let { settings = $bindable(), onSave, onRefresh, onOpenModal, onOpenProviderModal }: Props =
-        $props();
+    let {
+        settings = $bindable(),
+        onSave,
+        onRefresh,
+        onOpenModal,
+        onOpenProviderModal,
+    }: Props = $props();
 
     function iconAction(node: HTMLElement, iconId: string) {
         setIcon(node, iconId);
@@ -197,7 +199,7 @@
                 <button
                     class="border-border bg-background text-foreground hover:bg-accent cursor-pointer rounded-full border px-4 py-2 text-[13px] font-medium transition-all duration-150 {activeProviderId ===
                     provider.id
-                        ? 'bg-primary! text-primary-foreground! border-primary! shadow-sm shadow-primary/25'
+                        ? 'bg-primary! text-primary-foreground! border-primary! shadow-primary/25 shadow-sm'
                         : ''}"
                     onclick={() => selectProvider(provider.id)}
                 >
@@ -218,10 +220,15 @@
             <div class="bg-background border-border rounded-[10px] border p-4">
                 <!-- Custom Provider Header with Delete Button -->
                 {#if currentProvider.isCustom}
-                    <div class="mb-4 flex items-center justify-between border-b border-border pb-3">
+                    <div class="border-border mb-4 flex items-center justify-between border-b pb-3">
                         <div class="flex items-center gap-2">
-                            <span class="text-foreground text-sm font-medium">{currentProvider.label}</span>
-                            <span class="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-[10px] font-medium">Custom</span>
+                            <span class="text-foreground text-sm font-medium"
+                                >{currentProvider.label}</span
+                            >
+                            <span
+                                class="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-[10px] font-medium"
+                                >Custom</span
+                            >
                         </div>
                         <button
                             class="text-muted-foreground hover:bg-destructive/10 hover:text-destructive flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-transparent bg-transparent transition-all duration-150"
@@ -246,7 +253,7 @@
                         placeholder="Enter your API key..."
                         value={providerSettings.apiKey}
                         onchange={updateApiKey}
-                        class="bg-secondary border-border text-foreground focus:border-primary focus:ring-primary/20 placeholder:text-muted-foreground/50 w-full rounded-lg border px-3 py-2.5 text-sm transition-all duration-150 focus:outline-none focus:ring-2"
+                        class="bg-secondary border-border text-foreground focus:border-primary focus:ring-primary/20 placeholder:text-muted-foreground/50 w-full rounded-lg border px-3 py-2.5 text-sm transition-all duration-150 focus:ring-2 focus:outline-none"
                     />
                 </div>
 
@@ -263,7 +270,7 @@
                         placeholder={currentProvider.defaultBaseUrl}
                         value={providerSettings.baseUrl || currentProvider.defaultBaseUrl}
                         onchange={updateBaseUrl}
-                        class="bg-secondary border-border text-foreground focus:border-primary focus:ring-primary/20 placeholder:text-muted-foreground/50 w-full rounded-lg border px-3 py-2.5 text-sm transition-all duration-150 focus:outline-none focus:ring-2"
+                        class="bg-secondary border-border text-foreground focus:border-primary focus:ring-primary/20 placeholder:text-muted-foreground/50 w-full rounded-lg border px-3 py-2.5 text-sm transition-all duration-150 focus:ring-2 focus:outline-none"
                     />
                 </div>
 
@@ -291,16 +298,19 @@
                             <div
                                 class="bg-secondary/50 border-border/50 flex flex-col items-center gap-3 rounded-lg border border-dashed py-8 text-[13px]"
                             >
-                                <span class="text-muted-foreground/40" use:iconAction={'inbox'}></span>
+                                <span class="text-muted-foreground/40" use:iconAction={'inbox'}
+                                ></span>
                                 <div class="flex flex-col items-center gap-1">
                                     <span class="text-muted-foreground">No models configured</span>
-                                    <span class="text-muted-foreground/60 text-[12px]">Click + to add your first model</span>
+                                    <span class="text-muted-foreground/60 text-[12px]"
+                                        >Click + to add your first model</span
+                                    >
                                 </div>
                             </div>
                         {:else}
                             {#each models as model (model.id)}
                                 <div
-                                    class="bg-secondary border-border hover:border-primary/30 hover:shadow-sm flex items-center justify-between rounded-lg border px-4 py-3 transition-all duration-150"
+                                    class="bg-secondary border-border hover:border-primary/30 flex items-center justify-between rounded-lg border px-4 py-3 transition-all duration-150 hover:shadow-sm"
                                 >
                                     <div class="flex items-center gap-3">
                                         <span class="text-primary flex" use:iconAction={'sparkles'}

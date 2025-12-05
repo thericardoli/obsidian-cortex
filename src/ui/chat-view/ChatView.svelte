@@ -1,5 +1,4 @@
 <script lang="ts">
-
     import type CortexPlugin from '../../../main';
     import { cn } from '$lib/utils';
     import {
@@ -70,7 +69,8 @@
 
         for (const [providerId, providerSettings] of Object.entries(providers)) {
             if (providerSettings.apiKey && providerSettings.models.length > 0) {
-                const providerInfo = BUILTIN_PROVIDERS[providerId as keyof typeof BUILTIN_PROVIDERS];
+                const providerInfo =
+                    BUILTIN_PROVIDERS[providerId as keyof typeof BUILTIN_PROVIDERS];
                 groups.push({
                     providerId,
                     providerLabel: providerInfo?.label || providerId,
