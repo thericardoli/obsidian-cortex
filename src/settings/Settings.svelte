@@ -1,36 +1,61 @@
 <script lang="ts">
     import { setIcon } from 'obsidian';
-    import type { CortexSettings, ModelSettings, ProviderSettings } from './settings';
-    import { DEFAULT_PROVIDERS, DEFAULT_SETTINGS } from './settings';
+    import type { CortexSettings, CustomProviderConfig, ProviderSettings } from './settings';
+    import { BUILTIN_PROVIDERS, BUILTIN_PROVIDER_IDS, DEFAULT_SETTINGS } from './settings';
+    import type { ModelConfig } from '../types/model';
 
     interface Props {
         settings: CortexSettings;
         onSave: () => Promise<void>;
         onRefresh: () => void;
-        onOpenModal: (model: ModelSettings | null, onSaveModel: (model: ModelSettings) => void) => void;
+        onOpenModal: (
+            model: ModelConfig | null,
+            onSaveModel: (model: ModelConfig) => void
+        ) => void;
+        onOpenProviderModal: (
+            provider: CustomProviderConfig | null,
+            onSaveProvider: (provider: CustomProviderConfig) => void
+        ) => void;
     }
 
-    let { settings = $bindable(), onSave, onRefresh, onOpenModal }: Props = $props();
-    
+    let { settings = $bindable(), onSave, onRefresh, onOpenModal, onOpenProviderModal }: Props =
+        $props();
+
     function iconAction(node: HTMLElement, iconId: string) {
         setIcon(node, iconId);
         return {
             update(newIconId: string) {
                 node.empty();
                 setIcon(node, newIconId);
-            }
+            },
         };
     }
 
     let activeProviderId = $state(settings.activeProviderId || 'openai');
 
-    let currentProvider = $derived(DEFAULT_PROVIDERS.find((p) => p.id === activeProviderId));
-    
+    // 合并内置 Provider 和自定义 Provider
+    let allProviders = $derived([
+        ...BUILTIN_PROVIDER_IDS.map((id) => ({
+            id,
+            label: BUILTIN_PROVIDERS[id].label,
+            defaultBaseUrl: BUILTIN_PROVIDERS[id].defaultBaseUrl,
+            isCustom: false,
+        })),
+        ...(settings.customProviders || []).map((p) => ({
+            id: p.id,
+            label: p.name,
+            defaultBaseUrl: p.baseUrl,
+            isCustom: true,
+        })),
+    ]);
+
+    let currentProvider = $derived(allProviders.find((p) => p.id === activeProviderId));
+
     function getProviderSettings(): ProviderSettings {
         if (!settings.providers) {
             settings.providers = DEFAULT_SETTINGS.providers;
         }
-        const providerConfig = DEFAULT_PROVIDERS.find((p) => p.id === activeProviderId);
+        const providerConfig = allProviders.find((p) => p.id === activeProviderId);
         if (!settings.providers[activeProviderId]) {
             settings.providers[activeProviderId] = {
                 apiKey: '',
@@ -49,7 +74,7 @@
     }
 
     let providerSettings = $state(buildProviderSettingsSnapshot());
-    
+
     let models = $derived(getProviderSettings().models || []);
 
     // 当当前 provider 变化时，重新同步 providerSettings
@@ -96,47 +121,123 @@
         });
     }
 
-    function openEditModelModal(model: ModelSettings) {
+    function openEditModelModal(model: ModelConfig) {
         onOpenModal(model, (updatedModel) => {
             const ps = getProviderSettings();
-            ps.models = ps.models.map((m) => m.id === model.id ? updatedModel : m);
+            ps.models = ps.models.map((m) => (m.id === model.id ? updatedModel : m));
         });
+    }
+
+    function openAddProviderModal() {
+        onOpenProviderModal(null, (provider) => {
+            if (!settings.customProviders) {
+                settings.customProviders = [];
+            }
+            settings.customProviders = [...settings.customProviders, provider];
+            // 初始化 provider settings
+            settings.providers[provider.id] = {
+                apiKey: provider.apiKey,
+                baseUrl: provider.baseUrl,
+                models: [],
+            };
+        });
+    }
+
+    function openEditProviderModal(providerId: string) {
+        const customProvider = settings.customProviders?.find((p) => p.id === providerId);
+        if (!customProvider) return;
+
+        onOpenProviderModal(customProvider, (updatedProvider) => {
+            settings.customProviders = settings.customProviders.map((p) =>
+                p.id === customProvider.id ? updatedProvider : p
+            );
+            // 更新 provider settings
+            const ps = settings.providers[providerId];
+            if (ps) {
+                ps.apiKey = updatedProvider.apiKey;
+                ps.baseUrl = updatedProvider.baseUrl;
+            }
+        });
+    }
+
+    async function deleteCustomProvider(providerId: string) {
+        settings.customProviders = settings.customProviders.filter((p) => p.id !== providerId);
+        delete settings.providers[providerId];
+        // 如果删除的是当前选中的 provider，切换到 openai
+        if (activeProviderId === providerId) {
+            activeProviderId = 'openai';
+            settings.activeProviderId = 'openai';
+        }
+        await onSave();
+        onRefresh();
     }
 </script>
 
 <div class="max-w-[900px] px-2">
     <!-- Header -->
-    <div class="flex items-center gap-3 mb-6 pb-4 border-b border-border">
-        <span class="flex items-center justify-center w-9 h-9 bg-primary rounded-[10px] text-primary-foreground" use:iconAction={'bot'}></span>
-        <h2 class="m-0 text-2xl font-semibold text-foreground">Cortex Settings</h2>
+    <div class="border-border mb-6 flex items-center gap-3 border-b pb-4">
+        <span
+            class="bg-primary text-primary-foreground flex h-9 w-9 items-center justify-center rounded-[10px]"
+            use:iconAction={'bot'}
+        ></span>
+        <h2 class="text-foreground m-0 text-2xl font-semibold">Cortex Settings</h2>
     </div>
 
     <!-- Model Section -->
-    <div class="bg-secondary rounded-xl p-5 border border-border">
-        <div class="flex items-center gap-2.5 mb-4">
-            <span class="flex text-muted-foreground" use:iconAction={'server'}></span>
-            <h3 class="m-0 text-base font-semibold text-foreground">Model Configuration</h3>
+    <div class="bg-secondary border-border rounded-xl border p-5">
+        <div class="mb-4 flex items-center gap-2.5">
+            <span class="text-muted-foreground flex" use:iconAction={'server'}></span>
+            <h3 class="text-foreground m-0 text-base font-semibold">Model Configuration</h3>
         </div>
 
         <!-- Model Tabs -->
-        <div class="flex flex-wrap gap-2 mb-4">
-            {#each DEFAULT_PROVIDERS as provider}
+        <div class="mb-4 flex flex-wrap items-center gap-2">
+            {#each allProviders as provider}
                 <button
-                    class="px-4 py-2 border border-border rounded-full bg-background text-foreground text-[13px] font-medium cursor-pointer transition-all duration-150 hover:bg-accent hover:border-border {activeProviderId === provider.id ? 'bg-primary! text-primary-foreground! border-primary!' : ''}"
+                    class="border-border bg-background text-foreground hover:bg-accent cursor-pointer rounded-full border px-4 py-2 text-[13px] font-medium transition-all duration-150 {activeProviderId ===
+                    provider.id
+                        ? 'bg-primary! text-primary-foreground! border-primary! shadow-sm shadow-primary/25'
+                        : ''}"
                     onclick={() => selectProvider(provider.id)}
                 >
                     {provider.label}
                 </button>
             {/each}
+            <button
+                class="border-border text-muted-foreground hover:bg-accent hover:text-foreground cursor-pointer rounded-full border border-dashed bg-transparent px-4 py-2 text-[13px] font-medium transition-all duration-150"
+                onclick={openAddProviderModal}
+                title="Add custom provider"
+            >
+                + Add Provider
+            </button>
         </div>
 
         <!-- Model Config Card -->
         {#if currentProvider}
-            <div class="bg-background rounded-[10px] p-4 border border-border">
+            <div class="bg-background border-border rounded-[10px] border p-4">
+                <!-- Custom Provider Header with Delete Button -->
+                {#if currentProvider.isCustom}
+                    <div class="mb-4 flex items-center justify-between border-b border-border pb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="text-foreground text-sm font-medium">{currentProvider.label}</span>
+                            <span class="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-[10px] font-medium">Custom</span>
+                        </div>
+                        <button
+                            class="text-muted-foreground hover:bg-destructive/10 hover:text-destructive flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-transparent bg-transparent transition-all duration-150"
+                            title="Delete provider"
+                            onclick={() => deleteCustomProvider(currentProvider.id)}
+                        >
+                            <span use:iconAction={'trash-2'}></span>
+                        </button>
+                    </div>
+                {/if}
+
                 <!-- API Key Field -->
-                <div class="mb-3">
-                    <div class="flex items-center gap-2 mb-1.5 text-[13px] font-medium text-muted-foreground">
-                        <span class="flex text-muted-foreground/60" use:iconAction={'key'}></span>
+                <div class="mb-4">
+                    <div
+                        class="text-muted-foreground mb-2 flex items-center gap-2 text-[13px] font-medium"
+                    >
+                        <span class="text-muted-foreground/60 flex" use:iconAction={'key'}></span>
                         <span>API Key</span>
                     </div>
                     <input
@@ -144,14 +245,16 @@
                         placeholder="Enter your API key..."
                         value={providerSettings.apiKey}
                         onchange={updateApiKey}
-                        class="w-full py-2.5 px-3 bg-secondary border border-border rounded-lg text-foreground text-sm transition-colors duration-150 focus:outline-none focus:border-ring placeholder:text-muted-foreground/50"
+                        class="bg-secondary border-border text-foreground focus:border-primary focus:ring-primary/20 placeholder:text-muted-foreground/50 w-full rounded-lg border px-3 py-2.5 text-sm transition-all duration-150 focus:outline-none focus:ring-2"
                     />
                 </div>
 
                 <!-- Base URL Field -->
-                <div class="mb-3">
-                    <div class="flex items-center gap-2 mb-1.5 text-[13px] font-medium text-muted-foreground">
-                        <span class="flex text-muted-foreground/60" use:iconAction={'link'}></span>
+                <div class="mb-4">
+                    <div
+                        class="text-muted-foreground mb-2 flex items-center gap-2 text-[13px] font-medium"
+                    >
+                        <span class="text-muted-foreground/60 flex" use:iconAction={'link'}></span>
                         <span>Base URL</span>
                     </div>
                     <input
@@ -159,50 +262,63 @@
                         placeholder={currentProvider.defaultBaseUrl}
                         value={providerSettings.baseUrl || currentProvider.defaultBaseUrl}
                         onchange={updateBaseUrl}
-                        class="w-full py-2.5 px-3 bg-secondary border border-border rounded-lg text-foreground text-sm transition-colors duration-150 focus:outline-none focus:border-ring placeholder:text-muted-foreground/50"
+                        class="bg-secondary border-border text-foreground focus:border-primary focus:ring-primary/20 placeholder:text-muted-foreground/50 w-full rounded-lg border px-3 py-2.5 text-sm transition-all duration-150 focus:outline-none focus:ring-2"
                     />
                 </div>
 
                 <!-- Models Section -->
-                <div class="mt-4 pt-4 border-t border-border">
-                    <div class="flex items-center justify-between mb-3">
-                        <div class="flex items-center gap-2 text-[13px] font-medium text-muted-foreground">
-                            <span class="flex text-muted-foreground/60" use:iconAction={'cpu'}></span>
+                <div class="border-border mt-5 border-t pt-5">
+                    <div class="mb-4 flex items-center justify-between">
+                        <div
+                            class="text-muted-foreground flex items-center gap-2 text-[13px] font-medium"
+                        >
+                            <span class="text-muted-foreground/60 flex" use:iconAction={'cpu'}
+                            ></span>
                             <span>Models</span>
                         </div>
-                        <button 
-                            class="flex items-center justify-center w-7 h-7 bg-primary border-none rounded-md text-primary-foreground cursor-pointer transition-opacity duration-150 hover:opacity-90"
-                            onclick={openAddModelModal} 
+                        <button
+                            class="bg-primary text-primary-foreground flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border-none transition-opacity duration-150 hover:opacity-90"
+                            onclick={openAddModelModal}
                             title="Add model"
                         >
                             <span use:iconAction={'plus'}></span>
                         </button>
                     </div>
 
-                    <div class="flex flex-col gap-2">
+                    <div class="flex flex-col gap-2.5">
                         {#if !models || models.length === 0}
-                            <div class="flex flex-col items-center gap-2 py-6 text-muted-foreground/60 text-[13px]">
-                                <span class="opacity-50" use:iconAction={'inbox'}></span>
-                                <span>No models configured</span>
+                            <div
+                                class="bg-secondary/50 border-border/50 flex flex-col items-center gap-3 rounded-lg border border-dashed py-8 text-[13px]"
+                            >
+                                <span class="text-muted-foreground/40" use:iconAction={'inbox'}></span>
+                                <div class="flex flex-col items-center gap-1">
+                                    <span class="text-muted-foreground">No models configured</span>
+                                    <span class="text-muted-foreground/60 text-[12px]">Click + to add your first model</span>
+                                </div>
                             </div>
                         {:else}
                             {#each models as model (model.id)}
-                                <div class="flex items-center justify-between py-2.5 px-3 bg-secondary border border-border rounded-lg transition-colors duration-150 hover:border-border">
-                                    <div class="flex items-center gap-2.5">
-                                        <span class="flex text-primary" use:iconAction={'sparkles'}></span>
-                                        <span class="text-sm font-medium text-foreground">{model.name || model.modelName}</span>
+                                <div
+                                    class="bg-secondary border-border hover:border-primary/30 hover:shadow-sm flex items-center justify-between rounded-lg border px-4 py-3 transition-all duration-150"
+                                >
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-primary flex" use:iconAction={'sparkles'}
+                                        ></span>
+                                        <span class="text-foreground text-sm font-medium"
+                                            >{model.name || model.modelName}</span
+                                        >
                                     </div>
                                     <div class="flex gap-1">
-                                        <button 
-                                            class="flex items-center justify-center w-7 h-7 bg-transparent border border-transparent rounded-md text-muted-foreground cursor-pointer transition-all duration-150 hover:bg-accent hover:border-border hover:text-primary" 
-                                            title="Edit model" 
+                                        <button
+                                            class="text-muted-foreground hover:bg-accent hover:text-primary flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border border-transparent bg-transparent transition-all duration-150"
+                                            title="Edit model"
                                             onclick={() => openEditModelModal(model)}
                                         >
                                             <span use:iconAction={'pencil'}></span>
                                         </button>
-                                        <button 
-                                            class="flex items-center justify-center w-7 h-7 bg-transparent border border-transparent rounded-md text-muted-foreground cursor-pointer transition-all duration-150 hover:bg-accent hover:border-border hover:text-destructive" 
-                                            title="Delete model" 
+                                        <button
+                                            class="text-muted-foreground hover:bg-destructive/10 hover:text-destructive flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border border-transparent bg-transparent transition-all duration-150"
+                                            title="Delete model"
                                             onclick={() => deleteModel(model.id)}
                                         >
                                             <span use:iconAction={'trash-2'}></span>

@@ -10,11 +10,8 @@
     let { class: className, children, ...props }: Props = $props();
 </script>
 
-<Select.Group 
-    class={cn(
-        'mx-1 my-1 rounded-lg border border-border bg-muted/30 py-1',
-        className
-    )} 
+<Select.Group
+    class={cn('border-border bg-muted/30 mx-1 my-1 rounded-lg border py-1', className)}
     {...props}
 >
     {#if children}

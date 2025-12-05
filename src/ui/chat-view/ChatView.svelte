@@ -21,8 +21,9 @@
     import type { PromptInputMessage, ChatStatus } from '$lib/components/ai-elements/prompt-input';
     import { sessionManager } from '../../core/session-manager';
     import { RunnerService } from '../../core/runner-service';
+    import { parseModelSelection, createModel } from '../../core/model-registry';
     import { Agent } from '@openai/agents';
-    import { DEFAULT_PROVIDERS } from '../../settings/settings';
+    import { BUILTIN_PROVIDERS } from '../../settings/settings';
 
     interface Props {
         app: App;
@@ -47,58 +48,69 @@
 
     // 模型选择状态 - 使用默认值初始化
     let selectedModel = $state('gpt-4.1-mini');
-    
-    // 初始化时设置默认模型
+
+    // 初始化时设置默认模型（取第一个已配置 provider 的第一个模型）
     $effect(() => {
-        if (plugin.settings.openaiDefaultModel && selectedModel === 'gpt-4.1-mini') {
-            selectedModel = plugin.settings.openaiDefaultModel;
+        if (selectedModel === 'gpt-4.1-mini') {
+            const activeProvider = plugin.settings.providers[plugin.settings.activeProviderId];
+            if (activeProvider?.apiKey && activeProvider.models.length > 0) {
+                const firstModel = activeProvider.models[0];
+                selectedModel = `${plugin.settings.activeProviderId}:${firstModel.modelName}`;
+            }
         }
     });
-    
+
     // 获取可用的模型列表，按 Provider 分组
     const groupedModels = $derived.by(() => {
-        const groups: { providerId: string; providerLabel: string; models: { id: string; name: string }[] }[] = [];
+        const groups: {
+            providerId: string;
+            providerLabel: string;
+            models: { id: string; name: string }[];
+        }[] = [];
         const providers = plugin.settings.providers;
-        
+
         for (const [providerId, providerSettings] of Object.entries(providers)) {
             if (providerSettings.apiKey && providerSettings.models.length > 0) {
-                const providerInfo = DEFAULT_PROVIDERS.find(p => p.id === providerId);
+                const providerInfo = BUILTIN_PROVIDERS[providerId as keyof typeof BUILTIN_PROVIDERS];
                 groups.push({
                     providerId,
                     providerLabel: providerInfo?.label || providerId,
-                    models: providerSettings.models.map(model => ({
+                    models: providerSettings.models.map((model) => ({
                         id: `${providerId}:${model.modelName}`,
                         name: model.name,
                     })),
                 });
             }
         }
-        
+
         // 如果没有配置任何模型，返回默认组
         if (groups.length === 0) {
             groups.push({
                 providerId: 'openai',
                 providerLabel: 'OpenAI',
-                models: [{
-                    id: 'gpt-4.1-mini',
-                    name: 'GPT-4.1 Mini',
-                }],
+                models: [
+                    {
+                        id: 'gpt-4.1-mini',
+                        name: 'GPT-4.1 Mini',
+                    },
+                ],
             });
         }
-        
+
         return groups;
     });
-    
+
     // 获取当前选中模型的显示名称
     const selectedModelName = $derived.by(() => {
         for (const group of groupedModels) {
-            const model = group.models.find(m => m.id === selectedModel);
+            const model = group.models.find((m) => m.id === selectedModel);
             if (model) return model.name;
         }
         return selectedModel;
     });
 
-    const sessionId = $state(crypto.randomUUID());
+    // Session 管理 - 每个 ChatView 实例有独立的 session
+    const sessionId = crypto.randomUUID();
     const session = $derived(sessionManager.getOrCreate(sessionId));
 
     // 初始化 RunnerService
@@ -121,18 +133,23 @@
         }
     }
 
-    // 创建默认 Agent（临时方案，后续会从 AgentRegistry 获取）
-    function createDefaultAgent(): Agent {
-        // 解析选中的模型 ID，格式为 "providerId:modelName" 或纯 modelName
-        let modelName = selectedModel;
-        if (selectedModel.includes(':')) {
-            modelName = selectedModel.split(':').slice(1).join(':');
+    // 创建 Agent（使用 AI SDK 适配器支持多 provider）
+    function createAgent(): Agent {
+        // 解析选中的模型配置
+        const modelConfig = parseModelSelection(selectedModel, plugin.settings);
+
+        if (!modelConfig) {
+            // 如果解析失败，抛出错误
+            throw new Error(`请先配置 ${selectedModel.split(':')[0] || 'openai'} 的 API Key`);
         }
-        
+
+        // 使用 AI SDK 适配器创建模型
+        const model = createModel(modelConfig);
+
         return new Agent({
             name: 'Cortex Assistant',
             instructions: '你是一个友好的 AI 助手，名为 Cortex。请用中文回答用户的问题。',
-            model: modelName,
+            model,
         });
     }
 
@@ -163,17 +180,12 @@
         streamingText = '';
 
         try {
-            // 检查是否有 API Key
-            if (!plugin.settings.openaiApiKey) {
-                throw new Error('请先在设置中配置 OpenAI API Key');
-            }
-
             chatStatus = 'streaming';
 
-            // 创建 Agent 并使用 RunnerService 运行
-            const agent = createDefaultAgent();
+            // 创建 Agent（会在内部检查 API Key）
+            const agent = createAgent();
 
-            // 使用 session 进行流式调用，SDK 会自动管理会话历史
+            // 使用 RunnerService 进行流式调用，传入 session 自动管理会话历史
             await runnerService.runStreamed(
                 agent,
                 text,
@@ -224,29 +236,20 @@
     async function clearSession(): Promise<void> {
         await sessionManager.delete(sessionId);
         messages = [];
+        streamingText = '';
+        chatStatus = 'idle';
     }
 </script>
 
-<div
-    class={cn(
-        'cortex-chat-view flex h-full flex-col',
-        isDarkMode ? 'dark' : ''
-    )}
->
+<div class={cn('cortex-chat-view flex h-full flex-col', isDarkMode ? 'dark' : '')}>
     <!-- 消息列表区域 -->
-    <div
-        class="flex-1 overflow-y-auto px-4"
-        bind:this={messagesContainer}
-    >
+    <div class="flex-1 overflow-y-auto px-4" bind:this={messagesContainer}>
         {#if messages.length === 0}
             <!-- 空状态 -->
             <div class="flex h-full items-center justify-center">
-                <div class="text-center text-muted-foreground">
+                <div class="text-muted-foreground text-center">
                     <div class="mb-2 text-lg font-medium">Cortex Chat</div>
                     <div class="text-sm">开始与 AI 助手对话吧</div>
-                    <div class="mt-2 text-xs opacity-60">
-                        Session: {sessionId.slice(0, 8)}...
-                    </div>
                 </div>
             </div>
         {:else}
@@ -277,22 +280,20 @@
     </div>
 
     <!-- 输入区域 -->
-    <div class="shrink-0 border-t border-border p-4">
+    <div class="border-border shrink-0 border-t p-4">
         <PromptInput
             onSubmit={handleSubmit}
-            class="rounded-xl border border-input bg-background shadow-sm"
+            class="border-input bg-background rounded-xl border shadow-sm"
         >
             <PromptInputBody>
-                <PromptInputTextarea
-                    placeholder="输入消息..."
-                />
+                <PromptInputTextarea placeholder="输入消息..." />
             </PromptInputBody>
             <PromptInputToolbar class="justify-between px-3 py-2">
                 <!-- 模型选择器 -->
                 <PromptInputModelSelect value={selectedModel} onValueChange={handleModelChange}>
                     <PromptInputModelSelectTrigger class="h-8 text-xs">
-                        <PromptInputModelSelectValue 
-                            placeholder="选择模型" 
+                        <PromptInputModelSelectValue
+                            placeholder="选择模型"
                             value={selectedModelName}
                         />
                     </PromptInputModelSelectTrigger>
@@ -311,7 +312,7 @@
                         {/each}
                     </PromptInputModelSelectContent>
                 </PromptInputModelSelect>
-                
+
                 <PromptInputSubmit status={chatStatus} />
             </PromptInputToolbar>
         </PromptInput>

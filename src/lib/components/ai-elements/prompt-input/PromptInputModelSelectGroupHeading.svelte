@@ -10,11 +10,8 @@
     let { class: className, children, ...props }: Props = $props();
 </script>
 
-<Select.GroupHeading 
-    class={cn(
-        'px-3 py-2 text-sm font-semibold text-foreground text-center',
-        className
-    )} 
+<Select.GroupHeading
+    class={cn('text-foreground px-3 py-2 text-center text-sm font-semibold', className)}
     {...props}
 >
     {#if children}
