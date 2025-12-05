@@ -3,7 +3,7 @@ import './src/input.css';
 import type { CortexSettings } from './src/settings/settings';
 import { DEFAULT_SETTINGS } from './src/settings/settings';
 import { CortexSettingTab } from './src/settings/settings-tab';
-import { registerChatView, activateChatView, VIEW_TYPE_CHAT } from './src/ui/chat-view';
+import { registerChatView, activateChatView } from './src/ui/chat-view';
 
 export default class CortexPlugin extends Plugin {
     settings!: CortexSettings;

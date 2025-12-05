@@ -79,7 +79,7 @@
 
     // 当当前 provider 变化时，重新同步 providerSettings
     $effect(() => {
-        activeProviderId;
+        void activeProviderId;
         providerSettings = buildProviderSettingsSnapshot();
     });
 
@@ -143,6 +143,7 @@
         });
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     function openEditProviderModal(providerId: string) {
         const customProvider = settings.customProviders?.find((p) => p.id === providerId);
         if (!customProvider) return;
@@ -192,7 +193,7 @@
 
         <!-- Model Tabs -->
         <div class="mb-4 flex flex-wrap items-center gap-2">
-            {#each allProviders as provider}
+            {#each allProviders as provider (provider.id)}
                 <button
                     class="border-border bg-background text-foreground hover:bg-accent cursor-pointer rounded-full border px-4 py-2 text-[13px] font-medium transition-all duration-150 {activeProviderId ===
                     provider.id

@@ -12,8 +12,6 @@
     }
 
     let { children, class: className, title, ...restProps }: TaskTriggerProps = $props();
-
-    let randomId = crypto.randomUUID();
 </script>
 
 {#if children}
