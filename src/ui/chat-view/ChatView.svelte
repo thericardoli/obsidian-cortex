@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { App } from 'obsidian';
+
     import type CortexPlugin from '../../../main';
     import { cn } from '$lib/utils';
     import {
@@ -26,12 +26,11 @@
     import { BUILTIN_PROVIDERS } from '../../settings/settings';
 
     interface Props {
-        app: App;
         plugin: CortexPlugin;
         isDarkMode?: boolean;
     }
 
-    let { app, plugin, isDarkMode = false }: Props = $props();
+    let { plugin, isDarkMode = false }: Props = $props();
 
     // 消息列表状态
     interface ChatMessage {
@@ -161,7 +160,7 @@
     }
 
     // 处理消息提交
-    async function handleSubmit(message: PromptInputMessage, event: SubmitEvent): Promise<void> {
+    async function handleSubmit(message: PromptInputMessage, _event: SubmitEvent): Promise<void> {
         const text = message.text?.trim();
         if (!text) return;
 
@@ -232,7 +231,8 @@
         }
     }
 
-    // 清除当前会话
+    // 清除当前会话（保留供未来使用）
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async function clearSession(): Promise<void> {
         await sessionManager.delete(sessionId);
         messages = [];

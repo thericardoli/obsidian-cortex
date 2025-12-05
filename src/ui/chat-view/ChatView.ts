@@ -50,7 +50,6 @@ export class ChatView extends ItemView {
         this.component = mount(ChatViewComponent, {
             target: mountPoint,
             props: {
-                app: this.app,
                 plugin: this.plugin,
                 isDarkMode,
             },
