@@ -26,9 +26,14 @@
     }: ChainOfThoughtProps = $props();
 
     // Create context instance with proper controllable state
+    // Use getters to ensure reactive updates of props in the context
     const context = new ChainOfThoughtContext({
-        isOpen: open !== undefined ? open : defaultOpen,
-        onOpenChange,
+        get isOpen() {
+            return open !== undefined ? open : defaultOpen;
+        },
+        get onOpenChange() {
+            return onOpenChange;
+        },
     });
 
     // Handle controlled mode synchronization
