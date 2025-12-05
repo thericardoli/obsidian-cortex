@@ -23,15 +23,32 @@ export class AttachmentsContext {
     fileInputRef = $state<HTMLInputElement | null>(null);
 
     constructor(
-        private accept?: string,
-        private multiple?: boolean,
-        private maxFiles?: number,
-        private maxFileSize?: number,
-        private onError?: (err: {
+        private getAccept: () => string | undefined = () => undefined,
+        private getMultiple: () => boolean | undefined = () => undefined,
+        private getMaxFiles: () => number | undefined = () => undefined,
+        private getMaxFileSize: () => number | undefined = () => undefined,
+        private getOnError: () => ((err: {
             code: 'max_files' | 'max_file_size' | 'accept';
             message: string;
-        }) => void
+        }) => void) | undefined = () => undefined
     ) {}
+
+    // Getters to access current prop values
+    private get accept() {
+        return this.getAccept();
+    }
+    private get multiple() {
+        return this.getMultiple();
+    }
+    private get maxFiles() {
+        return this.getMaxFiles();
+    }
+    private get maxFileSize() {
+        return this.getMaxFileSize();
+    }
+    private get onError() {
+        return this.getOnError();
+    }
 
     openFileDialog = () => {
         this.fileInputRef?.click();
@@ -135,10 +152,14 @@ export class PromptInputController {
     textInput: TextInputController;
     attachments: AttachmentsContext;
 
-    constructor(initialInput = '', accept?: string, multiple?: boolean) {
+    constructor(
+        getInitialInput: () => string = () => '',
+        getAccept: () => string | undefined = () => undefined,
+        getMultiple: () => boolean | undefined = () => undefined
+    ) {
         this.textInput = new TextInputController();
-        this.textInput.value = initialInput;
-        this.attachments = new AttachmentsContext(accept, multiple);
+        this.textInput.value = getInitialInput();
+        this.attachments = new AttachmentsContext(getAccept, getMultiple);
     }
 }
 

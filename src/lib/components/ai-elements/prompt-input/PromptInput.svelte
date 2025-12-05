@@ -43,11 +43,11 @@
     let anchorRef = $state<HTMLSpanElement | null>(null);
     let formRef = $state<HTMLFormElement | null>(null);
     let attachmentsContext = new AttachmentsContext(
-        accept,
-        multiple,
-        maxFiles,
-        maxFileSize,
-        onError
+        () => accept,
+        () => multiple,
+        () => maxFiles,
+        () => maxFileSize,
+        () => onError
     );
 
     // Find nearest form to scope drag & drop
