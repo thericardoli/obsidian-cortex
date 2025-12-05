@@ -1,266 +1,87 @@
-# Obsidian community plugin
+# Obsidian Cortex - AI Coding Instructions
 
-## Project overview
+Obsidian 插件，提供基于 OpenAI Agents SDK 的多 Agent 可视化助手，支持 Agent handoff、自定义工具和流式响应。
 
-- Target: Obsidian Community Plugin (TypeScript → bundled JavaScript).
-- Entry point: `main.ts` compiled to `main.js` and loaded by Obsidian.
-- Required release artifacts: `main.js`, `manifest.json`, and optional `styles.css`.
+## 架构概览
 
-## Environment & tooling
-
-- Node.js: use current LTS (Node 18+ recommended).
-- **Package manager: bun** (fast, all-in-one toolkit - `package.json` defines scripts and dependencies).
-- **Bundler: esbuild** (required for this sample - `esbuild.config.mjs` and build scripts depend on it). Alternative bundlers like Rollup or webpack are acceptable for other projects if they bundle all external dependencies into `main.js`.
-- Types: `obsidian` type definitions.
-
-**Note**: This sample project uses bun and esbuild. If you're creating a plugin from scratch, you can choose different tools, but you'll need to replace the build configuration accordingly.
-
-### Install
-
-```bash
-bun install
+```
+main.ts                 # 插件入口，只负责生命周期管理
+src/core/               # 核心业务逻辑
+  ├── agent-registry    # Agent 配置管理与 SDK Agent 实例构建
+  ├── model-registry    # LLM provider/model 配置解析
+  ├── tool-registry     # 工具注册，ToolDefinition → SDK tool() 转换
+  └── runner-service    # Runner.runStreamed 封装，流式事件处理
+src/types/              # 核心类型定义 (AgentConfig, ToolDefinition, LLMModelConfig)
+src/ui/chat-view/       # Obsidian ItemView + Svelte 聊天界面
+src/lib/components/     # 可复用 Svelte 组件库 (ai-elements/, ui/)
+src/settings/           # 插件设置 (CortexSettings, PluginSettingTab)
 ```
 
-### Dev (watch)
+## 技术栈
+
+- **构建**: Vite + esbuild，直接输出到根目录 (`outDir: './'`)
+- **UI**: Svelte 5 (runes 模式, `$state`, `$props`)，Tailwind CSS v4
+- **AI SDK**: `@openai/agents` (Agent/Runner/tool)，`ai` 包类型
+- **路径别名**: `$lib` → `src/lib`（见 `tsconfig.json` paths）
+
+## 关键开发命令
 
 ```bash
-bun run dev
+bun install                    # 安装依赖
+bun run dev                    # watch 模式构建
+bun run build 2>&1 | tail -3   # 生产构建（简洁输出）
+bun run build:dev              # 开发构建（未压缩，带 sourcemap）
+bun run lint                   # ESLint 检查
+bun run svelte-check           # Svelte 类型检查
 ```
 
-### Production build
+## 核心模式与约定
 
-```bash
-bun run build
-```
+### Agent 系统
 
-## Linting
+1. **AgentConfig** → **Agent** 转换流程 (`agent-registry.ts`):
+    - `AgentRegistry.buildAgent(id)` 递归构建含 handoff 的 Agent 树
+    - 工具 ID 通过 `ToolRegistry.getSdkTool()` 解析
+    - 模型通过 `ModelRegistry.resolveForAgent()` 解析
 
-- To use eslint install eslint from terminal: `bun add -g eslint`
-- To use eslint to analyze this project use this command: `eslint main.ts`
-- eslint will then create a report with suggestions for code improvement by file and line number.
-- If your source code is in a folder, such as `src`, you can use eslint with this command to analyze all files in that folder: `eslint ./src/`
+2. **工具定义** (`src/types/tool.ts`):
 
-## File & folder conventions
-
-- **Organize code into multiple files**: Split functionality across separate modules rather than putting everything in `main.ts`.
-- Source lives in `src/`. Keep `main.ts` small and focused on plugin lifecycle (loading, unloading, registering commands).
-- **Example file structure**:
-    ```
-    src/
-      main.ts           # Plugin entry point, lifecycle management
-      settings.ts       # Settings interface and defaults
-      commands/         # Command implementations
-        command1.ts
-        command2.ts
-      ui/              # UI components, modals, views
-        modal.ts
-        view.ts
-      utils/           # Utility functions, helpers
-        helpers.ts
-        constants.ts
-      types.ts         # TypeScript interfaces and types
-    ```
-- **Do not commit build artifacts**: Never commit `node_modules/`, `main.js`, or other generated files to version control.
-- Keep the plugin small. Avoid large dependencies. Prefer browser-compatible packages.
-- Generated output should be placed at the plugin root or `dist/` depending on your build setup. Release artifacts must end up at the top level of the plugin folder in the vault (`main.js`, `manifest.json`, `styles.css`).
-
-## Manifest rules (`manifest.json`)
-
-- Must include (non-exhaustive):
-    - `id` (plugin ID; for local dev it should match the folder name)
-    - `name`
-    - `version` (Semantic Versioning `x.y.z`)
-    - `minAppVersion`
-    - `description`
-    - `isDesktopOnly` (boolean)
-    - Optional: `author`, `authorUrl`, `fundingUrl` (string or map)
-- Never change `id` after release. Treat it as stable API.
-- Keep `minAppVersion` accurate when using newer APIs.
-- Canonical requirements are coded here: https://github.com/obsidianmd/obsidian-releases/blob/master/.github/workflows/validate-plugin-entry.yml
-
-## Testing
-
-- Manual install for testing: copy `main.js`, `manifest.json`, `styles.css` (if any) to:
-    ```
-    <Vault>/.obsidian/plugins/<plugin-id>/
-    ```
-- Reload Obsidian and enable the plugin in **Settings → Community plugins**.
-
-## Commands & settings
-
-- Any user-facing commands should be added via `this.addCommand(...)`.
-- If the plugin has configuration, provide a settings tab and sensible defaults.
-- Persist settings using `this.loadData()` / `this.saveData()`.
-- Use stable command IDs; avoid renaming once released.
-
-## Versioning & releases
-
-- Bump `version` in `manifest.json` (SemVer) and update `versions.json` to map plugin version → minimum app version.
-- Create a GitHub release whose tag exactly matches `manifest.json`'s `version`. Do not use a leading `v`.
-- Attach `manifest.json`, `main.js`, and `styles.css` (if present) to the release as individual assets.
-- After the initial release, follow the process to add/update your plugin in the community catalog as required.
-
-## Security, privacy, and compliance
-
-Follow Obsidian's **Developer Policies** and **Plugin Guidelines**. In particular:
-
-- Default to local/offline operation. Only make network requests when essential to the feature.
-- No hidden telemetry. If you collect optional analytics or call third-party services, require explicit opt-in and document clearly in `README.md` and in settings.
-- Never execute remote code, fetch and eval scripts, or auto-update plugin code outside of normal releases.
-- Minimize scope: read/write only what's necessary inside the vault. Do not access files outside the vault.
-- Clearly disclose any external services used, data sent, and risks.
-- Respect user privacy. Do not collect vault contents, filenames, or personal information unless absolutely necessary and explicitly consented.
-- Avoid deceptive patterns, ads, or spammy notifications.
-- Register and clean up all DOM, app, and interval listeners using the provided `register*` helpers so the plugin unloads safely.
-
-## UX & copy guidelines (for UI text, commands, settings)
-
-- Prefer sentence case for headings, buttons, and titles.
-- Use clear, action-oriented imperatives in step-by-step copy.
-- Use **bold** to indicate literal UI labels. Prefer "select" for interactions.
-- Use arrow notation for navigation: **Settings → Community plugins**.
-- Keep in-app strings short, consistent, and free of jargon.
-
-## Performance
-
-- Keep startup light. Defer heavy work until needed.
-- Avoid long-running tasks during `onload`; use lazy initialization.
-- Batch disk access and avoid excessive vault scans.
-- Debounce/throttle expensive operations in response to file system events.
-
-## Coding conventions
-
-- TypeScript with `"strict": true` preferred.
-- **Keep `main.ts` minimal**: Focus only on plugin lifecycle (onload, onunload, addCommand calls). Delegate all feature logic to separate modules.
-- **Split large files**: If any file exceeds ~200-300 lines, consider breaking it into smaller, focused modules.
-- **Use clear module boundaries**: Each file should have a single, well-defined responsibility.
-- Bundle everything into `main.js` (no unbundled runtime deps).
-- Avoid Node/Electron APIs if you want mobile compatibility; set `isDesktopOnly` accordingly.
-- Prefer `async/await` over promise chains; handle errors gracefully.
-
-## Mobile
-
-- Where feasible, test on iOS and Android.
-- Don't assume desktop-only behavior unless `isDesktopOnly` is `true`.
-- Avoid large in-memory structures; be mindful of memory and storage constraints.
-
-## Agent do/don't
-
-**Do**
-
-- Add commands with stable IDs (don't rename once released).
-- Provide defaults and validation in settings.
-- Write idempotent code paths so reload/unload doesn't leak listeners or intervals.
-- Use `this.register*` helpers for everything that needs cleanup.
-
-**Don't**
-
-- Introduce network calls without an obvious user-facing reason and documentation.
-- Ship features that require cloud services without clear disclosure and explicit opt-in.
-- Store or transmit vault contents unless essential and consented.
-
-## Common tasks
-
-### Organize code across multiple files
-
-**main.ts** (minimal, lifecycle only):
-
-```ts
-import { Plugin } from 'obsidian';
-import { MySettings, DEFAULT_SETTINGS } from './settings';
-import { registerCommands } from './commands';
-
-export default class MyPlugin extends Plugin {
-    settings: MySettings;
-
-    async onload() {
-        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-        registerCommands(this);
+    ```ts
+    interface ToolDefinition {
+        id: string;
+        parameters: z.ZodSchema; // 必须是 zod schema
+        execute: (input, ctx: ToolContext) => Promise<unknown>;
     }
-}
-```
+    ```
 
-**settings.ts**:
+    - `ToolContext` 提供 `app`, `vault`, `workspace` 访问
 
-```ts
-export interface MySettings {
-    enabled: boolean;
-    apiKey: string;
-}
+### Svelte 组件
 
-export const DEFAULT_SETTINGS: MySettings = {
-    enabled: true,
-    apiKey: '',
-};
-```
+- 使用 **Svelte 5 runes**: `$state()`, `$props()`, `$derived()`
+- 组件挂载到 Obsidian 视图: `mount(Component, { target, props })`
+- AI 组件位于 `src/lib/components/ai-elements/`，按功能分组
+- UI 基础组件位于 `src/lib/components/ui/`
+- **禁止使用 `<style>` 块**，所有样式必须使用 Tailwind CSS 类名
 
-**commands/index.ts**:
+### 设置管理
 
 ```ts
-import { Plugin } from 'obsidian';
-import { doSomething } from './my-command';
-
-export function registerCommands(plugin: Plugin) {
-    plugin.addCommand({
-        id: 'do-something',
-        name: 'Do something',
-        callback: () => doSomething(plugin),
-    });
-}
+// main.ts 中加载/保存
+this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+await this.saveData(this.settings);
 ```
 
-### Add a command
+## 文件命名与导出
 
-```ts
-this.addCommand({
-    id: 'your-command-id',
-    name: 'Do the thing',
-    callback: () => this.doTheThing(),
-});
-```
+- Svelte 组件: `PascalCase.svelte`
+- TypeScript: `kebab-case.ts`
+- 每个组件目录包含 `index.ts` 导出所有公共组件
+- 类型定义集中在 `src/types/`
 
-### Persist settings
+## 注意事项
 
-```ts
-interface MySettings { enabled: boolean }
-const DEFAULT_SETTINGS: MySettings = { enabled: true };
-
-async onload() {
-  this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-  await this.saveData(this.settings);
-}
-```
-
-### Register listeners safely
-
-```ts
-this.registerEvent(
-    this.app.workspace.on('file-open', (f) => {
-        /* ... */
-    })
-);
-this.registerDomEvent(window, 'resize', () => {
-    /* ... */
-});
-this.registerInterval(
-    window.setInterval(() => {
-        /* ... */
-    }, 1000)
-);
-```
-
-## Troubleshooting
-
-- Plugin doesn't load after build: ensure `main.js` and `manifest.json` are at the top level of the plugin folder under `<Vault>/.obsidian/plugins/<plugin-id>/`.
-- Build issues: if `main.js` is missing, run `npm run build` or `npm run dev` to compile your TypeScript source code.
-- Commands not appearing: verify `addCommand` runs after `onload` and IDs are unique.
-- Settings not persisting: ensure `loadData`/`saveData` are awaited and you re-render the UI after changes.
-- Mobile-only issues: confirm you're not using desktop-only APIs; check `isDesktopOnly` and adjust.
-
-## References
-
-- Obsidian sample plugin: https://github.com/obsidianmd/obsidian-sample-plugin
-- API documentation: https://docs.obsidian.md
-- Developer policies: https://docs.obsidian.md/Developer+policies
-- Plugin guidelines: https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines
-- Style guide: https://help.obsidian.md/style-guide
+- **勿提交构建产物**: `main.js`, `styles.css` 由构建生成
+- **保持 main.ts 精简**: 只包含 `onload/onunload` 和命令注册
+- **Obsidian API 外部化**: Vite 配置中 `obsidian` 已设为 external
+- **ESLint any 规则**: 部分 SDK 交互处需 `eslint-disable` 注释

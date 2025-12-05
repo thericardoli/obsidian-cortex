@@ -40,7 +40,7 @@ export default class CortexPlugin extends Plugin {
     async loadSettings(): Promise<void> {
         const savedData = await this.loadData();
         this.settings = Object.assign({}, DEFAULT_SETTINGS, savedData);
-        
+
         // 迁移旧设置到新结构
         if (savedData && !savedData.providers) {
             // 旧设置存在但没有新的 providers 字段，进行迁移
@@ -51,18 +51,22 @@ export default class CortexPlugin extends Plugin {
                 this.settings.providers.openrouter.apiKey = savedData.openrouterApiKey;
             }
             if (savedData.openaiDefaultModel) {
-                this.settings.providers.openai.models = [{
-                    id: savedData.openaiDefaultModel,
-                    name: savedData.openaiDefaultModel,
-                    modelName: savedData.openaiDefaultModel,
-                }];
+                this.settings.providers.openai.models = [
+                    {
+                        id: savedData.openaiDefaultModel,
+                        name: savedData.openaiDefaultModel,
+                        modelName: savedData.openaiDefaultModel,
+                    },
+                ];
             }
             if (savedData.openrouterDefaultModel) {
-                this.settings.providers.openrouter.models = [{
-                    id: savedData.openrouterDefaultModel,
-                    name: savedData.openrouterDefaultModel,
-                    modelName: savedData.openrouterDefaultModel,
-                }];
+                this.settings.providers.openrouter.models = [
+                    {
+                        id: savedData.openrouterDefaultModel,
+                        name: savedData.openrouterDefaultModel,
+                        modelName: savedData.openrouterDefaultModel,
+                    },
+                ];
             }
             // 保存迁移后的设置
             await this.saveSettings();

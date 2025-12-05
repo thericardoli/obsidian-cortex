@@ -23,7 +23,7 @@
 @theme inline {
     /* ===== 禁用默认颜色系统 ===== */
     --color-*: initial;
-    
+
     /* ===== 圆角系统 ===== */
     --radius-none: 0;
     --radius-clickable-icon: var(--clickable-icon-radius);
