@@ -1,10 +1,10 @@
-// RunnerService 封装了 OpenAI Agents SDK 的运行与流式事件处理。
-// 这里使用 any 避免与 SDK 内部复杂的泛型类型耦合，专注于行为逻辑。
+/**
+ * RunnerService - OpenAI Agents SDK 流式运行封装
+ */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 import type { Agent } from '@openai/agents';
-// eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
-const { Runner } = require('@openai/agents') as { Runner: any };
+import { run } from '@openai/agents';
+import type { Session } from './session-manager';
 
 export interface StreamCallbacks {
     onTextDelta?: (delta: string) => void;
@@ -13,49 +13,92 @@ export interface StreamCallbacks {
     onToolCall?: (info: any) => void;
 }
 
+export interface RunOptions {
+    session?: Session;
+}
+
+// 流式事件类型定义
+interface RawModelStreamEvent {
+    type: 'raw_model_stream_event';
+    data: {
+        type: string;
+        delta?: string;
+    };
+}
+
+interface AgentUpdatedStreamEvent {
+    type: 'agent_updated_stream_event';
+    agent: Agent;
+}
+
+interface RunItemStreamEvent {
+    type: 'run_item_stream_event';
+    name: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    item: any;
+}
+
+type StreamEvent = RawModelStreamEvent | AgentUpdatedStreamEvent | RunItemStreamEvent;
+
 export class RunnerService {
     isStreaming = false;
     currentAgentName: string | null = null;
     streamingText = '';
 
-    async runOnce(agent: Agent, input: string) {
-        // 类型上使用 any 与 SDK 的 Runner.run 对接，避免泛型噪音
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return (Runner as any).run(agent, input);
+    /**
+     * 非流式运行 Agent
+     */
+    async runOnce(agent: Agent, input: string, options: RunOptions = {}) {
+        return run(agent, input, {
+            session: options.session,
+        });
     }
 
-    async runStreamed(agent: Agent, input: string, callbacks: StreamCallbacks = {}) {
+    /**
+     * 流式运行 Agent，通过回调实时返回文本增量
+     */
+    async runStreamed(
+        agent: Agent,
+        input: string,
+        callbacks: StreamCallbacks = {},
+        options: RunOptions = {}
+    ) {
         this.isStreaming = true;
         this.streamingText = '';
 
-        // 调用 SDK 的 Runner.run_streamed 获取带有 stream_events 的结果
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const result = (Runner as any).run_streamed(agent, input);
+        try {
+            // 使用 { stream: true, session } 选项启用流式模式并传入 session
+            // session 会自动管理会话历史
+            const result = await run(agent, input, {
+                stream: true,
+                session: options.session,
+            });
 
-        // 按 Python 文档风格处理 stream_events
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        for await (const event of result.stream_events() as AsyncIterable<any>) {
-            if (
-                event.type === 'raw_response_event' &&
-                event.data &&
-                typeof event.data.delta === 'string'
-            ) {
-                const delta = event.data.delta as string;
-                if (delta.length > 0) {
-                    this.streamingText += delta;
-                    callbacks.onTextDelta?.(delta);
+            // 遍历流式事件
+            for await (const event of result as AsyncIterable<StreamEvent>) {
+                if (event.type === 'raw_model_stream_event') {
+                    // 处理模型输出的文本增量
+                    const data = event.data;
+                    if (data.type === 'output_text_delta' && typeof data.delta === 'string') {
+                        const delta = data.delta;
+                        if (delta.length > 0) {
+                            this.streamingText += delta;
+                            callbacks.onTextDelta?.(delta);
+                        }
+                    }
+                } else if (event.type === 'agent_updated_stream_event') {
+                    // Agent 切换事件
+                    this.currentAgentName = event.agent.name;
+                    callbacks.onAgentSwitch?.(event.agent);
+                } else if (event.type === 'run_item_stream_event') {
+                    // 工具调用等事件
+                    callbacks.onToolCall?.(event.item);
                 }
-            } else if (event.type === 'agent_updated_stream_event' && event.new_agent) {
-                this.currentAgentName = event.new_agent.name as string;
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                callbacks.onAgentSwitch?.(event.new_agent as any);
-            } else if (event.type === 'run_item_stream_event') {
-                callbacks.onToolCall?.(event.item);
             }
+
+            return result;
+        } finally {
+            this.isStreaming = false;
         }
-
-        this.isStreaming = false;
-
-        return result;
     }
 }

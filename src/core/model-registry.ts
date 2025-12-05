@@ -1,125 +1,119 @@
-import type { ModelSettings } from '@openai/agents-core';
-import type { AgentConfig, AgentModelSettingsOverride } from '../types/agent';
-import type { LLMModelConfig, LLMModelSettings, LLMProviderConfig } from '../types/model';
+/**
+ * Model Registry - 模型配置解析与实例创建
+ *
+ * 职责：
+ * - 解析 ChatView 的模型选择 ID
+ * - 创建适配后的模型实例（支持多 provider）
+ * - 检查 provider 配置状态
+ */
 
-// 最小版 ModelRegistry：目前只支持 kind === 'openai'，即直接使用字符串模型名。
-// 后续可以扩展 ai-sdk/custom 等。
+import { createOpenAI } from '@ai-sdk/openai';
+import { createAnthropic } from '@ai-sdk/anthropic';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
+import { aisdk } from '@openai/agents-extensions';
+import type { CortexSettings } from '../settings/settings';
+import { isBuiltinProvider, type BuiltinProviderId } from '../types/provider';
 
-export interface ProviderSecrets {
-    apiKey?: string;
+/** 解析后的模型配置 */
+export interface ResolvedModelConfig {
+    providerId: string;
+    builtinId?: BuiltinProviderId;
+    isCustom: boolean;
+    modelName: string;
+    apiKey: string;
     baseUrl?: string;
 }
 
-export class ModelRegistry {
-    private providers = new Map<string, LLMProviderConfig>();
-    private models = new Map<string, LLMModelConfig>();
+/**
+ * 从 ChatView 的模型选择 ID 解析出模型配置
+ *
+ * @param selectedModelId 格式为 "providerId:modelName" 或纯 "modelName"
+ * @param settings 插件设置
+ * @returns 解析后的模型配置，供 createModel 创建实例
+ */
+export function parseModelSelection(
+    selectedModelId: string,
+    settings: CortexSettings
+): ResolvedModelConfig | null {
+    let providerId: string;
+    let modelName: string;
 
-    constructor(
-        providerConfigs: LLMProviderConfig[] = [],
-        modelConfigs: LLMModelConfig[] = [],
-        private readonly getSecrets: (providerId: string) => ProviderSecrets = () => ({})
-    ) {
-        for (const p of providerConfigs) {
-            this.providers.set(p.id, p);
-        }
-        for (const m of modelConfigs) {
-            this.models.set(m.id, m);
-        }
+    if (selectedModelId.includes(':')) {
+        const parts = selectedModelId.split(':');
+        providerId = parts[0];
+        modelName = parts.slice(1).join(':');
+    } else {
+        providerId = 'openai';
+        modelName = selectedModelId;
     }
 
-    upsertProvider(config: LLMProviderConfig) {
-        this.providers.set(config.id, config);
+    const providerSettings = settings.providers[providerId];
+    if (!providerSettings?.apiKey) {
+        console.warn(`Provider ${providerId} not configured or missing API key`);
+        return null;
     }
 
-    listProviders(): LLMProviderConfig[] {
-        return Array.from(this.providers.values());
+    const isCustom = !isBuiltinProvider(providerId);
+
+    return {
+        providerId,
+        builtinId: isCustom ? undefined : (providerId as BuiltinProviderId),
+        isCustom,
+        modelName,
+        apiKey: providerSettings.apiKey,
+        baseUrl: providerSettings.baseUrl,
+    };
+}
+
+/**
+ * 根据解析后的配置创建适配后的模型实例
+ *
+ * - builtin provider: 使用专用 SDK (openai/anthropic/gemini/openrouter)
+ * - custom provider: 使用 OpenAI 兼容 API
+ */
+export function createModel(config: ResolvedModelConfig) {
+    const { modelName, apiKey, baseUrl, isCustom, builtinId } = config;
+
+    if (isCustom) {
+        const openai = createOpenAI({ apiKey, baseURL: baseUrl });
+        return aisdk(openai(modelName));
     }
 
-    upsertModel(config: LLMModelConfig) {
-        this.models.set(config.id, config);
+    switch (builtinId) {
+        case 'openai': {
+            const openai = createOpenAI({ apiKey, baseURL: baseUrl });
+            return aisdk(openai(modelName));
+        }
+        case 'anthropic': {
+            const anthropic = createAnthropic({ apiKey, baseURL: baseUrl });
+            return aisdk(anthropic(modelName));
+        }
+        case 'gemini': {
+            const google = createGoogleGenerativeAI({ apiKey, baseURL: baseUrl });
+            return aisdk(google(modelName));
+        }
+        case 'openrouter': {
+            const openrouter = createOpenRouter({ apiKey, baseURL: baseUrl });
+            return aisdk(openrouter(modelName));
+        }
+        default:
+            throw new Error(`Unknown builtin provider: ${builtinId}`);
     }
+}
 
-    listModels(): LLMModelConfig[] {
-        return Array.from(this.models.values());
-    }
+/**
+ * 检查指定 provider 是否已配置（有 API Key）
+ */
+export function isProviderConfigured(providerId: string, settings: CortexSettings): boolean {
+    return !!settings.providers[providerId]?.apiKey;
+}
 
-    getModelConfig(id: string): LLMModelConfig | undefined {
-        return this.models.get(id);
-    }
-
-    /**
-     * 根据 Agent 配置解析出传给 Agent 构造函数的 model / modelSettings。
-     * 当前实现：
-     * - kind === 'openai' 时，直接返回 modelName 字符串；
-     * - 其它 provider 暂时返回 undefined（后续扩展）。
-     */
-    resolveForAgent(agent: AgentConfig): {
-        model?: string;
-        modelSettings?: ModelSettings;
-    } {
-        const modelConfig = this.getModelConfig(agent.modelId);
-        if (!modelConfig) return {};
-
-        const provider = this.providers.get(modelConfig.providerId);
-        if (!provider) return {};
-
-        const merged = this.mergeSettings(modelConfig.modelSettings, agent.modelSettingsOverride);
-
-        if (provider.kind === 'openai') {
-            return {
-                model: modelConfig.modelName,
-                modelSettings: this.toSdkModelSettings(merged),
-            };
-        }
-
-        // 其它 provider 暂未实现，留空让 SDK 使用默认设置
-        return {
-            modelSettings: this.toSdkModelSettings(merged),
-        };
-    }
-
-    private mergeSettings(
-        base?: LLMModelSettings,
-        override?: AgentModelSettingsOverride
-    ): LLMModelSettings | undefined {
-        if (!base && !override) return undefined;
-        return {
-            ...base,
-            ...override,
-        };
-    }
-
-    private toSdkModelSettings(settings?: LLMModelSettings): ModelSettings | undefined {
-        if (!settings) return undefined;
-
-        const result: ModelSettings = {};
-
-        if (typeof settings.temperature === 'number') {
-            result.temperature = settings.temperature;
-        }
-        if (typeof settings.topP === 'number') {
-            result.topP = settings.topP;
-        }
-        if (typeof settings.maxTokens === 'number') {
-            result.maxTokens = settings.maxTokens;
-        }
-        if (typeof settings.toolChoice !== 'undefined') {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (result as any).toolChoice = settings.toolChoice;
-        }
-        if (typeof settings.parallelToolCalls === 'boolean') {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (result as any).parallelToolCalls = settings.parallelToolCalls;
-        }
-        if (settings.reasoningEffort) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (result as any).reasoning = { effort: settings.reasoningEffort };
-        }
-        if (settings.textVerbosity) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (result as any).text = { verbosity: settings.textVerbosity };
-        }
-
-        return result;
-    }
+/**
+ * 获取所有已配置的 provider ID 列表
+ */
+export function getConfiguredProviders(settings: CortexSettings): string[] {
+    return Object.entries(settings.providers)
+        .filter(([_, p]) => p.apiKey)
+        .map(([id]) => id);
 }
