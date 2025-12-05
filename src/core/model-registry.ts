@@ -7,11 +7,12 @@
  * - 检查 provider 配置状态
  */
 
-import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { aisdk } from '@openai/agents-extensions';
+import { OpenAIResponsesModel, OpenAIChatCompletionsModel } from '@openai/agents';
+import OpenAI from 'openai';
 import type { CortexSettings } from '../settings/settings';
 import { isBuiltinProvider, type BuiltinProviderId } from '../types/provider';
 
@@ -69,21 +70,24 @@ export function parseModelSelection(
 /**
  * 根据解析后的配置创建适配后的模型实例
  *
- * - builtin provider: 使用专用 SDK (openai/anthropic/gemini/openrouter)
- * - custom provider: 使用 OpenAI 兼容 API
+ * - openai: 使用原生 OpenAIResponsesModel
+ * - custom (OpenAI 兼容): 使用原生 OpenAIChatCompletionsModel（不支持 Responses API）
+ * - 其他 builtin provider: 使用 ai-sdk 适配
  */
 export function createModel(config: ResolvedModelConfig) {
     const { modelName, apiKey, baseUrl, isCustom, builtinId } = config;
 
     if (isCustom) {
-        const openai = createOpenAI({ apiKey, baseURL: baseUrl });
-        return aisdk(openai(modelName));
+        // 自定义 provider 使用 Chat Completions API（兼容性更好）
+        const client = new OpenAI({ apiKey, baseURL: baseUrl, dangerouslyAllowBrowser: true });
+        return new OpenAIChatCompletionsModel(client, modelName);
     }
 
     switch (builtinId) {
         case 'openai': {
-            const openai = createOpenAI({ apiKey, baseURL: baseUrl });
-            return aisdk(openai(modelName));
+            // OpenAI 原生使用 Responses API
+            const client = new OpenAI({ apiKey, baseURL: baseUrl, dangerouslyAllowBrowser: true });
+            return new OpenAIResponsesModel(client, modelName);
         }
         case 'anthropic': {
             const anthropic = createAnthropic({ apiKey, baseURL: baseUrl });
