@@ -173,20 +173,19 @@
 
         try {
             let files = await Promise.all(filesPromises);
-            let result = onSubmit({ text, files }, event);
 
-            // Handle both sync and async onSubmit
-            if (result && typeof result === 'object' && 'then' in result) {
-                await result;
-            }
-
-            // Only clear if submission was successful
+            // Clear form immediately before calling onSubmit
+            // This provides better UX - user sees their message sent right away
             if (clearOnSubmit) {
                 attachmentsContext.clear();
                 form.reset();
             }
+
+            // Call onSubmit (don't await - let it run in background)
+            // The caller is responsible for handling errors
+            onSubmit({ text, files }, event);
         } catch (error) {
-            // Don't clear on error - user may want to retry
+            // Error during file conversion - don't clear
             console.error('Submit failed:', error);
         }
     };
