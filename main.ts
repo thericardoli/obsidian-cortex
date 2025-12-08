@@ -4,6 +4,7 @@ import type { CortexSettings } from './src/settings/settings';
 import { DEFAULT_SETTINGS } from './src/settings/settings';
 import { CortexSettingTab } from './src/settings/settings-tab';
 import { registerChatView, activateChatView } from './src/ui/chat-view';
+import { activateAgentConfigView, registerAgentConfigView } from './src/ui/agent-config-view';
 
 export default class CortexPlugin extends Plugin {
     settings!: CortexSettings;
@@ -16,6 +17,7 @@ export default class CortexPlugin extends Plugin {
 
         // 注册 ChatView
         registerChatView(this);
+        registerAgentConfigView(this);
 
         // 添加设置页
         this.addSettingTab(new CortexSettingTab(this.app, this));
@@ -30,6 +32,16 @@ export default class CortexPlugin extends Plugin {
         // 添加 ribbon 图标
         this.addRibbonIcon('message-circle', 'Open Cortex Chat', () => {
             activateChatView(this.app);
+        });
+
+        this.addRibbonIcon('sliders-horizontal', 'Open Agent Config', () => {
+            activateAgentConfigView(this.app);
+        });
+
+        this.addCommand({
+            id: 'open-agent-config-view',
+            name: 'Open agent config view',
+            callback: () => activateAgentConfigView(this.app),
         });
     }
 
