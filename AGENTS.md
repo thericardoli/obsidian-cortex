@@ -1,87 +1,40 @@
-# Obsidian Cortex - AI Coding Instructions
+# Repository Guidelines
 
-Obsidian 插件，提供基于 OpenAI Agents SDK 的多 Agent 可视化助手，支持 Agent handoff、自定义工具和流式响应。
+## Project Structure & Module Organization
 
-## 架构概览
+- Entry file `main.ts` only handles lifecycle hooks and wiring settings; business logic lives in `src/core/` (agent-, model-, tool-registry and runner-service).
+- Shared types (agent, tool, model, conversation) live in `src/types/`; Obsidian views and the Svelte chat experience are in `src/ui/chat-view/`.
+- Reusable Svelte components live under `src/lib/components/` (`ai-elements/` for AI UX, `ui/` for primitives) with exports composed via local `index.ts`.
+- Settings UI is in `src/settings/` (Svelte tab plus persistence helpers). Avoid touching build output (`main.js`, `styles.css`); Vite writes directly to repo root.
 
-```
-main.ts                 # 插件入口，只负责生命周期管理
-src/core/               # 核心业务逻辑
-  ├── agent-registry    # Agent 配置管理与 SDK Agent 实例构建
-  ├── model-registry    # LLM provider/model 配置解析
-  ├── tool-registry     # 工具注册，ToolDefinition → SDK tool() 转换
-  └── runner-service    # Runner.runStreamed 封装，流式事件处理
-src/types/              # 核心类型定义 (AgentConfig, ToolDefinition, LLMModelConfig)
-src/ui/chat-view/       # Obsidian ItemView + Svelte 聊天界面
-src/lib/components/     # 可复用 Svelte 组件库 (ai-elements/, ui/)
-src/settings/           # 插件设置 (CortexSettings, PluginSettingTab)
-```
+## Build, Test, and Development Commands
 
-## 技术栈
+- `bun install` installs dependencies; prefer Bun to stay aligned with lockfile.
+- `bun run dev` watches via Vite/esbuild and rebuilds into `main.js`.
+- `bun run build` produces the production bundle; `bun run build:dev` keeps sourcemaps for debugging.
+- `bun run build:check` runs `tsc` in no-emit mode before compiling.
+- Quality checks: `bun run lint`, `bun run lint:fix`, `bun run svelte-check`, `bun run format[:check]`.
 
-- **构建**: Vite + esbuild，直接输出到根目录 (`outDir: './'`)
-- **UI**: Svelte 5 (runes 模式, `$state`, `$props`)，Tailwind CSS v4
-- **AI SDK**: `@openai/agents` (Agent/Runner/tool)，`ai` 包类型
-- **路径别名**: `$lib` → `src/lib`（见 `tsconfig.json` paths）
+## Coding Style & Naming Conventions
 
-## 关键开发命令
+- TypeScript + Svelte 5 runes (`$state`, `$props`, `$derived`) with Tailwind CSS v4 classes; **never** add `<style>` blocks.
+- Components are `PascalCase.svelte`; TypeScript utilities use kebab-case filenames and named exports.
+- Use ESLint (config in `eslint.config.mjs`) and Prettier with Tailwind plugin; run formatters before submitting.
+- Respect path alias `$lib` → `src/lib`; keep `main.ts` free from heavy logic.
 
-```bash
-bun install                    # 安装依赖
-bun run dev                    # watch 模式构建
-bun run build 2>&1 | tail -3   # 生产构建（简洁输出）
-bun run build:dev              # 开发构建（未压缩，带 sourcemap）
-bun run lint                   # ESLint 检查
-bun run svelte-check           # Svelte 类型检查
-```
+## Testing Guidelines
 
-## 核心模式与约定
+- Use `bun run svelte-check` and `bun run lint` as the minimum verification gate; both fail CI.
+- For runtime regressions, rely on `RunnerService` mocks or vault fixtures under `src/core/` (add lightweight harnesses when touching streaming logic).
+- Add zod-based validation tests for new tools/agents to ensure parameter schemas throw helpful errors.
 
-### Agent 系统
+## Commit & Pull Request Guidelines
 
-1. **AgentConfig** → **Agent** 转换流程 (`agent-registry.ts`):
-    - `AgentRegistry.buildAgent(id)` 递归构建含 handoff 的 Agent 树
-    - 工具 ID 通过 `ToolRegistry.getSdkTool()` 解析
-    - 模型通过 `ModelRegistry.resolveForAgent()` 解析
+- Follow the existing Conventional Commits style (`refactor(model-registry): ...`, `fix(prompt-input): ...`, `ci: ...`); scope names match folders.
+- Each PR should describe behavior changes, list the Bun/Vite commands run locally, and link related issues; include chat-view screenshots/gifs for UI updates.
+- Keep PRs focused: configuration changes separate from feature work, generated files excluded, and mention if manual vault setup steps are required.
 
-2. **工具定义** (`src/types/tool.ts`):
+## Agent & Tool Notes
 
-    ```ts
-    interface ToolDefinition {
-        id: string;
-        parameters: z.ZodSchema; // 必须是 zod schema
-        execute: (input, ctx: ToolContext) => Promise<unknown>;
-    }
-    ```
-
-    - `ToolContext` 提供 `app`, `vault`, `workspace` 访问
-
-### Svelte 组件
-
-- 使用 **Svelte 5 runes**: `$state()`, `$props()`, `$derived()`
-- 组件挂载到 Obsidian 视图: `mount(Component, { target, props })`
-- AI 组件位于 `src/lib/components/ai-elements/`，按功能分组
-- UI 基础组件位于 `src/lib/components/ui/`
-- **禁止使用 `<style>` 块**，所有样式必须使用 Tailwind CSS 类名
-
-### 设置管理
-
-```ts
-// main.ts 中加载/保存
-this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-await this.saveData(this.settings);
-```
-
-## 文件命名与导出
-
-- Svelte 组件: `PascalCase.svelte`
-- TypeScript: `kebab-case.ts`
-- 每个组件目录包含 `index.ts` 导出所有公共组件
-- 类型定义集中在 `src/types/`
-
-## 注意事项
-
-- **勿提交构建产物**: `main.js`, `styles.css` 由构建生成
-- **保持 main.ts 精简**: 只包含 `onload/onunload` 和命令注册
-- **Obsidian API 外部化**: Vite 配置中 `obsidian` 已设为 external
-- **ESLint any 规则**: 部分 SDK 交互处需 `eslint-disable` 注释
+- `AgentRegistry.buildAgent()` recursively wires handoffs; ensure new tools are registered through `ToolRegistry.getSdkTool()` so they receive the Obsidian `ToolContext`.
+- Model selection flows through `ModelRegistry.resolveForAgent()`, so update model metadata there instead of hardcoding IDs in UI components.
