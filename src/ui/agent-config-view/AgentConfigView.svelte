@@ -6,6 +6,7 @@
     import { DEFAULT_SETTINGS } from '../../settings/settings';
     import type { AgentConfig } from '../../types/agent';
     import type CortexPlugin from '../../../main';
+    import { Bot, Plus, Wrench, GitBranch, User, Check } from '@lucide/svelte';
 
     interface Props {
         plugin: CortexPlugin;
@@ -15,13 +16,16 @@
 
     let { plugin }: Props = $props();
     let newToolId = $state('');
-    let saveStatus = $state<'idle' | 'saving' | 'saved'>('idle');
+    let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
     function withDefaults(config: AgentConfig): AgentConfig {
+        const description = config.description || config.handoffDescription || '';
         return {
             ...config,
             kind: config.kind || 'custom',
             modelId: config.modelId || DEFAULT_MODEL,
+            description,
+            handoffDescription: config.handoffDescription ?? description,
             handoffIds: config.handoffIds ?? [],
             toolIds: config.toolIds ?? [],
             enabled: config.enabled ?? true,
@@ -49,10 +53,11 @@
         return Object.values(legacy.configs).map((config) =>
             withDefaults({
                 id: config.id || crypto.randomUUID(),
-                name: config.name || '未命名 Agent',
+                name: config.name || 'Unnamed Agent',
                 kind: 'custom',
                 instructions: config.instructions || '',
                 modelId: DEFAULT_MODEL,
+                description: config.description || '',
                 handoffDescription: config.description || '',
                 handoffIds: [],
                 toolIds: [],
@@ -92,7 +97,19 @@
     });
 
     function selectAgent(agentId: string) {
+        if (selectedAgentId && selectedAgentId !== agentId) {
+            saveAgents();
+        }
         selectedAgentId = agentId;
+    }
+
+    function scheduleAutoSave() {
+        if (autoSaveTimer) {
+            clearTimeout(autoSaveTimer);
+        }
+        autoSaveTimer = setTimeout(() => {
+            saveAgents();
+        }, 1500);
     }
 
     function updateSelectedAgent(patch: Partial<AgentConfig>) {
@@ -100,9 +117,14 @@
         agents = agents.map((agent) =>
             agent.id === selectedAgentId ? { ...agent, ...patch } : agent
         );
+        scheduleAutoSave();
     }
 
     function addAgent() {
+        if (selectedAgentId) {
+            saveAgents();
+        }
+        
         const id = crypto.randomUUID();
         const newAgent: AgentConfig = {
             id,
@@ -110,6 +132,7 @@
             kind: 'custom',
             instructions: 'Describe what this agent is good at...',
             modelId: DEFAULT_MODEL,
+            description: '',
             handoffDescription: '',
             handoffIds: [],
             toolIds: [],
@@ -118,6 +141,7 @@
 
         agents = [...agents, newAgent];
         selectedAgentId = id;
+        scheduleAutoSave();
     }
 
     function deleteAgent(agentId: string) {
@@ -133,6 +157,7 @@
         if (selectedAgentId === agentId) {
             selectedAgentId = agents[Math.max(0, idx - 1)]?.id ?? '';
         }
+        scheduleAutoSave();
     }
 
     function addTool() {
@@ -162,12 +187,15 @@
         updateSelectedAgent({ handoffIds: Array.from(current) });
     }
 
+    let isSaving = false;
+
     async function saveAgents() {
-        saveStatus = 'saving';
+        if (isSaving) return;
+        
+        isSaving = true;
         plugin.settings.agentConfigs = agents.map((agent) => withDefaults(agent));
         await plugin.saveSettings();
-        saveStatus = 'saved';
-        setTimeout(() => (saveStatus = 'idle'), 2000);
+        isSaving = false;
     }
 </script>
 
@@ -176,9 +204,12 @@
         class="border-border/80 bg-card/60 flex w-64 shrink-0 flex-col rounded-2xl border shadow-sm"
     >
         <div class="border-border/60 flex items-center justify-between gap-2 border-b px-3 py-3">
-            <div class="text-muted-foreground text-sm font-semibold">Agents</div>
+            <div class="text-muted-foreground flex items-center gap-1.5 text-sm font-semibold">
+                <Bot class="h-4 w-4" />
+                Agents
+            </div>
             <Button size="sm" variant="ghost" class="h-7 px-2 text-xs" onclick={addAgent}>
-                <span class="mr-1">+</span> 新建
+                <Plus class="mr-1 h-3 w-3" /> New
             </Button>
         </div>
 
@@ -187,7 +218,7 @@
                 <div
                     class="text-muted-foreground flex h-32 items-center justify-center text-center text-sm"
                 >
-                    暂无 Agent
+                    No agents yet
                 </div>
             {:else}
                 {#each agents as agent (agent.id)}
@@ -201,21 +232,19 @@
                         onclick={() => selectAgent(agent.id)}
                     >
                         <div class="flex items-center justify-between gap-2">
-                            <span class="line-clamp-1 text-sm font-medium"
-                                >{agent.name || '未命名 Agent'}</span
-                            >
+                            <div class="flex items-center gap-2">
+                                <User class="text-muted-foreground h-4 w-4 shrink-0" />
+                                <span class="line-clamp-1 text-sm font-medium"
+                                    >{agent.name || 'Unnamed Agent'}</span
+                                >
+                            </div>
                             <span
                                 class={cn(
                                     'h-2 w-2 shrink-0 rounded-full transition-colors',
                                     agent.enabled ? 'bg-emerald-500' : 'bg-muted-foreground/40'
                                 )}
-                                title={agent.enabled ? '已启用' : '已禁用'}
+                                title={agent.enabled ? 'Enabled' : 'Disabled'}
                             ></span>
-                        </div>
-                        <div class="text-muted-foreground mt-1 line-clamp-1 text-xs">
-                            {agent.handoffDescription ||
-                                agent.instructions?.slice(0, 50) ||
-                                '暂无描述'}
                         </div>
                     </button>
                 {/each}
@@ -236,20 +265,15 @@
                             Agent Configuration
                         </div>
                         <h2 class="text-foreground mt-1 truncate text-xl font-semibold">
-                            {selectedAgent.name || '未命名 Agent'}
+                            {selectedAgent.name || 'Unnamed Agent'}
                         </h2>
                         <p class="text-muted-foreground mt-0.5 text-sm">
-                            管理 Agent 的指令、工具和 handoff 策略
+                            Manage agent instructions, tools, and handoff strategy.
                         </p>
                     </div>
                     <div class="flex shrink-0 items-center gap-2">
                         <label
-                            class={cn(
-                                'flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors',
-                                selectedAgent.enabled
-                                    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600'
-                                    : 'border-border bg-muted/50 text-muted-foreground'
-                            )}
+                            class="flex cursor-pointer items-center gap-2 text-sm transition-colors"
                         >
                             <input
                                 type="checkbox"
@@ -262,13 +286,27 @@
                             />
                             <span
                                 class={cn(
-                                    'h-2 w-2 rounded-full transition-colors',
+                                    'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-200',
                                     selectedAgent.enabled
-                                        ? 'bg-emerald-500'
-                                        : 'bg-muted-foreground/50'
+                                        ? 'bg-interactive-accent'
+                                        : 'bg-background-modifier-border'
                                 )}
-                            ></span>
-                            {selectedAgent.enabled ? '已启用' : '已禁用'}
+                            >
+                                <span
+                                    class={cn(
+                                        'inline-block h-4 w-4 rounded-full bg-background-primary shadow-sm transition-transform duration-200',
+                                        selectedAgent.enabled
+                                            ? 'translate-x-[18px]'
+                                            : 'translate-x-0.5'
+                                    )}
+                                ></span>
+                            </span>
+                            <span class={cn(
+                                'font-medium',
+                                selectedAgent.enabled ? 'text-text-normal' : 'text-muted-foreground'
+                            )}>
+                                {selectedAgent.enabled ? 'Enabled' : 'Disabled'}
+                            </span>
                         </label>
                         <Button
                             size="sm"
@@ -277,29 +315,12 @@
                             onclick={() => deleteAgent(selectedAgent.id)}
                             disabled={agents.length <= 1 || selectedAgent.kind === 'builtin'}
                             title={selectedAgent.kind === 'builtin'
-                                ? '内置 Agent 不可删除'
+                                ? 'Built-in agents cannot be deleted'
                                 : agents.length <= 1
-                                  ? '至少保留一个 Agent'
-                                  : '删除此 Agent'}
+                                  ? 'At least one agent must be kept'
+                                  : 'Delete this agent'}
                         >
-                            删除
-                        </Button>
-                        <Button
-                            size="sm"
-                            onclick={saveAgents}
-                            disabled={saveStatus === 'saving'}
-                            class={cn(
-                                'min-w-16 transition-all',
-                                saveStatus === 'saved' && 'bg-emerald-600 hover:bg-emerald-600'
-                            )}
-                        >
-                            {#if saveStatus === 'saving'}
-                                保存中...
-                            {:else if saveStatus === 'saved'}
-                                已保存 ✓
-                            {:else}
-                                保存
-                            {/if}
+                            Delete
                         </Button>
                     </div>
                 </div>
@@ -308,7 +329,7 @@
             <div class="flex-1 space-y-4 overflow-y-auto p-5">
                 <div class="border-border/60 bg-background/60 rounded-xl border p-4">
                     <label class="block space-y-1.5">
-                        <span class="text-foreground text-sm font-medium">名称</span>
+                        <span class="text-foreground text-sm font-medium">Name</span>
                         <input
                             class="border-input focus:border-primary focus:ring-primary/20 h-10 w-full rounded-lg border bg-transparent px-3 font-[inherit] text-sm shadow-xs transition-colors outline-none focus:ring-2"
                             value={selectedAgent.name}
@@ -316,12 +337,26 @@
                                 updateSelectedAgent({
                                     name: (e.currentTarget as HTMLInputElement).value,
                                 })}
-                            placeholder="给 Agent 起个名字"
+                            placeholder="Give this agent a name"
                         />
                     </label>
 
                     <label class="mt-4 block space-y-1.5">
-                        <span class="text-foreground text-sm font-medium">系统指令</span>
+                        <span class="text-foreground text-sm font-medium">Description</span>
+                        <input
+                            class="border-input focus:border-primary focus:ring-primary/20 h-10 w-full rounded-lg border bg-transparent px-3 font-[inherit] text-sm shadow-xs transition-colors outline-none focus:ring-2"
+                            value={selectedAgent.description}
+                            oninput={(e) =>
+                                updateSelectedAgent({
+                                    description: (e.currentTarget as HTMLInputElement).value,
+                                    handoffDescription: (e.currentTarget as HTMLInputElement).value,
+                                })}
+                            placeholder="Describe what this agent is best at so other agents know when to hand off"
+                        />
+                    </label>
+
+                    <label class="mt-4 block space-y-1.5">
+                        <span class="text-foreground text-sm font-medium">System instructions</span>
                         <Textarea
                             class="min-h-28 resize-y"
                             value={selectedAgent.instructions}
@@ -329,20 +364,7 @@
                                 updateSelectedAgent({
                                     instructions: (e.currentTarget as HTMLTextAreaElement).value,
                                 })}
-                            placeholder="为 Agent 设置系统提示语，例如角色、语气、输出格式等"
-                        />
-                    </label>
-
-                    <label class="mt-4 block space-y-1.5">
-                        <span class="text-foreground text-sm font-medium">Handoff 描述</span>
-                        <input
-                            class="border-input focus:border-primary focus:ring-primary/20 h-10 w-full rounded-lg border bg-transparent px-3 font-[inherit] text-sm shadow-xs transition-colors outline-none focus:ring-2"
-                            value={selectedAgent.handoffDescription}
-                            oninput={(e) =>
-                                updateSelectedAgent({
-                                    handoffDescription: (e.currentTarget as HTMLInputElement).value,
-                                })}
-                            placeholder="描述此 Agent 的专长，供其他 Agent 在 handoff 时参考"
+                            placeholder="Set system instructions for this agent, such as role, tone, and output format"
                         />
                     </label>
                 </div>
@@ -350,20 +372,23 @@
                 <div class="border-border/60 bg-background/60 rounded-xl border p-4">
                     <div class="flex items-center justify-between gap-3">
                         <div>
-                            <div class="text-foreground text-sm font-medium">工具列表</div>
-                            <p class="text-muted-foreground text-xs">为 Agent 配置可调用的工具</p>
+                            <div class="text-foreground flex items-center gap-1.5 text-sm font-medium">
+                                <Wrench class="h-4 w-4" />
+                                Tools
+                            </div>
+                            <p class="text-muted-foreground ml-5.5 text-xs">Configure tools this agent can call</p>
                         </div>
                         <div class="flex items-center gap-2">
                             <input
                                 class="border-input focus:border-primary focus:ring-primary/20 h-8 w-36 rounded-lg border bg-transparent px-2.5 font-[inherit] text-sm shadow-xs transition-colors outline-none focus:ring-2"
-                                placeholder="输入 tool ID"
+                                placeholder="Enter tool ID"
                                 value={newToolId}
                                 oninput={(e) =>
                                     (newToolId = (e.currentTarget as HTMLInputElement).value)}
                                 onkeydown={(e) => e.key === 'Enter' && addTool()}
                             />
                             <Button size="sm" variant="secondary" class="h-8" onclick={addTool}
-                                >添加</Button
+                                >Add</Button
                             >
                         </div>
                     </div>
@@ -388,7 +413,7 @@
                                         class="text-muted-foreground hover:text-destructive h-7 px-2 text-xs"
                                         onclick={() => removeTool(toolId)}
                                     >
-                                        移除
+                                        Remove
                                     </Button>
                                 </div>
                             {/each}
@@ -396,16 +421,19 @@
                             <div
                                 class="border-border/60 text-muted-foreground rounded-lg border border-dashed py-6 text-center text-sm"
                             >
-                                尚未添加工具
+                                No tools added yet
                             </div>
                         {/if}
                     </div>
                 </div>
 
                 <div class="border-border/60 bg-background/60 rounded-xl border p-4">
-                    <div class="text-foreground text-sm font-medium">子 Agent（Handoff）</div>
-                    <p class="text-muted-foreground text-xs">
-                        选择此 Agent 可以转交任务的目标 Agent
+                    <div class="text-foreground flex items-center gap-1.5 text-sm font-medium">
+                        <GitBranch class="h-4 w-4" />
+                        Sub-agents (handoff targets)
+                    </div>
+                    <p class="text-muted-foreground ml-5.5 text-xs">
+                        Choose agents this agent can hand off tasks to
                     </p>
 
                     <div class="mt-3 space-y-1.5">
@@ -413,7 +441,7 @@
                             <div
                                 class="border-border/60 text-muted-foreground rounded-lg border border-dashed py-6 text-center text-sm"
                             >
-                                暂无其他 Agent 可供 handoff
+                                No other agents available for handoff
                             </div>
                         {:else}
                             {#each otherAgents as agent (agent.id)}
@@ -441,19 +469,7 @@
                                         )}
                                     >
                                         {#if isSelected}
-                                            <svg
-                                                class="h-3 w-3"
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                                stroke="currentColor"
-                                                stroke-width="3"
-                                            >
-                                                <path
-                                                    stroke-linecap="round"
-                                                    stroke-linejoin="round"
-                                                    d="M5 13l4 4L19 7"
-                                                />
-                                            </svg>
+                                            <Check class="h-3 w-3" strokeWidth={3} />
                                         {/if}
                                     </span>
                                     <div class="min-w-0 flex-1">
@@ -469,9 +485,10 @@
                                             ></span>
                                         </div>
                                         <div class="text-muted-foreground line-clamp-1 text-xs">
-                                            {agent.handoffDescription ||
+                                            {agent.description ||
+                                                agent.handoffDescription ||
                                                 agent.instructions?.slice(0, 60) ||
-                                                '尚未添加描述'}
+                                                'No description yet'}
                                         </div>
                                     </div>
                                 </label>
@@ -485,23 +502,11 @@
                 class="text-muted-foreground flex h-full flex-col items-center justify-center gap-3"
             >
                 <div class="bg-muted/50 flex h-16 w-16 items-center justify-center rounded-full">
-                    <svg
-                        class="h-8 w-8"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        stroke-width="1.5"
-                    >
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"
-                        />
-                    </svg>
+                    <Bot class="h-8 w-8" strokeWidth={1.5} />
                 </div>
                 <div class="text-center">
-                    <div class="text-lg font-semibold">还没有配置 Agent</div>
-                    <p class="mt-1 text-sm">点击左侧"新建"按钮创建你的第一个 Agent</p>
+                    <div class="text-lg font-semibold">No agents configured yet</div>
+                    <p class="mt-1 text-sm">Click "New" on the left to create your first agent</p>
                 </div>
             </div>
         {/if}

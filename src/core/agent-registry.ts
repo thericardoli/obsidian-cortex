@@ -77,7 +77,8 @@ export class AgentRegistry {
             instructions: config.instructions,
             model,
             ...(modelSettings ? { modelSettings } : {}),
-            handoffDescription: config.handoffDescription,
+            // description 与 handoffDescription 语义保持一致；优先使用用户配置的 description。
+            handoffDescription: config.description ?? config.handoffDescription ?? '',
             tools,
             handoffs,
         });

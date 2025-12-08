@@ -77,6 +77,7 @@ function createDefaultAgentConfigs(): AgentConfig[] {
             instructions:
                 '你是 Obsidian 中的通用 AI 助手，帮助用户进行写作、整理和创意发散。回答保持简洁清晰，必要时给出 Markdown 示例。',
             modelId: 'openai:gpt-4.1-mini',
+            description: '默认处理日常问题和内容润色。',
             handoffDescription: '默认处理日常问题和内容润色。',
             handoffIds: [],
             toolIds: [],
@@ -89,6 +90,7 @@ function createDefaultAgentConfigs(): AgentConfig[] {
             instructions:
                 '善于信息拆解、总结要点与给出行动步骤。遇到写作类任务可以移交给通用助手继续润色。',
             modelId: 'openai:gpt-4.1-mini',
+            description: '将整理好的内容交给通用助手输出最终版本。',
             handoffDescription: '将整理好的内容交给通用助手输出最终版本。',
             handoffIds: ['agent-general'],
             toolIds: [],

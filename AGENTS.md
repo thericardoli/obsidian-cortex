@@ -13,7 +13,7 @@
 - `bun run dev` watches via Vite/esbuild and rebuilds into `main.js`.
 - `bun run build` produces the production bundle; `bun run build:dev` keeps sourcemaps for debugging.
 - `bun run build:check` runs `tsc` in no-emit mode before compiling.
-- Quality checks: `bun run lint`, `bun run lint:fix`, `bun run svelte-check`, `bun run format[:check]`.
+- Quality checks: `bun run lint`, `bun run lint:fix`, `bun run svelte-check`, `bun run format[:check]`, `bun run build`.
 
 ## Coding Style & Naming Conventions
 

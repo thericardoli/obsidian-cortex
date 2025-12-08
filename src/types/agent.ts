@@ -25,6 +25,13 @@ export interface AgentConfig {
     /** 每个 Agent 自己对默认模型参数的覆盖设置（可选）。 */
     modelSettingsOverride?: AgentModelSettingsOverride;
 
+    /**
+     * 人类可读的 Agent 描述。主要用于在 UI 中展示，以及在 handoff 场景下提示此 Agent 的专长。
+     *
+     * 内部会与 `handoffDescription` 保持一致，以兼容 Agents SDK 的 handoff 描述用法。
+     */
+    description: string;
+
     handoffDescription?: string;
     handoffIds: string[];
     toolIds: string[];
