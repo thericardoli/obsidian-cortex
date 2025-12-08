@@ -20,6 +20,7 @@
     function withDefaults(config: AgentConfig): AgentConfig {
         return {
             ...config,
+            kind: config.kind || 'custom',
             modelId: config.modelId || DEFAULT_MODEL,
             handoffIds: config.handoffIds ?? [],
             toolIds: config.toolIds ?? [],
@@ -49,6 +50,7 @@
             withDefaults({
                 id: config.id || crypto.randomUUID(),
                 name: config.name || '未命名 Agent',
+                kind: 'custom',
                 instructions: config.instructions || '',
                 modelId: DEFAULT_MODEL,
                 handoffDescription: config.description || '',
@@ -78,7 +80,7 @@
     }
 
     let agents = $state<AgentConfig[]>(loadAgents());
-    let selectedAgentId = $state(agents[0]?.id ?? '');
+    let selectedAgentId = $state('');
 
     let selectedAgent = $derived(agents.find((agent) => agent.id === selectedAgentId));
     let otherAgents = $derived(agents.filter((agent) => agent.id !== selectedAgentId));
@@ -105,6 +107,7 @@
         const newAgent: AgentConfig = {
             id,
             name: `Agent ${agents.length + 1}`,
+            kind: 'custom',
             instructions: 'Describe what this agent is good at...',
             modelId: DEFAULT_MODEL,
             handoffDescription: '',
@@ -118,6 +121,8 @@
     }
 
     function deleteAgent(agentId: string) {
+        const target = agents.find((a) => a.id === agentId);
+        if (target?.kind === 'builtin') return;
         if (agents.length <= 1) return;
         const idx = agents.findIndex((a) => a.id === agentId);
         agents = agents.filter((a) => a.id !== agentId);
@@ -270,8 +275,12 @@
                             variant="ghost"
                             class="text-destructive hover:bg-destructive/10 hover:text-destructive"
                             onclick={() => deleteAgent(selectedAgent.id)}
-                            disabled={agents.length <= 1}
-                            title={agents.length <= 1 ? '至少保留一个 Agent' : '删除此 Agent'}
+                            disabled={agents.length <= 1 || selectedAgent.kind === 'builtin'}
+                            title={selectedAgent.kind === 'builtin'
+                                ? '内置 Agent 不可删除'
+                                : agents.length <= 1
+                                  ? '至少保留一个 Agent'
+                                  : '删除此 Agent'}
                         >
                             删除
                         </Button>

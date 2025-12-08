@@ -73,6 +73,7 @@ function createDefaultAgentConfigs(): AgentConfig[] {
         {
             id: 'agent-general',
             name: '通用助手',
+            kind: 'builtin',
             instructions:
                 '你是 Obsidian 中的通用 AI 助手，帮助用户进行写作、整理和创意发散。回答保持简洁清晰，必要时给出 Markdown 示例。',
             modelId: 'openai:gpt-4.1-mini',
@@ -84,6 +85,7 @@ function createDefaultAgentConfigs(): AgentConfig[] {
         {
             id: 'agent-researcher',
             name: '研究助手',
+            kind: 'builtin',
             instructions:
                 '善于信息拆解、总结要点与给出行动步骤。遇到写作类任务可以移交给通用助手继续润色。',
             modelId: 'openai:gpt-4.1-mini',

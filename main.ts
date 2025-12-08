@@ -53,6 +53,11 @@ export default class CortexPlugin extends Plugin {
         const savedData = await this.loadData();
         this.settings = Object.assign({}, DEFAULT_SETTINGS, savedData);
 
+        this.settings.agentConfigs = (this.settings.agentConfigs || []).map((agent) => ({
+            ...agent,
+            kind: agent.kind || 'custom',
+        }));
+
         // 迁移旧设置到新结构
         if (savedData && !savedData.providers) {
             // 旧设置存在但没有新的 providers 字段，进行迁移
