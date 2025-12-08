@@ -32,7 +32,7 @@ export const BUILTIN_PROVIDERS: Record<BuiltinProviderId, ProviderMeta> = {
     gemini: {
         id: 'gemini',
         label: 'Gemini',
-        defaultBaseUrl: 'https://generativelanguage.googleapis.com',
+        defaultBaseUrl: 'https://generativelanguage.googleapis.com/v1beta',
         isBuiltin: true,
     },
     openrouter: {

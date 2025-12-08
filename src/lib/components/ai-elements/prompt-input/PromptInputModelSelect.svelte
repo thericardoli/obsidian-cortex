@@ -4,6 +4,7 @@
     interface Props {
         value?: string;
         onValueChange?: (value: string | undefined) => void;
+        disabled?: boolean;
         children?: import('svelte').Snippet;
     }
 

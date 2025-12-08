@@ -5,6 +5,7 @@
     interface Props {
         class?: string;
         value: string;
+        disabled?: boolean;
         children?: import('svelte').Snippet;
     }
 
