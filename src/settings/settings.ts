@@ -32,6 +32,9 @@ export interface CortexSettings {
 export { BUILTIN_PROVIDERS, BUILTIN_PROVIDER_IDS };
 export type { BuiltinProviderId };
 
+/** Workspace event fired whenever settings are saved */
+export const SETTINGS_UPDATED_EVENT = 'cortex-settings-updated';
+
 /** 生成默认 Provider 配置 */
 function createDefaultProviders(): Record<string, ProviderSettings> {
     return {

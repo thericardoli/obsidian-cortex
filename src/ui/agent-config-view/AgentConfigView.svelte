@@ -124,7 +124,7 @@
         if (selectedAgentId) {
             saveAgents();
         }
-        
+
         const id = crypto.randomUUID();
         const newAgent: AgentConfig = {
             id,
@@ -191,7 +191,7 @@
 
     async function saveAgents() {
         if (isSaving) return;
-        
+
         isSaving = true;
         plugin.settings.agentConfigs = agents.map((agent) => withDefaults(agent));
         await plugin.saveSettings();
@@ -294,17 +294,21 @@
                             >
                                 <span
                                     class={cn(
-                                        'inline-block h-4 w-4 rounded-full bg-background-primary shadow-sm transition-transform duration-200',
+                                        'bg-background-primary inline-block h-4 w-4 rounded-full shadow-sm transition-transform duration-200',
                                         selectedAgent.enabled
                                             ? 'translate-x-[18px]'
                                             : 'translate-x-0.5'
                                     )}
                                 ></span>
                             </span>
-                            <span class={cn(
-                                'font-medium',
-                                selectedAgent.enabled ? 'text-text-normal' : 'text-muted-foreground'
-                            )}>
+                            <span
+                                class={cn(
+                                    'font-medium',
+                                    selectedAgent.enabled
+                                        ? 'text-text-normal'
+                                        : 'text-muted-foreground'
+                                )}
+                            >
                                 {selectedAgent.enabled ? 'Enabled' : 'Disabled'}
                             </span>
                         </label>
@@ -372,11 +376,15 @@
                 <div class="border-border/60 bg-background/60 rounded-xl border p-4">
                     <div class="flex items-center justify-between gap-3">
                         <div>
-                            <div class="text-foreground flex items-center gap-1.5 text-sm font-medium">
+                            <div
+                                class="text-foreground flex items-center gap-1.5 text-sm font-medium"
+                            >
                                 <Wrench class="h-4 w-4" />
                                 Tools
                             </div>
-                            <p class="text-muted-foreground ml-5.5 text-xs">Configure tools this agent can call</p>
+                            <p class="text-muted-foreground ml-5.5 text-xs">
+                                Configure tools this agent can call
+                            </p>
                         </div>
                         <div class="flex items-center gap-2">
                             <input

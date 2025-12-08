@@ -1,4 +1,6 @@
 <script lang="ts">
+    import type { EventRef } from 'obsidian';
+    import { onMount } from 'svelte';
     import type CortexPlugin from '../../../main';
     import { cn } from '$lib/utils';
     import {
@@ -22,7 +24,7 @@
     import { RunnerService } from '../../core/runner-service';
     import { parseModelSelection, createModel } from '../../core/model-registry';
     import { Agent } from '@openai/agents';
-    import { BUILTIN_PROVIDERS } from '../../settings/settings';
+    import { BUILTIN_PROVIDERS, SETTINGS_UPDATED_EVENT } from '../../settings/settings';
 
     interface Props {
         plugin: CortexPlugin;
@@ -43,23 +45,34 @@
     let chatStatus = $state<ChatStatus>('idle');
     let streamingText = $state('');
     let messagesContainer = $state<HTMLDivElement | null>(null);
+    let settingsVersion = $state(0);
+    let settingsEventRef: EventRef | null = null;
 
     // 模型选择状态 - 使用默认值初始化
     let selectedModel = $state('gpt-4.1-mini');
 
-    // 初始化时设置默认模型（取第一个已配置 provider 的第一个模型）
-    $effect(() => {
-        if (selectedModel === 'gpt-4.1-mini') {
-            const activeProvider = plugin.settings.providers[plugin.settings.activeProviderId];
-            if (activeProvider?.apiKey && activeProvider.models.length > 0) {
-                const firstModel = activeProvider.models[0];
-                selectedModel = `${plugin.settings.activeProviderId}:${firstModel.modelName}`;
+    function resolveDefaultModelSelection(): string {
+        const providers = plugin.settings.providers;
+        const activeProviderId = plugin.settings.activeProviderId;
+        const activeProvider = providers?.[activeProviderId];
+
+        if (activeProvider?.apiKey && activeProvider.models?.length > 0) {
+            const firstModel = activeProvider.models[0];
+            return `${activeProviderId}:${firstModel.modelName}`;
+        }
+
+        for (const [providerId, providerSettings] of Object.entries(providers || {})) {
+            if (providerSettings.apiKey && providerSettings.models?.length) {
+                return `${providerId}:${providerSettings.models[0].modelName}`;
             }
         }
-    });
+
+        return 'gpt-4.1-mini';
+    }
 
     // 获取可用的模型列表，按 Provider 分组
     const groupedModels = $derived.by(() => {
+        void settingsVersion;
         const groups: {
             providerId: string;
             providerLabel: string;
@@ -108,12 +121,41 @@
         return selectedModel;
     });
 
+    // 当设置更新时，如果当前选择的模型已不存在，则重置为默认可用模型
+    $effect(() => {
+        void settingsVersion;
+        const selectionExists = groupedModels.some((group) =>
+            group.models.some((model) => model.id === selectedModel)
+        );
+
+        if (!selectionExists) {
+            const nextModel = resolveDefaultModelSelection();
+            if (selectedModel !== nextModel) {
+                selectedModel = nextModel;
+            }
+        }
+    });
+
     // Session 管理 - 每个 ChatView 实例有独立的 session
     const sessionId = crypto.randomUUID();
     const session = $derived(sessionManager.getOrCreate(sessionId));
 
     // 初始化 RunnerService
     const runnerService = new RunnerService();
+
+    onMount(() => {
+        // @ts-expect-error - Custom event type not in Obsidian's type definitions
+        settingsEventRef = plugin.app.workspace.on(SETTINGS_UPDATED_EVENT, () => {
+            settingsVersion += 1;
+        });
+
+        return () => {
+            if (settingsEventRef) {
+                plugin.app.workspace.offref(settingsEventRef);
+                settingsEventRef = null;
+            }
+        };
+    });
 
     // 生成唯一 ID
     function generateId(): string {

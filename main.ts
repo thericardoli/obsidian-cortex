@@ -1,7 +1,7 @@
 import { Plugin } from 'obsidian';
 import './src/input.css';
 import type { CortexSettings } from './src/settings/settings';
-import { DEFAULT_SETTINGS } from './src/settings/settings';
+import { DEFAULT_SETTINGS, SETTINGS_UPDATED_EVENT } from './src/settings/settings';
 import { CortexSettingTab } from './src/settings/settings-tab';
 import { registerChatView, activateChatView } from './src/ui/chat-view';
 import { activateAgentConfigView, registerAgentConfigView } from './src/ui/agent-config-view';
@@ -92,5 +92,6 @@ export default class CortexPlugin extends Plugin {
 
     async saveSettings(): Promise<void> {
         await this.saveData(this.settings);
+        this.app.workspace.trigger(SETTINGS_UPDATED_EVENT, this.settings);
     }
 }
