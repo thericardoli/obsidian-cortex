@@ -1,12 +1,3 @@
-/**
- * Model Registry - 模型配置解析与实例创建
- *
- * 职责：
- * - 解析 ChatView 的模型选择 ID
- * - 创建适配后的模型实例（支持多 provider）
- * - 检查 provider 配置状态
- */
-
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
