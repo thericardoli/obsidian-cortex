@@ -8,13 +8,13 @@
  * 注意：model 创建由调用者负责，使用 model-registry.ts 中的 createModel
  */
 
-import { Agent } from '@openai/agents';
-import type { AgentConfig } from '../types/agent';
+import { Agent, type Model, type ModelSettings } from '@openai/agents';
+import type { AgentConfig, AgentModelSettingsOverride } from '../types/agent';
 import type { ToolRegistry } from './tool-registry';
 
 export interface BuildAgentOptions {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    model: any;
+    model?: Model;
+    resolveModel?: (config: AgentConfig) => Model;
 }
 
 export class AgentRegistry {
@@ -58,20 +58,53 @@ export class AgentRegistry {
         seen.add(id);
 
         const tools = config.toolIds
-            .map((toolId) => this.toolRegistry.getSdkTool(toolId))
+            .map((toolId) => this.toolRegistry.getTool(toolId))
             .filter((t): t is NonNullable<typeof t> => Boolean(t));
 
         const handoffs = config.handoffIds
             .map((handoffId) => this.buildAgent(handoffId, options, new Set(seen)))
             .filter((a): a is NonNullable<typeof a> => Boolean(a));
 
+        const model = options.resolveModel ? options.resolveModel(config) : options.model;
+        if (!model) {
+            throw new Error(`Model not provided for agent ${config.name} (${config.id})`);
+        }
+
+        const modelSettings = this.applyModelSettingsOverride(config.modelSettingsOverride);
+
         return new Agent({
             name: config.name,
             instructions: config.instructions,
-            model: options.model,
+            model,
+            ...(modelSettings ? { modelSettings } : {}),
             handoffDescription: config.handoffDescription,
             tools,
             handoffs,
         });
+    }
+
+    private applyModelSettingsOverride(
+        override?: AgentModelSettingsOverride
+    ): ModelSettings | undefined {
+        if (!override) return undefined;
+
+        const modelSettings: ModelSettings = {};
+
+        if (override.temperature !== undefined) modelSettings.temperature = override.temperature;
+        if (override.topP !== undefined) modelSettings.topP = override.topP;
+        if (override.maxTokens !== undefined) modelSettings.maxTokens = override.maxTokens;
+        if (override.toolChoice !== undefined) modelSettings.toolChoice = override.toolChoice;
+        if (override.parallelToolCalls !== undefined)
+            modelSettings.parallelToolCalls = override.parallelToolCalls;
+
+        if (override.reasoningEffort !== undefined) {
+            modelSettings.reasoning = { effort: override.reasoningEffort };
+        }
+
+        if (override.textVerbosity !== undefined) {
+            modelSettings.text = { verbosity: override.textVerbosity };
+        }
+
+        return Object.keys(modelSettings).length ? modelSettings : undefined;
     }
 }

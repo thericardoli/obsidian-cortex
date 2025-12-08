@@ -1,3 +1,5 @@
+export type AgentKind = 'builtin' | 'custom';
+
 export interface AgentModelSettingsOverride {
     temperature?: number;
     topP?: number;
@@ -11,6 +13,7 @@ export interface AgentModelSettingsOverride {
 export interface AgentConfig {
     id: string;
     name: string;
+    kind: AgentKind;
     instructions: string;
 
     /**
