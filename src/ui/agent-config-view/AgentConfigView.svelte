@@ -1,10 +1,11 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { SvelteSet } from 'svelte/reactivity';
-    import { BUILTIN_PROVIDERS, DEFAULT_SETTINGS } from '../../settings/settings';
+    import { BUILTIN_PROVIDERS, DEFAULT_AGENT_CONFIGS } from '../../settings/settings';
     import type { AgentConfig } from '../../types/agent';
     import type CortexPlugin from '../../../main';
     import { loadAgentConfigs, persistAgentConfigs } from '../../core/persistence/agent-store';
+    import { SETTINGS_UPDATED_EVENT } from '../../settings/settings';
     import AgentSidebar from './AgentSidebar.svelte';
     import AgentHeader from './AgentHeader.svelte';
     import AgentBasicInfo from './AgentBasicInfo.svelte';
@@ -42,65 +43,20 @@
         };
     }
 
-    function fromLegacy(): AgentConfig[] | null {
-        const legacy = (plugin.settings as unknown as Record<string, unknown>).agentConfigData as
-            | {
-                  configs?: Record<
-                      string,
-                      {
-                          id?: string;
-                          name?: string;
-                          instructions?: string;
-                          enabled?: boolean;
-                          description?: string;
-                      }
-                  >;
-              }
-            | undefined;
-
-        if (!legacy?.configs) return null;
-
-        return Object.values(legacy.configs).map((config) =>
-            withDefaults({
-                id: config.id || crypto.randomUUID(),
-                name: config.name || 'Unnamed Agent',
-                kind: 'custom',
-                instructions: config.instructions || '',
-                ...(config as Partial<AgentConfig>),
-                description: config.description || '',
-                handoffDescription: config.description || '',
-                handoffIds: [],
-                toolIds: [],
-                enabled: config.enabled ?? true,
-            })
-        );
-    }
-
     function cloneDefaults(configs: AgentConfig[]): AgentConfig[] {
         return configs.map((config) => withDefaults({ ...config }));
     }
 
     function loadAgents(): AgentConfig[] {
-        if (
-            Array.isArray(plugin.settings.agentConfigs) &&
-            plugin.settings.agentConfigs.length > 0
-        ) {
-            return cloneDefaults(plugin.settings.agentConfigs);
-        }
-
-        const legacy = fromLegacy();
-        if (legacy?.length) return legacy;
-
-        return cloneDefaults(DEFAULT_SETTINGS.agentConfigs);
+        return cloneDefaults(DEFAULT_AGENT_CONFIGS);
     }
 
     let agents = $state<AgentConfig[]>(loadAgents());
     let selectedAgentId = $state('');
 
     onMount(async () => {
-        const hydrated = await loadAgentConfigs(plugin.settings.agentConfigs || agents);
-        agents = cloneDefaults(hydrated);
-        plugin.settings.agentConfigs = cloneDefaults(hydrated);
+        const hydrated = await loadAgentConfigs(DEFAULT_AGENT_CONFIGS);
+        agents = cloneDefaults(hydrated.length ? hydrated : agents);
         if (!selectedAgentId && agents[0]) {
             selectedAgentId = agents[0].id;
         }
@@ -186,7 +142,7 @@
         scheduleAutoSave();
     }
 
-    function deleteAgent(agentId: string) {
+    async function deleteAgent(agentId: string) {
         const target = agents.find((a) => a.id === agentId);
         if (target?.kind === 'builtin') return;
         if (agents.length <= 1) return;
@@ -199,7 +155,7 @@
         if (selectedAgentId === agentId) {
             selectedAgentId = agents[Math.max(0, idx - 1)]?.id ?? '';
         }
-        scheduleAutoSave();
+        await saveAgents();
     }
 
     function addTool(toolId: string) {
@@ -233,9 +189,9 @@
         if (isSaving) return;
 
         isSaving = true;
-        plugin.settings.agentConfigs = agents.map((agent) => withDefaults(agent));
-        await persistAgentConfigs(plugin.settings.agentConfigs);
-        await plugin.saveSettings();
+        const sanitizedAgents = agents.map((agent) => withDefaults(agent));
+        await persistAgentConfigs(sanitizedAgents);
+        plugin.app.workspace.trigger(SETTINGS_UPDATED_EVENT, plugin.settings);
         isSaving = false;
     }
 </script>

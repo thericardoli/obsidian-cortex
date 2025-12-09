@@ -8,7 +8,7 @@
     import { parseModelSelection, createModel } from '../../core/model-registry';
     import { Agent } from '@openai/agents';
     import type { AgentInputItem } from '@openai/agents-core';
-    import { BUILTIN_PROVIDERS, SETTINGS_UPDATED_EVENT } from '../../settings/settings';
+    import { BUILTIN_PROVIDERS, DEFAULT_AGENT_CONFIGS, SETTINGS_UPDATED_EVENT } from '../../settings/settings';
     import { AgentRegistry } from '../../core/agent-registry';
     import { ToolRegistry } from '../../core/tool-registry';
     import type { AgentConfig } from '../../types/agent';
@@ -242,7 +242,7 @@
     }
 
     async function refreshAgents(): Promise<void> {
-        const loaded = await loadAgentConfigs(plugin.settings.agentConfigs || []);
+        const loaded = await loadAgentConfigs(DEFAULT_AGENT_CONFIGS);
         availableAgents = loaded;
 
         const nextActive =

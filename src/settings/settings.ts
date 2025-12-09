@@ -24,8 +24,6 @@ export interface CortexSettings {
     activeProviderId: string;
     /** 自定义 Provider 列表 */
     customProviders: CustomProviderConfig[];
-    /** Agent 配置列表 */
-    agentConfigs: AgentConfig[];
 }
 
 // Re-export for backward compatibility
@@ -100,9 +98,10 @@ function createDefaultAgentConfigs(): AgentConfig[] {
     ];
 }
 
+export const DEFAULT_AGENT_CONFIGS = createDefaultAgentConfigs();
+
 export const DEFAULT_SETTINGS: CortexSettings = {
     providers: createDefaultProviders(),
     activeProviderId: 'openai',
     customProviders: [],
-    agentConfigs: createDefaultAgentConfigs(),
 };

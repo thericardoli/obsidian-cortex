@@ -1,11 +1,10 @@
-import type { CortexSettings } from '../../settings/settings';
+import type { AgentConfig } from '../../types/agent';
 import { loadAgentConfigs, persistAgentConfigs } from './agent-store';
 
 /**
- * Hydrate settings.agentConfigs from IndexedDB and ensure Dexie stays source of truth.
+ * Hydrate agent configs from IndexedDB and ensure Dexie stays source of truth.
  */
-export async function initializePersistence(settings: CortexSettings): Promise<void> {
-    const hydrated = await loadAgentConfigs(settings.agentConfigs);
-    settings.agentConfigs = hydrated;
+export async function initializePersistence(fallbackAgentConfigs: AgentConfig[]): Promise<void> {
+    const hydrated = await loadAgentConfigs(fallbackAgentConfigs);
     await persistAgentConfigs(hydrated);
 }
