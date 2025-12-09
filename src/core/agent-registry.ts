@@ -45,25 +45,27 @@ export class AgentRegistry {
         this.configs.delete(id);
     }
 
-    buildAgent(id: string, options: BuildAgentOptions, seen: Set<string> = new Set()): Agent {
+    buildAgent(id: string, options: BuildAgentOptions): Agent {
+        const cache = new Map<string, Agent>();
+        return this.buildAgentInternal(id, options, cache);
+    }
+
+    private buildAgentInternal(
+        id: string,
+        options: BuildAgentOptions,
+        cache: Map<string, Agent>
+    ): Agent {
+        const cached = cache.get(id);
+        if (cached) return cached;
+
         const config = this.configs.get(id);
         if (!config) {
             throw new Error(`Agent ${id} not found`);
         }
 
-        if (seen.has(id)) {
-            throw new Error(`Circular handoff detected for agent ${id}`);
-        }
-
-        seen.add(id);
-
         const tools = config.toolIds
             .map((toolId) => this.toolRegistry.getTool(toolId))
             .filter((t): t is NonNullable<typeof t> => Boolean(t));
-
-        const handoffs = config.handoffIds
-            .map((handoffId) => this.buildAgent(handoffId, options, new Set(seen)))
-            .filter((a): a is NonNullable<typeof a> => Boolean(a));
 
         const model = options.resolveModel ? options.resolveModel(config) : options.model;
         if (!model) {
@@ -72,7 +74,7 @@ export class AgentRegistry {
 
         const modelSettings = this.applyModelSettingsOverride(config.modelSettingsOverride);
 
-        return new Agent({
+        const agent = new Agent({
             name: config.name,
             instructions: config.instructions,
             model,
@@ -80,8 +82,16 @@ export class AgentRegistry {
             // description 与 handoffDescription 语义保持一致；优先使用用户配置的 description。
             handoffDescription: config.description ?? config.handoffDescription ?? '',
             tools,
-            handoffs,
+            handoffs: [],
         });
+
+        cache.set(id, agent);
+
+        agent.handoffs = config.handoffIds
+            .map((handoffId) => this.buildAgentInternal(handoffId, options, cache))
+            .filter((a): a is NonNullable<typeof a> => Boolean(a));
+
+        return agent;
     }
 
     private applyModelSettingsOverride(
