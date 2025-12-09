@@ -1,67 +1,65 @@
-/**
- * Session Manager - 管理会话历史的持久化存储
- *
- * Phase 1: 使用 SDK 内置的 MemorySession（内存存储）
- * Phase 2: 将实现 ObsidianSession（持久化到 plugin data）
- */
-
-import { MemorySession } from '@openai/agents-core';
 import type { Session } from '@openai/agents-core';
+import { cortexDb } from './persistence/database';
+import {
+    PersistentSession,
+    deleteSessionRecord,
+    getSessionItems,
+    listSessionRecords,
+    upsertSessionRecord,
+} from './persistence/session-store';
+import type { ChatSessionRecord } from './persistence/database';
 
 export type { Session };
 
 /**
- * SessionManager 负责创建和管理多个会话实例
+ * SessionManager 负责创建和管理多个会话实例（IndexedDB 持久化）
  */
 export class SessionManager {
     private sessions = new Map<string, Session>();
 
-    /**
-     * 获取或创建一个 Session 实例
-     * @param sessionId - 会话唯一标识符
-     * @returns Session 实例
-     */
-    getOrCreate(sessionId: string): Session {
+    async getOrCreate(sessionId: string, agentId?: string, title?: string): Promise<Session> {
+        await upsertSessionRecord(sessionId, agentId, title);
         if (!this.sessions.has(sessionId)) {
-            // Phase 1: 使用 MemorySession（内存存储，程序重启后丢失）
-            const session = new MemorySession({ sessionId });
-            this.sessions.set(sessionId, session);
+            this.sessions.set(sessionId, new PersistentSession(sessionId));
         }
         return this.sessions.get(sessionId)!;
     }
 
-    /**
-     * 检查是否存在指定的 Session
-     */
+    async createNew(
+        agentId: string,
+        title?: string
+    ): Promise<{
+        sessionId: string;
+        record: ChatSessionRecord;
+        session: Session;
+    }> {
+        const sessionId = crypto.randomUUID();
+        const record = await upsertSessionRecord(sessionId, agentId, title);
+        const session = new PersistentSession(sessionId);
+        this.sessions.set(sessionId, session);
+        return { sessionId, record, session };
+    }
+
+    async loadHistory(sessionId: string): Promise<Awaited<ReturnType<Session['getItems']>>> {
+        return getSessionItems(sessionId);
+    }
+
     has(sessionId: string): boolean {
         return this.sessions.has(sessionId);
     }
 
-    /**
-     * 删除指定的 Session
-     */
     async delete(sessionId: string): Promise<void> {
-        const session = this.sessions.get(sessionId);
-        if (session) {
-            await session.clearSession();
-            this.sessions.delete(sessionId);
-        }
+        this.sessions.delete(sessionId);
+        await deleteSessionRecord(sessionId);
     }
 
-    /**
-     * 获取所有 Session ID 列表
-     */
-    listSessionIds(): string[] {
-        return Array.from(this.sessions.keys());
+    async list(): Promise<ChatSessionRecord[]> {
+        return listSessionRecords();
     }
 
-    /**
-     * 清空所有 Sessions
-     */
     async clearAll(): Promise<void> {
-        for (const session of this.sessions.values()) {
-            await session.clearSession();
-        }
+        await cortexDb.sessionItems.clear();
+        await cortexDb.chatSessions.clear();
         this.sessions.clear();
     }
 }
