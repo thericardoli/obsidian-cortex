@@ -5,6 +5,7 @@ import { DEFAULT_SETTINGS, SETTINGS_UPDATED_EVENT } from './src/settings/setting
 import { CortexSettingTab } from './src/settings/settings-tab';
 import { registerChatView, activateChatView } from './src/ui/chat-view';
 import { activateAgentConfigView, registerAgentConfigView } from './src/ui/agent-config-view';
+import { initializePersistence } from './src/core/persistence/bootstrap';
 
 export default class CortexPlugin extends Plugin {
     settings!: CortexSettings;
@@ -14,6 +15,7 @@ export default class CortexPlugin extends Plugin {
 
         // 加载设置
         await this.loadSettings();
+        await initializePersistence(this.settings);
 
         // 注册 ChatView
         registerChatView(this);

@@ -15,12 +15,14 @@ export interface AgentConfig {
     name: string;
     kind: AgentKind;
     instructions: string;
+    /** 默认模型，用于 handoff 以及作为 Agent 首选模型。 */
+    defaultModelId?: string;
 
     /**
      * 引用某个已配置模型的 ID，而不是直接写 'gpt-4.1' 等字符串。
      * 具体的 provider、模型名和默认参数由 ModelRegistry 解析。
      */
-    modelId: string;
+    modelId?: string;
 
     /** 每个 Agent 自己对默认模型参数的覆盖设置（可选）。 */
     modelSettingsOverride?: AgentModelSettingsOverride;
