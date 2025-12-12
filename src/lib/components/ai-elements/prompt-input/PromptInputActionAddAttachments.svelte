@@ -1,7 +1,7 @@
 <script lang="ts">
     import { getAttachmentsContext } from './attachments-context.svelte.js';
-    import PromptInputActionMenuItem from './PromptInputActionMenuItem.svelte';
     import ImageIcon from './ImageIcon.svelte';
+    import PromptInputActionMenuItem from './PromptInputActionMenuItem.svelte';
 
     interface Props {
         label?: string;

@@ -1,7 +1,9 @@
 <script lang="ts">
+    import { Check, GitBranch } from '@lucide/svelte';
+
     import { cn } from '$lib/utils';
+
     import type { AgentConfig } from '../../types/agent';
-    import { GitBranch, Check } from '@lucide/svelte';
 
     interface Props {
         otherAgents: AgentConfig[];

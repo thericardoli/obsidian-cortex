@@ -1,12 +1,19 @@
-import { Plugin } from 'obsidian';
 import './src/input.css';
-import type { AgentConfig } from './src/types/agent';
-import type { CortexSettings } from './src/settings/settings';
-import { DEFAULT_AGENT_CONFIGS, DEFAULT_SETTINGS, SETTINGS_UPDATED_EVENT } from './src/settings/settings';
-import { CortexSettingTab } from './src/settings/settings-tab';
-import { registerChatView, activateChatView } from './src/ui/chat-view';
-import { activateAgentConfigView, registerAgentConfigView } from './src/ui/agent-config-view';
+
+import { Plugin } from 'obsidian';
+
 import { initializePersistence } from './src/core/persistence/bootstrap';
+import {
+    DEFAULT_AGENT_CONFIGS,
+    DEFAULT_SETTINGS,
+    SETTINGS_UPDATED_EVENT,
+} from './src/settings/settings';
+import { CortexSettingTab } from './src/settings/settings-tab';
+import { activateAgentConfigView, registerAgentConfigView } from './src/ui/agent-config-view';
+import { activateChatView, registerChatView } from './src/ui/chat-view';
+
+import type { CortexSettings } from './src/settings/settings';
+import type { AgentConfig } from './src/types/agent';
 
 export default class CortexPlugin extends Plugin {
     settings!: CortexSettings;
@@ -17,7 +24,9 @@ export default class CortexPlugin extends Plugin {
 
         // 加载设置
         await this.loadSettings();
-        await initializePersistence(this.legacyAgentConfigs.length > 0 ? this.legacyAgentConfigs : DEFAULT_AGENT_CONFIGS);
+        await initializePersistence(
+            this.legacyAgentConfigs.length > 0 ? this.legacyAgentConfigs : DEFAULT_AGENT_CONFIGS
+        );
 
         // 注册 ChatView
         registerChatView(this);
@@ -73,7 +82,7 @@ export default class CortexPlugin extends Plugin {
                     {
                         id: savedData.openaiDefaultModel,
                         name: savedData.openaiDefaultModel,
-                        modelName: savedData.openaiDefaultModel,
+                        modelID: savedData.openaiDefaultModel,
                     },
                 ];
             }
@@ -82,7 +91,7 @@ export default class CortexPlugin extends Plugin {
                     {
                         id: savedData.openrouterDefaultModel,
                         name: savedData.openrouterDefaultModel,
-                        modelName: savedData.openrouterDefaultModel,
+                        modelID: savedData.openrouterDefaultModel,
                     },
                 ];
             }
@@ -96,14 +105,9 @@ export default class CortexPlugin extends Plugin {
         this.app.workspace.trigger(SETTINGS_UPDATED_EVENT, this.settings);
     }
 
-    private extractLegacyAgents(
-        agentConfigs: unknown,
-        agentConfigData: unknown
-    ): AgentConfig[] {
+    private extractLegacyAgents(agentConfigs: unknown, agentConfigData: unknown): AgentConfig[] {
         const fromAgentConfigs =
-            Array.isArray(agentConfigs) && agentConfigs.length > 0
-                ? agentConfigs
-                : [];
+            Array.isArray(agentConfigs) && agentConfigs.length > 0 ? agentConfigs : [];
 
         const fromAgentConfigData =
             agentConfigData &&

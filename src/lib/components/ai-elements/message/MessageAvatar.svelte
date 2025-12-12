@@ -1,6 +1,7 @@
 <script lang="ts">
+    import { Avatar, AvatarFallback, AvatarImage } from '$lib/components/ui/avatar/index.js';
     import { cn } from '$lib/utils';
-    import { Avatar, AvatarImage, AvatarFallback } from '$lib/components/ui/avatar/index.js';
+
     import type { ComponentProps } from 'svelte';
 
     type MessageAvatarProps = ComponentProps<typeof Avatar> & {

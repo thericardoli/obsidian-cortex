@@ -1,17 +1,20 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { SvelteSet } from 'svelte/reactivity';
-    import { BUILTIN_PROVIDERS, DEFAULT_AGENT_CONFIGS } from '../../settings/settings';
-    import type { AgentConfig } from '../../types/agent';
-    import type CortexPlugin from '../../../main';
+
     import { loadAgentConfigs, persistAgentConfigs } from '../../core/persistence/agent-store';
+    import { BUILTIN_PROVIDERS, DEFAULT_AGENT_CONFIGS } from '../../settings/settings';
     import { SETTINGS_UPDATED_EVENT } from '../../settings/settings';
-    import AgentSidebar from './AgentSidebar.svelte';
-    import AgentHeader from './AgentHeader.svelte';
+
     import AgentBasicInfo from './AgentBasicInfo.svelte';
-    import AgentTools from './AgentTools.svelte';
-    import AgentHandoffs from './AgentHandoffs.svelte';
     import AgentEmptyState from './AgentEmptyState.svelte';
+    import AgentHandoffs from './AgentHandoffs.svelte';
+    import AgentHeader from './AgentHeader.svelte';
+    import AgentSidebar from './AgentSidebar.svelte';
+    import AgentTools from './AgentTools.svelte';
+
+    import type CortexPlugin from '../../../main';
+    import type { AgentConfig } from '../../types/agent';
 
     interface ModelGroup {
         providerId: string;
@@ -77,7 +80,7 @@
                     providerId,
                     providerLabel: providerInfo?.label || providerId,
                     models: providerSettings.models.map((model) => ({
-                        id: `${providerId}:${model.modelName}`,
+                        id: `${providerId}:${model.modelID}`,
                         name: model.name,
                     })),
                 });

@@ -1,2 +1,2 @@
-export { ChatView, VIEW_TYPE_CHAT, registerChatView, activateChatView } from './ChatView';
+export { activateChatView, ChatView, registerChatView, VIEW_TYPE_CHAT } from './ChatView';
 export { default as ChatViewComponent } from './ChatView.svelte';

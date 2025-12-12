@@ -1,11 +1,13 @@
 <script lang="ts">
-    import { cn } from '$lib/utils';
     import { watch } from 'runed';
     import { onMount } from 'svelte';
+
+    import { cn } from '$lib/utils';
+
     import {
         AttachmentsContext,
-        setAttachmentsContext,
         type PromptInputMessage,
+        setAttachmentsContext,
     } from './attachments-context.svelte.js';
 
     interface Props {

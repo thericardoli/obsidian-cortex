@@ -1,12 +1,14 @@
 <script lang="ts">
-    import { cn } from '$lib/utils';
     import { Button } from '$lib/components/ui/button';
-    import type { ButtonProps } from '$lib/components/ui/button/index.js';
-    import type { ChatStatus } from './attachments-context.svelte.js';
-    import SendIcon from './SendIcon.svelte';
+    import { cn } from '$lib/utils';
+
     import Loader2Icon from './Loader2Icon.svelte';
+    import SendIcon from './SendIcon.svelte';
     import SquareIcon from './SquareIcon.svelte';
     import XIcon from './XIcon.svelte';
+
+    import type { ChatStatus } from './attachments-context.svelte.js';
+    import type { ButtonProps } from '$lib/components/ui/button/index.js';
 
     interface Props extends ButtonProps {
         class?: string;

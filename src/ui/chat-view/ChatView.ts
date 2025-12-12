@@ -1,6 +1,8 @@
-import { ItemView, WorkspaceLeaf, type App } from 'obsidian';
+import { type App, ItemView, WorkspaceLeaf } from 'obsidian';
 import { mount, unmount } from 'svelte';
+
 import ChatViewComponent from './ChatView.svelte';
+
 import type CortexPlugin from '../../../main';
 
 export const VIEW_TYPE_CHAT = 'cortex-chat-view';

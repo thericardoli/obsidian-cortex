@@ -1,4 +1,4 @@
-import { setContext, getContext } from 'svelte';
+import { getContext, setContext } from 'svelte';
 
 export interface FileUIPart {
     type: 'file';

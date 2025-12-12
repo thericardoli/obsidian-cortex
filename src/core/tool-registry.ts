@@ -1,5 +1,5 @@
-import { tool, type RunContext, type Tool } from '@openai/agents';
-import type { App } from 'obsidian';
+import { type RunContext, type Tool, tool } from '@openai/agents';
+
 import type {
     AgentToolDefinition,
     FunctionToolDefinition,
@@ -7,6 +7,7 @@ import type {
     ToolContext,
     ToolDefinition,
 } from '../types/tool';
+import type { App } from 'obsidian';
 
 export class ToolRegistry {
     private tools = new Map<string, ToolDefinition>();

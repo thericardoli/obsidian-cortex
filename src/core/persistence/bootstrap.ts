@@ -1,5 +1,6 @@
-import type { AgentConfig } from '../../types/agent';
 import { loadAgentConfigs, persistAgentConfigs } from './agent-store';
+
+import type { AgentConfig } from '../../types/agent';
 
 /**
  * Hydrate agent configs from IndexedDB and ensure Dexie stays source of truth.

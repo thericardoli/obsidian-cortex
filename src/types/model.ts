@@ -1,12 +1,3 @@
-/**
- * Model 类型定义
- *
- * Provider 相关类型已移至 ./provider.ts
- */
-
-// Re-export provider types for backward compatibility
-export type { BuiltinProviderId } from './provider';
-
 /** 模型参数设置 */
 export interface ModelSettings {
     temperature?: number;
@@ -22,5 +13,5 @@ export interface ModelSettings {
 export interface ModelConfig {
     id: string;
     name: string; // UI 显示名称
-    modelName: string; // 发送给 provider 的模型名
+    modelID: string; // 发送给 provider 的模型名
 }

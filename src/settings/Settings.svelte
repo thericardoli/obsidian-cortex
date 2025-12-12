@@ -1,8 +1,10 @@
 <script lang="ts">
     import { setIcon } from 'obsidian';
-    import type { CortexSettings, CustomProviderConfig, ProviderSettings } from './settings';
-    import { BUILTIN_PROVIDERS, BUILTIN_PROVIDER_IDS, DEFAULT_SETTINGS } from './settings';
+
+    import { BUILTIN_PROVIDER_IDS, BUILTIN_PROVIDERS, DEFAULT_SETTINGS } from './settings';
+
     import type { ModelConfig } from '../types/model';
+    import type { CortexSettings, CustomProviderConfig, ProviderSettings } from './settings';
 
     interface Props {
         settings: CortexSettings;
@@ -316,7 +318,7 @@
                                         <span class="text-primary flex" use:iconAction={'sparkles'}
                                         ></span>
                                         <span class="text-foreground text-sm font-medium"
-                                            >{model.name || model.modelName}</span
+                                            >{model.name || model.modelID}</span
                                         >
                                     </div>
                                     <div class="flex gap-1">

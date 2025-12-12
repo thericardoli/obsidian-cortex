@@ -1,5 +1,6 @@
 <script lang="ts">
     import { Textarea } from '$lib/components/ui/textarea';
+
     import type { AgentConfig } from '../../types/agent';
 
     interface ModelGroup {

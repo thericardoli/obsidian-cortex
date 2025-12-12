@@ -1,5 +1,5 @@
 import Message from './Message.svelte';
-import MessageContent from './MessageContent.svelte';
 import MessageAvatar from './MessageAvatar.svelte';
+import MessageContent from './MessageContent.svelte';
 
-export { Message, MessageContent, MessageAvatar };
+export { Message, MessageAvatar, MessageContent };

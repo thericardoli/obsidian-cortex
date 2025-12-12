@@ -1,10 +1,3 @@
-/**
- * Provider 类型定义 - 单一数据源
- *
- * 所有 Provider 相关的类型和元数据都在这里定义
- */
-
-/** 内置 Provider ID */
 export type BuiltinProviderId = 'openai' | 'anthropic' | 'gemini' | 'openrouter';
 
 /** Provider 元数据 */

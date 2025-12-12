@@ -1,5 +1,6 @@
+import { type ChatSessionRecord, cortexDb, type SessionItemRecord } from './database';
+
 import type { AgentInputItem, Session } from '@openai/agents-core';
-import { cortexDb, type ChatSessionRecord, type SessionItemRecord } from './database';
 
 const DEFAULT_SESSION_TITLE = 'New session';
 

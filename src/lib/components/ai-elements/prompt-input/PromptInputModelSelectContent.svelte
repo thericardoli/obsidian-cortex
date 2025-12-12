@@ -1,6 +1,6 @@
 <script lang="ts">
-    import { cn } from '$lib/utils';
     import * as Select from '$lib/components/ui/select/index.js';
+    import { cn } from '$lib/utils';
 
     interface Props {
         class?: string;

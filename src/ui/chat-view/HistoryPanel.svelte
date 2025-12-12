@@ -1,6 +1,8 @@
 <script lang="ts">
     import { ChevronLeft, ChevronRight, Trash2, X } from '@lucide/svelte';
+
     import { cn } from '$lib/utils';
+
     import type { ChatSessionRecord } from '../../core/persistence/database';
 
     interface Props {

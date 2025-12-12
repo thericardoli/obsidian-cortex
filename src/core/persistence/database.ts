@@ -1,6 +1,7 @@
 import Dexie, { type Table } from 'dexie';
-import type { AgentInputItem } from '@openai/agents-core';
+
 import type { AgentConfig } from '../../types/agent';
+import type { AgentInputItem } from '@openai/agents-core';
 
 export interface AgentConfigRecord extends AgentConfig {
     createdAt: number;

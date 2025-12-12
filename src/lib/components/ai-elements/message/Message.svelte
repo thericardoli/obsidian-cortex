@@ -1,5 +1,6 @@
 <script lang="ts">
     import { cn } from '$lib/utils';
+
     import type { UIMessage } from 'ai';
     import type { HTMLAttributes } from 'svelte/elements';
 

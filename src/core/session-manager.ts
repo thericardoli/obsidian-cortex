@@ -1,13 +1,14 @@
-import type { Session } from '@openai/agents-core';
 import { cortexDb } from './persistence/database';
 import {
-    PersistentSession,
     deleteSessionRecord,
     getSessionItems,
     listSessionRecords,
+    PersistentSession,
     upsertSessionRecord,
 } from './persistence/session-store';
+
 import type { ChatSessionRecord } from './persistence/database';
+import type { Session } from '@openai/agents-core';
 
 export type { Session };
 

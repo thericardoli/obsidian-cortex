@@ -1,17 +1,48 @@
 // @ts-check
 import eslint from '@eslint/js';
-import tseslint from 'typescript-eslint';
+import { defineConfig } from 'eslint/config';
 import prettier from 'eslint-config-prettier';
+import simpleImportSort from 'eslint-plugin-simple-import-sort';
 import svelte from 'eslint-plugin-svelte';
 import globals from 'globals';
+import tseslint from 'typescript-eslint';
 
-export default tseslint.config(
+export default defineConfig([
   // Base configuration
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
   ...svelte.configs['flat/recommended'],
   prettier,
   ...svelte.configs['flat/prettier'],
+
+  // Import sorting plugin
+  {
+    plugins: {
+      'simple-import-sort': simpleImportSort,
+    },
+    rules: {
+      'simple-import-sort/imports': [
+        'error',
+        {
+          groups: [
+            // Side effect imports (e.g., import 'module')
+            ['^\\u0000'],
+            // External packages (node_modules)
+            ['^@?\\w'],
+            // Internal aliases ($lib, etc.)
+            ['^\\$'],
+            // Parent imports (../)
+            ['^\\.\\.'],
+            // Sibling imports (./)
+            ['^\\./'],
+            // Type imports
+            ['^.+\\u0000$'],
+          ],
+        },
+      ],
+      'simple-import-sort/exports': 'error',
+    },
+  },
 
   // Global ignores
   {
@@ -72,5 +103,5 @@ export default tseslint.config(
       'svelte/no-at-html-tags': 'off',
       'svelte/valid-compile': 'warn',
     },
-  }
-);
+  },
+]);

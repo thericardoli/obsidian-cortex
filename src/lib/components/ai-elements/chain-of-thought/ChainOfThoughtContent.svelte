@@ -1,6 +1,7 @@
 <script lang="ts">
-    import { cn } from '$lib/utils';
     import { CollapsibleContent } from '$lib/components/ui/collapsible/index.js';
+    import { cn } from '$lib/utils';
+
     import type { Snippet } from 'svelte';
 
     interface ChainOfThoughtContentProps {

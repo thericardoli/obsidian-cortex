@@ -1,7 +1,9 @@
 <script lang="ts">
-    import { cn } from '$lib/utils';
     import { watch } from 'runed';
-    import { getAttachmentsContext, type FileWithId } from './attachments-context.svelte.js';
+
+    import { cn } from '$lib/utils';
+
+    import { type FileWithId, getAttachmentsContext } from './attachments-context.svelte.js';
 
     interface Props {
         class?: string;

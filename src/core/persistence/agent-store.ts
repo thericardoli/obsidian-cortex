@@ -1,5 +1,6 @@
+import { type AgentConfigRecord, cortexDb } from './database';
+
 import type { AgentConfig } from '../../types/agent';
-import { cortexDb, type AgentConfigRecord } from './database';
 
 function normalizeAgentConfig(config: AgentConfig): AgentConfig {
     const description = config.description || config.handoffDescription || '';

@@ -9,6 +9,7 @@
  */
 
 import { Agent, type Model, type ModelSettings } from '@openai/agents';
+
 import type { AgentConfig, AgentModelSettingsOverride } from '../types/agent';
 import type { ToolRegistry } from './tool-registry';
 

@@ -1,8 +1,11 @@
 <script lang="ts">
-    import { cn } from '$lib/utils';
     import { type Icon as IconType } from '@lucide/svelte';
     import DotIcon from '@lucide/svelte/icons/dot';
+
+    import { cn } from '$lib/utils';
+
     import { getChainOfThoughtContext } from './chain-of-thought-context.svelte.js';
+
     import type { Snippet } from 'svelte';
     import type { HTMLAttributes } from 'svelte/elements';
 

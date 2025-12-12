@@ -1,8 +1,10 @@
 <script lang="ts">
+    import { Bot, Plus, User } from '@lucide/svelte';
+
     import { Button } from '$lib/components/ui/button';
     import { cn } from '$lib/utils';
+
     import type { AgentConfig } from '../../types/agent';
-    import { Bot, Plus, User } from '@lucide/svelte';
 
     interface Props {
         agents: AgentConfig[];

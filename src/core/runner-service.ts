@@ -2,9 +2,10 @@
  * RunnerService - OpenAI Agents SDK 流式运行封装
  */
 
-import type { Agent } from '@openai/agents';
 import { run } from '@openai/agents';
+
 import type { Session } from './session-manager';
+import type { Agent } from '@openai/agents';
 
 export interface StreamCallbacks {
     onTextDelta?: (delta: string) => void;

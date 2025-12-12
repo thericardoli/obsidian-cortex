@@ -1,8 +1,10 @@
 <script lang="ts">
-    import { CollapsibleTrigger } from '$lib/components/ui/collapsible/index.js';
-    import { cn } from '$lib/utils';
     import { ChevronDown, Search } from '@lucide/svelte';
     import { Collapsible as CollapsiblePrimitive } from 'bits-ui';
+
+    import { CollapsibleTrigger } from '$lib/components/ui/collapsible/index.js';
+    import { cn } from '$lib/utils';
+
     import type { Snippet } from 'svelte';
 
     export interface TaskTriggerProps extends CollapsiblePrimitive.TriggerProps {

@@ -1,24 +1,32 @@
 <script lang="ts">
-    import type { EventRef } from 'obsidian';
-    import { onMount } from 'svelte';
-    import type CortexPlugin from '../../../main';
-    import type { PromptInputMessage, ChatStatus } from '$lib/components/ai-elements/prompt-input';
-    import { sessionManager, type Session } from '../../core/session-manager';
-    import { RunnerService } from '../../core/runner-service';
-    import { parseModelSelection, createModel } from '../../core/model-registry';
     import { Agent } from '@openai/agents';
-    import type { AgentInputItem } from '@openai/agents-core';
-    import { BUILTIN_PROVIDERS, DEFAULT_AGENT_CONFIGS, SETTINGS_UPDATED_EVENT } from '../../settings/settings';
-    import { AgentRegistry } from '../../core/agent-registry';
-    import { ToolRegistry } from '../../core/tool-registry';
-    import type { AgentConfig } from '../../types/agent';
-    import type { ChatSessionRecord } from '../../core/persistence/database';
+    import { onMount } from 'svelte';
+
     import { cn } from '$lib/utils';
+
+    import { AgentRegistry } from '../../core/agent-registry';
+    import { createModel, parseModelSelection } from '../../core/model-registry';
     import { loadAgentConfigs } from '../../core/persistence/agent-store';
+    import { RunnerService } from '../../core/runner-service';
+    import { type Session, sessionManager } from '../../core/session-manager';
+    import { ToolRegistry } from '../../core/tool-registry';
+    import {
+        BUILTIN_PROVIDERS,
+        DEFAULT_AGENT_CONFIGS,
+        SETTINGS_UPDATED_EVENT,
+    } from '../../settings/settings';
+
     import ChatHeader from './ChatHeader.svelte';
+    import ChatInputBar from './ChatInputBar.svelte';
     import HistoryPanel from './HistoryPanel.svelte';
     import MessageList from './MessageList.svelte';
-    import ChatInputBar from './ChatInputBar.svelte';
+
+    import type CortexPlugin from '../../../main';
+    import type { ChatSessionRecord } from '../../core/persistence/database';
+    import type { AgentConfig } from '../../types/agent';
+    import type { AgentInputItem } from '@openai/agents-core';
+    import type { ChatStatus, PromptInputMessage } from '$lib/components/ai-elements/prompt-input';
+    import type { EventRef } from 'obsidian';
 
     interface Props {
         plugin: CortexPlugin;
@@ -130,12 +138,12 @@
 
         if (activeProvider?.apiKey && activeProvider.models?.length > 0) {
             const firstModel = activeProvider.models[0];
-            return `${activeProviderId}:${firstModel.modelName}`;
+            return `${activeProviderId}:${firstModel.modelID}`;
         }
 
         for (const [providerId, providerSettings] of Object.entries(providers || {})) {
             if (providerSettings.apiKey && providerSettings.models?.length) {
-                return `${providerId}:${providerSettings.models[0].modelName}`;
+                return `${providerId}:${providerSettings.models[0].modelID}`;
             }
         }
 
@@ -159,7 +167,7 @@
                     providerId,
                     providerLabel: providerInfo?.label || providerId,
                     models: providerSettings.models.map((model) => ({
-                        id: `${providerId}:${model.modelName}`,
+                        id: `${providerId}:${model.modelID}`,
                         name: model.name,
                     })),
                 });

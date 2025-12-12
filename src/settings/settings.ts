@@ -1,6 +1,7 @@
+import { BUILTIN_PROVIDER_IDS, BUILTIN_PROVIDERS, type BuiltinProviderId } from '../types/provider';
+
 import type { AgentConfig } from '../types/agent';
 import type { ModelConfig } from '../types/model';
-import { BUILTIN_PROVIDERS, BUILTIN_PROVIDER_IDS, type BuiltinProviderId } from '../types/provider';
 
 /** Provider 运行时配置（存储于 Settings） */
 export interface ProviderSettings {
@@ -27,7 +28,7 @@ export interface CortexSettings {
 }
 
 // Re-export for backward compatibility
-export { BUILTIN_PROVIDERS, BUILTIN_PROVIDER_IDS };
+export { BUILTIN_PROVIDER_IDS, BUILTIN_PROVIDERS };
 export type { BuiltinProviderId };
 
 /** Workspace event fired whenever settings are saved */
@@ -39,7 +40,7 @@ function createDefaultProviders(): Record<string, ProviderSettings> {
         openai: {
             apiKey: '',
             baseUrl: BUILTIN_PROVIDERS.openai.defaultBaseUrl,
-            models: [{ id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini', modelName: 'gpt-4.1-mini' }],
+            models: [{ id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini', modelID: 'gpt-4.1-mini' }],
         },
         anthropic: {
             apiKey: '',
@@ -48,7 +49,7 @@ function createDefaultProviders(): Record<string, ProviderSettings> {
                 {
                     id: 'claude-sonnet-4',
                     name: 'Claude Sonnet 4',
-                    modelName: 'claude-sonnet-4-20250514',
+                    modelID: 'claude-sonnet-4-20250514',
                 },
             ],
         },
@@ -56,14 +57,14 @@ function createDefaultProviders(): Record<string, ProviderSettings> {
             apiKey: '',
             baseUrl: BUILTIN_PROVIDERS.gemini.defaultBaseUrl,
             models: [
-                { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', modelName: 'gemini-2.5-flash' },
+                { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', modelID: 'gemini-2.5-flash' },
             ],
         },
         openrouter: {
             apiKey: '',
             baseUrl: BUILTIN_PROVIDERS.openrouter.defaultBaseUrl,
             models: [
-                { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', modelName: 'openai/gpt-4o-mini' },
+                { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', modelID: 'openai/gpt-4o-mini' },
             ],
         },
     };

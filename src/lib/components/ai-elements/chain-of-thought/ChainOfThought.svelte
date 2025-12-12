@@ -1,10 +1,12 @@
 <script lang="ts">
-    import { cn } from '$lib/utils';
     import { Collapsible } from '$lib/components/ui/collapsible/index.js';
+    import { cn } from '$lib/utils';
+
     import {
         ChainOfThoughtContext,
         setChainOfThoughtContext,
     } from './chain-of-thought-context.svelte.js';
+
     import type { Snippet } from 'svelte';
     import type { HTMLAttributes } from 'svelte/elements';
 

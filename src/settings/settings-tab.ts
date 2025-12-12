@@ -1,8 +1,10 @@
 import { App, Modal, Plugin, PluginSettingTab, Setting } from 'obsidian';
 import { mount, unmount } from 'svelte';
+
 import SettingsComponent from './Settings.svelte';
-import type { CortexSettings, CustomProviderConfig } from './settings';
+
 import type { ModelConfig } from '../types/model';
+import type { CortexSettings, CustomProviderConfig } from './settings';
 
 export interface CortexPluginInterface extends Plugin {
     settings: CortexSettings;
@@ -187,7 +189,7 @@ class ModelConfigModal extends Modal {
         contentEl.createEl('h3', { text: this.model ? 'Edit Model' : 'Add Model' });
 
         const nameValue = this.model?.name || '';
-        const modelNameValue = this.model?.modelName || '';
+        const modelIDValue = this.model?.modelID || '';
 
         new Setting(contentEl).setName('Display Name').addText((text) => {
             text.setPlaceholder('My Model').setValue(nameValue);
@@ -198,8 +200,8 @@ class ModelConfigModal extends Modal {
             .setName('Model Name')
             .setDesc('The actual model identifier sent to the API')
             .addText((text) => {
-                text.setPlaceholder('gpt-4o-mini').setValue(modelNameValue);
-                text.inputEl.dataset.field = 'modelName';
+                text.setPlaceholder('gpt-4o-mini').setValue(modelIDValue);
+                text.inputEl.dataset.field = 'modelID';
             });
 
         new Setting(contentEl).addButton((btn) => {
@@ -209,17 +211,17 @@ class ModelConfigModal extends Modal {
                     const nameInput = contentEl.querySelector(
                         'input[data-field="name"]'
                     ) as HTMLInputElement;
-                    const modelNameInput = contentEl.querySelector(
-                        'input[data-field="modelName"]'
+                    const modelIDInput = contentEl.querySelector(
+                        'input[data-field="modelID"]'
                     ) as HTMLInputElement;
 
                     const newModel: ModelConfig = {
                         id: this.model?.id || `model-${Date.now()}`,
-                        name: nameInput.value.trim() || modelNameInput.value.trim(),
-                        modelName: modelNameInput.value.trim(),
+                        name: nameInput.value.trim() || modelIDInput.value.trim(),
+                        modelID: modelIDInput.value.trim(),
                     };
 
-                    if (newModel.modelName) {
+                    if (newModel.modelID) {
                         this.onSave(newModel);
                         this.close();
                     }

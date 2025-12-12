@@ -1,7 +1,9 @@
 <script lang="ts">
+    import { Collapsible as CollapsiblePrimitive } from 'bits-ui';
+
     import { Collapsible } from '$lib/components/ui/collapsible/index.js';
     import { cn } from '$lib/utils';
-    import { Collapsible as CollapsiblePrimitive } from 'bits-ui';
+
     import type { Snippet } from 'svelte';
 
     export interface TaskProps extends CollapsiblePrimitive.RootProps {

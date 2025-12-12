@@ -1,7 +1,8 @@
 <script lang="ts">
     import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
-    import PromptInputButton from './PromptInputButton.svelte';
+
     import PlusIcon from './PlusIcon.svelte';
+    import PromptInputButton from './PromptInputButton.svelte';
 
     interface Props {
         class?: string;

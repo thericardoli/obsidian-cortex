@@ -2,20 +2,21 @@
     import {
         PromptInput,
         PromptInputBody,
-        PromptInputTextarea,
-        PromptInputToolbar,
-        PromptInputSubmit,
         PromptInputModelSelect,
-        PromptInputModelSelectTrigger,
         PromptInputModelSelectContent,
-        PromptInputModelSelectItem,
-        PromptInputModelSelectValue,
         PromptInputModelSelectGroup,
         PromptInputModelSelectGroupHeading,
+        PromptInputModelSelectItem,
+        PromptInputModelSelectTrigger,
+        PromptInputModelSelectValue,
+        PromptInputSubmit,
+        PromptInputTextarea,
+        PromptInputToolbar,
     } from '$lib/components/ai-elements/prompt-input';
-    import type { PromptInputMessage, ChatStatus } from '$lib/components/ai-elements/prompt-input';
     import { cn } from '$lib/utils';
+
     import type { AgentConfig } from '../../types/agent';
+    import type { ChatStatus, PromptInputMessage } from '$lib/components/ai-elements/prompt-input';
 
     interface ModelGroup {
         providerId: string;

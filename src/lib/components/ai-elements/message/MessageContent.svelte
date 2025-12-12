@@ -1,6 +1,8 @@
 <script lang="ts">
-    import { cn } from '$lib/utils';
     import { tv, type VariantProps } from 'tailwind-variants';
+
+    import { cn } from '$lib/utils';
+
     import type { HTMLAttributes } from 'svelte/elements';
 
     const messageContentVariants = tv({

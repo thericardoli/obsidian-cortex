@@ -1,6 +1,7 @@
 <script lang="ts">
     import { Message, MessageContent } from '$lib/components/ai-elements/message';
     import { Response } from '$lib/components/ai-elements/response';
+
     import type { ChatStatus } from '$lib/components/ai-elements/prompt-input';
 
     export interface ChatMessage {
