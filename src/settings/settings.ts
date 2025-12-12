@@ -40,32 +40,22 @@ function createDefaultProviders(): Record<string, ProviderSettings> {
         openai: {
             apiKey: '',
             baseUrl: BUILTIN_PROVIDERS.openai.defaultBaseUrl,
-            models: [{ id: 'gpt-4.1-mini', name: 'GPT-4.1 Mini', modelID: 'gpt-4.1-mini' }],
+            models: [],
         },
         anthropic: {
             apiKey: '',
             baseUrl: BUILTIN_PROVIDERS.anthropic.defaultBaseUrl,
-            models: [
-                {
-                    id: 'claude-sonnet-4',
-                    name: 'Claude Sonnet 4',
-                    modelID: 'claude-sonnet-4-20250514',
-                },
-            ],
+            models: [],
         },
         gemini: {
             apiKey: '',
             baseUrl: BUILTIN_PROVIDERS.gemini.defaultBaseUrl,
-            models: [
-                { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', modelID: 'gemini-2.5-flash' },
-            ],
+            models: [],
         },
         openrouter: {
             apiKey: '',
             baseUrl: BUILTIN_PROVIDERS.openrouter.defaultBaseUrl,
-            models: [
-                { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', modelID: 'openai/gpt-4o-mini' },
-            ],
+            models: [],
         },
     };
 }

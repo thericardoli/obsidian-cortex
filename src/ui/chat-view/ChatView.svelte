@@ -51,7 +51,7 @@
     let settingsVersion = $state(0);
     let settingsEventRef: EventRef | null = null;
     let selectedAgentId = $state('');
-    let selectedModel = $state('gpt-4.1-mini');
+    let selectedModel = $state('');
     let availableAgents = $state<AgentConfig[]>([]);
     let availableSessions = $state<ChatSessionRecord[]>([]);
     let activeSessionId = $state('');
@@ -147,7 +147,7 @@
             }
         }
 
-        return 'gpt-4.1-mini';
+        return '';
     }
 
     const groupedModels = $derived.by(() => {
@@ -172,19 +172,6 @@
                     })),
                 });
             }
-        }
-
-        if (groups.length === 0) {
-            groups.push({
-                providerId: 'openai',
-                providerLabel: 'OpenAI',
-                models: [
-                    {
-                        id: 'gpt-4.1-mini',
-                        name: 'GPT-4.1 Mini',
-                    },
-                ],
-            });
         }
 
         return groups;
@@ -293,6 +280,11 @@
             agent.defaultModelId ||
             agent.modelId ||
             resolveDefaultModelSelection();
+
+        if (!modelId) {
+            throw new Error('请先在设置里添加至少一个模型，并在聊天输入栏选择模型');
+        }
+
         const modelConfig = parseModelSelection(modelId, plugin.settings);
 
         if (!modelConfig) {
@@ -563,8 +555,9 @@
             resolveModel: (config) => {
                 const modelId =
                     config.id === resolvedAgent.id
-                        ? selectedModel || getAgentPreferredModel(config)
-                        : config.defaultModelId || config.modelId || selectedModel;
+                        ? selectedModel || getAgentPreferredModel(config) || undefined
+                        : config.defaultModelId || config.modelId || selectedModel || undefined;
+
                 return resolveModelForAgent(config, modelId);
             },
         });
