@@ -23,10 +23,17 @@ export interface SessionItemRecord {
     item: AgentInputItem;
 }
 
+export interface ModelsDevCacheRecord {
+    key: string;
+    updatedAt: number;
+    value: unknown;
+}
+
 class CortexDatabase extends Dexie {
     agentConfigs!: Table<AgentConfigRecord, string>;
     chatSessions!: Table<ChatSessionRecord, string>;
     sessionItems!: Table<SessionItemRecord, number>;
+    modelsDevCache!: Table<ModelsDevCacheRecord, string>;
 
     constructor() {
         super('cortex-db');
@@ -34,6 +41,13 @@ class CortexDatabase extends Dexie {
             agentConfigs: '&id, name, enabled, updatedAt',
             chatSessions: '&id, agentId, updatedAt, createdAt',
             sessionItems: '++id, sessionId, createdAt',
+        });
+
+        this.version(2).stores({
+            agentConfigs: '&id, name, enabled, updatedAt',
+            chatSessions: '&id, agentId, updatedAt, createdAt',
+            sessionItems: '++id, sessionId, createdAt',
+            modelsDevCache: '&key, updatedAt',
         });
     }
 }
