@@ -13,6 +13,7 @@
         PromptInputTextarea,
         PromptInputToolbar,
     } from '$lib/components/ai-elements/prompt-input';
+    import { ProviderIcon } from '$lib/components/ui/provider-icon';
     import { cn } from '$lib/utils';
 
     import type { AgentConfig } from '../../types/agent';
@@ -110,7 +111,10 @@
                         {#each groupedModels as group (group.providerId)}
                             <PromptInputModelSelectGroup>
                                 <PromptInputModelSelectGroupHeading>
-                                    {group.providerLabel}
+                                    <span class="inline-flex items-center gap-2">
+                                        <ProviderIcon providerId={group.providerId} size={14} />
+                                        <span class="truncate">{group.providerLabel}</span>
+                                    </span>
                                 </PromptInputModelSelectGroupHeading>
                                 {#each group.models as model (model.id)}
                                     <PromptInputModelSelectItem value={model.id}>

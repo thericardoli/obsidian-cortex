@@ -1,6 +1,8 @@
 <script lang="ts">
     import { setIcon } from 'obsidian';
 
+    import { ProviderIcon } from '$lib/components/ui/provider-icon';
+
     import { BUILTIN_PROVIDER_IDS, BUILTIN_PROVIDERS, DEFAULT_SETTINGS } from './settings';
 
     import type { ModelConfig } from '../types/model';
@@ -205,7 +207,10 @@
                         : ''}"
                     onclick={() => selectProvider(provider.id)}
                 >
-                    {provider.label}
+                    <span class="inline-flex items-center gap-2">
+                        <ProviderIcon providerId={provider.id} size={14} />
+                        <span class="truncate">{provider.label}</span>
+                    </span>
                 </button>
             {/each}
             <button
