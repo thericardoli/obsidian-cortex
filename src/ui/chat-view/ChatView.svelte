@@ -13,8 +13,9 @@
     import {
         BUILTIN_PROVIDERS,
         DEFAULT_AGENT_CONFIGS,
-        SETTINGS_UPDATED_EVENT,
+        DEFAULT_SETTINGS,
     } from '../../settings/settings';
+    import { createSettingsStore } from '../../settings/settings-store';
 
     import ChatHeader from './ChatHeader.svelte';
     import ChatInputBar from './ChatInputBar.svelte';
@@ -23,10 +24,10 @@
 
     import type CortexPlugin from '../../../main';
     import type { ChatSessionRecord } from '../../core/persistence/database';
+    import type { CortexSettings } from '../../settings/settings';
     import type { AgentConfig } from '../../types/agent';
     import type { AgentInputItem } from '@openai/agents-core';
     import type { ChatStatus, PromptInputMessage } from '$lib/components/ai-elements/prompt-input';
-    import type { EventRef } from 'obsidian';
 
     interface Props {
         plugin: CortexPlugin;
@@ -48,8 +49,7 @@
     let chatStatus = $state<ChatStatus>('idle');
     let streamingText = $state('');
     let messagesContainer = $state<HTMLDivElement | null>(null);
-    let settingsVersion = $state(0);
-    let settingsEventRef: EventRef | null = null;
+    let settings = $state<CortexSettings>(DEFAULT_SETTINGS);
     let selectedAgentId = $state('');
     let selectedModel = $state('');
     let availableAgents = $state<AgentConfig[]>([]);
@@ -127,13 +127,22 @@
     });
 
     $effect(() => {
-        void settingsVersion;
-        void refreshAgents();
+        void settings;
+        const selectionExists = groupedModels.some((group) =>
+            group.models.some((model) => model.id === selectedModel)
+        );
+
+        if (!selectionExists) {
+            const nextModel = resolveDefaultModelSelection();
+            if (selectedModel !== nextModel) {
+                selectedModel = nextModel;
+            }
+        }
     });
 
     function resolveDefaultModelSelection(): string {
-        const providers = plugin.settings.providers;
-        const activeProviderId = plugin.settings.activeProviderId;
+        const providers = settings.providers;
+        const activeProviderId = settings.activeProviderId;
         const activeProvider = providers?.[activeProviderId];
 
         if (activeProvider?.apiKey && activeProvider.models?.length > 0) {
@@ -151,13 +160,12 @@
     }
 
     const groupedModels = $derived.by(() => {
-        void settingsVersion;
         const groups: {
             providerId: string;
             providerLabel: string;
             models: { id: string; name: string }[];
         }[] = [];
-        const providers = plugin.settings.providers;
+        const providers = settings.providers;
 
         for (const [providerId, providerSettings] of Object.entries(providers)) {
             if (providerSettings.apiKey && providerSettings.models.length > 0) {
@@ -185,35 +193,25 @@
         return selectedModel;
     });
 
-    $effect(() => {
-        void settingsVersion;
-        const selectionExists = groupedModels.some((group) =>
-            group.models.some((model) => model.id === selectedModel)
-        );
-
-        if (!selectionExists) {
-            const nextModel = resolveDefaultModelSelection();
-            if (selectedModel !== nextModel) {
-                selectedModel = nextModel;
-            }
-        }
-    });
-
     onMount(() => {
-        // @ts-expect-error - Custom event type not in Obsidian's type definitions
-        settingsEventRef = plugin.app.workspace.on(SETTINGS_UPDATED_EVENT, () => {
-            settingsVersion += 1;
+        const settingsStore = createSettingsStore(plugin.app, () => plugin.settings);
+        let initialized = false;
+        const unsubscribe = settingsStore.subscribe(({ settings: nextSettings }) => {
+            settings = { ...nextSettings };
+            if (initialized) {
+                void refreshAgents();
+            } else {
+                initialized = true;
+            }
         });
+
         void (async () => {
             await refreshAgents();
             await bootstrapSessions();
         })();
 
         return () => {
-            if (settingsEventRef) {
-                plugin.app.workspace.offref(settingsEventRef);
-                settingsEventRef = null;
-            }
+            unsubscribe();
         };
     });
 
@@ -285,7 +283,7 @@
             throw new Error('请先在设置里添加至少一个模型，并在聊天输入栏选择模型');
         }
 
-        const modelConfig = parseModelSelection(modelId, plugin.settings);
+        const modelConfig = parseModelSelection(modelId, settings);
 
         if (!modelConfig) {
             throw new Error(`请先配置 ${modelId.split(':')[0] || 'openai'} 的 API Key`);

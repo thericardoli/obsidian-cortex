@@ -4,7 +4,7 @@
 
     import { loadAgentConfigs, persistAgentConfigs } from '../../core/persistence/agent-store';
     import { BUILTIN_PROVIDERS, DEFAULT_AGENT_CONFIGS } from '../../settings/settings';
-    import { SETTINGS_UPDATED_EVENT } from '../../settings/settings';
+    import { notifySettingsUpdated } from '../../settings/settings-events';
 
     import AgentBasicInfo from './AgentBasicInfo.svelte';
     import AgentEmptyState from './AgentEmptyState.svelte';
@@ -194,7 +194,7 @@
         isSaving = true;
         const sanitizedAgents = agents.map((agent) => withDefaults(agent));
         await persistAgentConfigs(sanitizedAgents);
-        plugin.app.workspace.trigger(SETTINGS_UPDATED_EVENT, plugin.settings);
+        notifySettingsUpdated(plugin.app, plugin.settings);
         isSaving = false;
     }
 </script>

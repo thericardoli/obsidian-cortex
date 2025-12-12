@@ -3,11 +3,8 @@ import './src/input.css';
 import { Plugin } from 'obsidian';
 
 import { initializePersistence } from './src/core/persistence/bootstrap';
-import {
-    DEFAULT_AGENT_CONFIGS,
-    DEFAULT_SETTINGS,
-    SETTINGS_UPDATED_EVENT,
-} from './src/settings/settings';
+import { DEFAULT_AGENT_CONFIGS, DEFAULT_SETTINGS } from './src/settings/settings';
+import { notifySettingsUpdated } from './src/settings/settings-events';
 import { CortexSettingTab } from './src/settings/settings-tab';
 import { activateAgentConfigView, registerAgentConfigView } from './src/ui/agent-config-view';
 import { activateChatView, registerChatView } from './src/ui/chat-view';
@@ -67,42 +64,11 @@ export default class CortexPlugin extends Plugin {
         const { agentConfigs = [], agentConfigData, ...rest } = savedData || {};
         this.legacyAgentConfigs = this.extractLegacyAgents(agentConfigs, agentConfigData);
         this.settings = Object.assign({}, DEFAULT_SETTINGS, rest);
-
-        // 迁移旧设置到新结构
-        if (savedData && !savedData.providers) {
-            // 旧设置存在但没有新的 providers 字段，进行迁移
-            if (savedData.openaiApiKey) {
-                this.settings.providers.openai.apiKey = savedData.openaiApiKey;
-            }
-            if (savedData.openrouterApiKey) {
-                this.settings.providers.openrouter.apiKey = savedData.openrouterApiKey;
-            }
-            if (savedData.openaiDefaultModel) {
-                this.settings.providers.openai.models = [
-                    {
-                        id: savedData.openaiDefaultModel,
-                        name: savedData.openaiDefaultModel,
-                        modelID: savedData.openaiDefaultModel,
-                    },
-                ];
-            }
-            if (savedData.openrouterDefaultModel) {
-                this.settings.providers.openrouter.models = [
-                    {
-                        id: savedData.openrouterDefaultModel,
-                        name: savedData.openrouterDefaultModel,
-                        modelID: savedData.openrouterDefaultModel,
-                    },
-                ];
-            }
-            // 保存迁移后的设置
-            await this.saveSettings();
-        }
     }
 
     async saveSettings(): Promise<void> {
         await this.saveData(this.settings);
-        this.app.workspace.trigger(SETTINGS_UPDATED_EVENT, this.settings);
+        notifySettingsUpdated(this.app, this.settings);
     }
 
     private extractLegacyAgents(agentConfigs: unknown, agentConfigData: unknown): AgentConfig[] {
