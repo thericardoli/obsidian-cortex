@@ -86,7 +86,7 @@ export function createModel(config: ResolvedModelConfig) {
             const anthropic = createAnthropic({ apiKey, baseURL: baseUrl });
             return aisdk(anthropic(modelID));
         }
-        case 'google': {
+        case 'gemini': {
             const google = createGoogleGenerativeAI({ apiKey, baseURL: baseUrl });
             return aisdk(google(modelID));
         }

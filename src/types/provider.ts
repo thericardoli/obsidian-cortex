@@ -1,4 +1,4 @@
-export type BuiltinProviderId = 'openai' | 'anthropic' | 'google' | 'openrouter';
+export type BuiltinProviderId = 'openai' | 'anthropic' | 'gemini' | 'openrouter';
 
 /** Provider 元数据 */
 export interface ProviderMeta {
@@ -22,8 +22,8 @@ export const BUILTIN_PROVIDERS: Record<BuiltinProviderId, ProviderMeta> = {
         defaultBaseUrl: 'https://api.anthropic.com',
         isBuiltin: true,
     },
-    google: {
-        id: 'google',
+    gemini: {
+        id: 'gemini',
         label: 'Gemini',
         defaultBaseUrl: 'https://generativelanguage.googleapis.com/v1beta',
         isBuiltin: true,

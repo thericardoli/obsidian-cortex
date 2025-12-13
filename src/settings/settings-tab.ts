@@ -57,17 +57,9 @@ export class CortexSettingTab extends PluginSettingTab {
                     provider: CustomProviderConfig | null,
                     onSaveProvider: (provider: CustomProviderConfig) => void
                 ) => {
-                    const usedProviderIds = new Set<string>(
-                        Object.keys(this.plugin.settings.providers || {})
-                    );
-                    for (const p of this.plugin.settings.customProviders || []) {
-                        usedProviderIds.add(p.id);
-                    }
-
                     const modal = new CustomProviderModal(
                         this.app,
                         provider,
-                        usedProviderIds,
                         async (savedProvider) => {
                             onSaveProvider(savedProvider);
                             await this.plugin.saveSettings();
@@ -89,42 +81,17 @@ export class CortexSettingTab extends PluginSettingTab {
     }
 }
 
-function slugifyProviderId(label: string): string {
-    const slug = label
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+/, '')
-        .replace(/-+$/, '');
-
-    return slug;
-}
-
-function createUniqueProviderId(base: string, used: Set<string>): string {
-    const normalizedBase = base || '';
-    if (!used.has(normalizedBase)) return normalizedBase;
-
-    let counter = 2;
-    while (used.has(`${normalizedBase}-${counter}`)) {
-        counter += 1;
-    }
-    return `${normalizedBase}-${counter}`;
-}
-
 class CustomProviderModal extends Modal {
     private provider: CustomProviderConfig | null;
-    private usedProviderIds: Set<string>;
     private onSave: (provider: CustomProviderConfig) => void;
 
     constructor(
         app: App,
         provider: CustomProviderConfig | null,
-        usedProviderIds: Set<string>,
         onSave: (provider: CustomProviderConfig) => void
     ) {
         super(app);
         this.provider = provider;
-        this.usedProviderIds = usedProviderIds;
         this.onSave = onSave;
     }
 
@@ -185,13 +152,8 @@ class CustomProviderModal extends Modal {
                     const apiKey = apiKeyInput.value.trim();
 
                     if (name && baseUrl) {
-                        const existingId = this.provider?.id;
-                        const slug = slugifyProviderId(name) || `custom-${Date.now()}`;
-                        const used = new Set(this.usedProviderIds);
-                        if (existingId) used.delete(existingId);
-
                         const newProvider: CustomProviderConfig = {
-                            id: existingId || createUniqueProviderId(slug, used),
+                            id: this.provider?.id || `custom-${Date.now()}`,
                             name,
                             baseUrl,
                             apiKey,

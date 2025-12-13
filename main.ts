@@ -8,7 +8,6 @@ import { notifySettingsUpdated } from './src/settings/settings-events';
 import { CortexSettingTab } from './src/settings/settings-tab';
 import { activateAgentConfigView, registerAgentConfigView } from './src/ui/agent-config-view';
 import { activateChatView, registerChatView } from './src/ui/chat-view';
-import { ensureBuiltinProviderModelsFromModelsDev } from './src/utils/models-dev';
 
 import type { CortexSettings } from './src/settings/settings';
 import type { AgentConfig } from './src/types/agent';
@@ -22,14 +21,6 @@ export default class CortexPlugin extends Plugin {
 
         // 加载设置
         await this.loadSettings();
-
-        // Auto-populate builtin provider models from models.dev when a provider is configured but has no models.
-        // This is best-effort and should never block plugin startup.
-        if (await this.hydrateModelsFromModelsDevIfNeeded()) {
-            await this.saveData(this.settings);
-            notifySettingsUpdated(this.app, this.settings);
-        }
-
         await initializePersistence(
             this.legacyAgentConfigs.length > 0 ? this.legacyAgentConfigs : DEFAULT_AGENT_CONFIGS
         );
@@ -76,19 +67,8 @@ export default class CortexPlugin extends Plugin {
     }
 
     async saveSettings(): Promise<void> {
-        await this.hydrateModelsFromModelsDevIfNeeded();
         await this.saveData(this.settings);
         notifySettingsUpdated(this.app, this.settings);
-    }
-
-    private async hydrateModelsFromModelsDevIfNeeded(): Promise<boolean> {
-        try {
-            const result = await ensureBuiltinProviderModelsFromModelsDev(this.settings);
-            return result.updated;
-        } catch (err) {
-            console.warn('Failed to hydrate models from models.dev', err);
-            return false;
-        }
     }
 
     private extractLegacyAgents(agentConfigs: unknown, agentConfigData: unknown): AgentConfig[] {

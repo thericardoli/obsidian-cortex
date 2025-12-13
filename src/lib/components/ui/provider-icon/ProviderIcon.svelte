@@ -1,13 +1,9 @@
 <script lang="ts">
-    import { requestUrl } from 'obsidian';
-
     import anthropicSvgRaw from '$lib/assets/provider-icons/anthropic.svg?raw';
-    import googleSvgRaw from '$lib/assets/provider-icons/google.svg?raw';
+    import geminiSvgRaw from '$lib/assets/provider-icons/gemini.svg?raw';
     import openaiSvgRaw from '$lib/assets/provider-icons/openai.svg?raw';
     import openrouterSvgRaw from '$lib/assets/provider-icons/openrouter.svg?raw';
     import { cn } from '$lib/utils';
-
-    import { modelsDevLogoUrl } from '../../../../utils/models-dev';
 
     interface Props {
         providerId: string;
@@ -19,43 +15,10 @@
 
     const SVG_BY_PROVIDER: Record<string, string> = {
         openai: openaiSvgRaw,
-        google: googleSvgRaw,
+        gemini: geminiSvgRaw,
         anthropic: anthropicSvgRaw,
         openrouter: openrouterSvgRaw,
     };
-
-    const REMOTE_SVG_CACHE: Record<string, string | undefined> = Object.create(null);
-    const REMOTE_SVG_INFLIGHT: Record<string, Promise<string> | undefined> = Object.create(null);
-
-    async function fetchModelsDevLogo(providerId: string): Promise<string> {
-        const cached = REMOTE_SVG_CACHE[providerId];
-        if (cached !== undefined) return cached;
-
-        const inflight = REMOTE_SVG_INFLIGHT[providerId];
-        if (inflight) return inflight;
-
-        const task = (async () => {
-            try {
-                const res = await requestUrl({ url: modelsDevLogoUrl(providerId) });
-                if (res.status !== 200) return '';
-                const svg = res.text;
-                if (!svg || !svg.toLowerCase().includes('<svg')) return '';
-                return normalizeSvg(svg);
-            } catch {
-                return '';
-            }
-        })()
-            .then((svg) => {
-                REMOTE_SVG_CACHE[providerId] = svg;
-                return svg;
-            })
-            .finally(() => {
-                delete REMOTE_SVG_INFLIGHT[providerId];
-            });
-
-        REMOTE_SVG_INFLIGHT[providerId] = task;
-        return task;
-    }
 
     function patchSvgOpenTag(svg: string, patch: (openTag: string) => string): string {
         const match = svg.match(/<svg\b[^>]*>/i);
@@ -94,35 +57,10 @@
 
     const normalizedProviderId = $derived.by(() => (providerId || '').trim().toLowerCase());
 
-    let remoteSvg = $state('');
-
-    $effect(() => {
-        const id = normalizedProviderId;
-        if (!id) {
-            remoteSvg = '';
-            return;
-        }
-
-        if (SVG_BY_PROVIDER[id]) {
-            remoteSvg = '';
-            return;
-        }
-
-        let cancelled = false;
-        void (async () => {
-            const svg = await fetchModelsDevLogo(id);
-            if (!cancelled) remoteSvg = svg;
-        })();
-
-        return () => {
-            cancelled = true;
-        };
-    });
-
     const svg = $derived.by(() => {
         const raw = SVG_BY_PROVIDER[normalizedProviderId];
-        if (raw) return normalizeSvg(raw);
-        return remoteSvg;
+        if (!raw) return '';
+        return normalizeSvg(raw);
     });
 </script>
 

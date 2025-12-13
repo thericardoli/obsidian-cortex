@@ -47,9 +47,9 @@ function createDefaultProviders(): Record<string, ProviderSettings> {
             baseUrl: BUILTIN_PROVIDERS.anthropic.defaultBaseUrl,
             models: [],
         },
-        google: {
+        gemini: {
             apiKey: '',
-            baseUrl: BUILTIN_PROVIDERS.google.defaultBaseUrl,
+            baseUrl: BUILTIN_PROVIDERS.gemini.defaultBaseUrl,
             models: [],
         },
         openrouter: {
